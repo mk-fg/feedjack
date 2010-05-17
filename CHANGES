@@ -1,5 +1,9 @@
 CHANGES:
 
+Feedjack 0.9.16-fg1
+* Revised feedjack_update, models. Added "immutable"
+   feed-flag to prevent updating posts based on content or mtime
+
 Feedjack 0.9.16
 * Added compatibility with Django 1.0 beta 1: newforms admin and pagination
 
@@ -48,7 +52,7 @@ Feedjack 0.9.9
 * Fixed a bug related to the --settings option in feedjack_update.py
 * The feeds per user, tag and user/tag are working again
 * You can choose between rss2 and atom in the feeds for user, tag and user/tag
-* The default /feed/ url now redirects to /feed/atom/ instead of /feed/rss/ 
+* The default /feed/ url now redirects to /feed/atom/ instead of /feed/rss/
 
 Feedjack 0.9.8
 * Internationalization (petar)
