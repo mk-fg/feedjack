@@ -60,7 +60,7 @@ class ProcessEntry:
 		fcat = list()
 		if self.entry.has_key('tags'):
 			for tcat in self.entry.tags:
-				qcat = (tcat.label if tcat.label not is None else tcat.term).strip()
+				qcat = (tcat.label if tcat.label is not None else tcat.term).strip()
 				if ',' in qcat or '/' in qcat: qcat = qcat.replace(',', '/').split('/')
 				else: qcat = [qcat]
 
@@ -110,7 +110,7 @@ class ProcessEntry:
 		from feedjack import models
 		entry_data = self.get_entry_data()
 
-		tags = u' '.join(it.imap(op.attrgetter('name'), fcat))
+		tags = u' '.join(it.imap(op.attrgetter('name'), entry_data.fcat))
 		log.debug(u'[{0}] Entry\n{1}'.format(self.feed.id, u'\n'.join(
 			u'  {0}: {1}'.format(key, getattr(entry_data, key, tags))
 			for key in ['title', 'link', 'guid', 'author', 'author_email', 'tags'] )))
@@ -121,22 +121,23 @@ class ProcessEntry:
 				entry_data.date_modified and tobj.date_modified != entry_data.date_modified )
 			if not self.feed.immutable and changed:
 				retval = ENTRY_UPDATED
-				log.extra('[{0}] Updating existing post: {1}'.format(self.feed.id, entry_data.link))
+				log.extra(u'[{0}] Updating existing post: {1}'.format(self.feed.id, entry_data.link))
 				for field in [ 'link', 'title', 'guid', 'author', 'author_email',
 					'content', 'comments' ]: setattr(tobj, field, getattr(entry_data, field))
 				tobj.date_modified = entry_data.date_modified or tobj.date_modified # damn non-standard feeds
 				tobj.tags.clear()
-				for tcat in fcat: tobj.tags.add(tcat)
+				for tcat in entry_data.fcat: tobj.tags.add(tcat)
 				tobj.save()
 			else:
 				retval = ENTRY_SAME
-				log.extra( ( '[{0}] Post has not changed: {1}' if not changed else
-					'[{0}] Post changed, but feed is marked as immutable: {1}' )\
-					.format(self.feed.id, link) )
+				log.extra( ( u'[{0}] Post has not changed: {1}' if not changed else
+					u'[{0}] Post changed, but feed is marked as immutable: {1}' )\
+						.format(self.feed.id, entry_data.link) )
 
 		else:
 			retval = ENTRY_NEW
-			log.extra('[{0}] Saving new post: {1}'.format(self.feed.id, link))
+			log.extra(u'[{0}] Saving new post: {1}'.format(self.feed.id, entry_data.link))
+			date_modified = entry_data.date_modified
 			if not date_modified and self.fpf:
 				# if the feed has no date_modified info, we use the feed
 				# mtime or the current time
@@ -144,12 +145,12 @@ class ProcessEntry:
 					date_modified = mtime(self.fpf.feed.modified_parsed)
 				elif self.fpf.has_key('modified'): date_modified = mtime(self.fpf.modified)
 			if not date_modified: date_modified = datetime.datetime.now()
-			tobj = dict(feed=self.feed)
+			tobj = dict(feed=self.feed, date_modified=date_modified)
 			for field in [ 'link', 'title', 'guid', 'author', 'author_email',
-				'content', 'comments', 'date_modified' ]: tobj[field] = getattr(entry_data, field)
+				'content', 'comments' ]: tobj[field] = getattr(entry_data, field)
 			tobj = models.Post(**tobj)
 			tobj.save()
-			for tcat in fcat: tobj.tags.add(tcat) # why it's done after save?
+			for tcat in entry_data.fcat: tobj.tags.add(tcat) # why it's done after save?
 
 		return retval
 
@@ -196,18 +197,18 @@ class ProcessFeed:
 				self.feed.id, self.fpf.status, self.feed.feed_url ))
 			if self.fpf.status == 304:
 				# this means the feed has not changed
-				log.extra(( '[{0}] Feed has not changed since '
+				log.extra(( u'[{0}] Feed has not changed since '
 					'last check: {1}' ).format(self.feed.id, self.feed.feed_url))
 				return FEED_SAME, ret_values
 
 			if self.fpf.status >= 400:
 				# http error, ignore
-				log.warn('[{0}] HTTP_ERROR {1}: {2}'.format(
+				log.warn(u'[{0}] HTTP_ERROR {1}: {2}'.format(
 					self.feed.id, self.fpf.status, self.feed.feed_url ))
 				return FEED_ERRHTTP, ret_values
 
 		if hasattr(self.fpf, 'bozo') and self.fpf.bozo:
-			log.error( '[{0}] BOZO! Feed is not well formed: {1}'\
+			log.error( u'[{0}] BOZO! Feed is not well formed: {1}'\
 				.format(self.feed.id, self.feed.feed_url) )
 
 		# the feed has changed (or it is the first time we parse it)
@@ -224,7 +225,7 @@ class ProcessFeed:
 		self.feed.link = self.fpf.feed.get('link', '')
 		self.feed.last_checked = datetime.datetime.now()
 
-		log.debug('[{0}] Feed info for: {1}\n{2}'.format(
+		log.debug(u'[{0}] Feed info for: {1}\n{2}'.format(
 			self.feed.id, self.feed.feed_url, u'\n'.join(
 			u'  {0}: {1}'.format(key, getattr(self.feed, key))
 			for key in ['title', 'tagline', 'link', 'last_checked'] )))
@@ -399,7 +400,7 @@ def main():
 	# our job dispatcher
 	disp = Dispatcher(options, options.workerthreads)
 
-	log.info('* BEGIN: {0}'.format(unicode(datetime.datetime.now())))
+	log.info(u'* BEGIN: {0}'.format(unicode(datetime.datetime.now())))
 
 	if options.feed:
 		feeds = models.Feed.objects.filter(id__in=options.feed)
@@ -408,12 +409,12 @@ def main():
 			known_ids.append(feed.id)
 			disp.add_job(feed)
 		for feed in options.feed:
-			if feed not in known_ids: log.warn('Unknown feed id: {0}'.format(feed))
+			if feed not in known_ids: log.warn(u'Unknown feed id: {0}'.format(feed))
 	elif options.site:
 		try: site = models.Site.objects.get(pk=int(options.site))
 		except models.Site.DoesNotExist:
 			site = None
-			log.warn('Unknown site id: {0}'.format(options.site))
+			log.warn(u'Unknown site id: {0}'.format(options.site))
 		if site:
 			feeds = [sub.feed for sub in site.subscriber_set.all()]
 			for feed in feeds: disp.add_job(feed)
@@ -426,7 +427,7 @@ def main():
 	# memcached, db and file backends
 	[fjcache.cache_delsite(site.id) for site in models.Site.objects.all()]
 
-	log.info('* END: {0} ({1})'.format( unicode(datetime.datetime.now()),
+	log.info(u'* END: {0} ({1})'.format( unicode(datetime.datetime.now()),
 		u'{0} threads'.format(options.workerthreads) if threadpool
 			else u'no threadpool module available, no parallel fetching' ))
 
