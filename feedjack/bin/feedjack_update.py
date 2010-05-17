@@ -117,9 +117,9 @@ class ProcessEntry:
 
 		if entry_data.guid in self.postdict:
 			tobj = self.postdict[entry_data.guid]
-			if tobj.content != entry_data.content\
-					or ( entry_data.date_modified
-						and tobj.date_modified != entry_data.date_modified ):
+			changed = tobj.content != entry_data.content or (
+				entry_data.date_modified and tobj.date_modified != entry_data.date_modified )
+			if not self.feed.immutable and changed:
 				retval = ENTRY_UPDATED
 				log.extra('[{0}] Updating existing post: {1}'.format(self.feed.id, entry_data.link))
 				for field in [ 'link', 'title', 'guid', 'author', 'author_email',
@@ -130,7 +130,9 @@ class ProcessEntry:
 				tobj.save()
 			else:
 				retval = ENTRY_SAME
-				log.extra('[{0}] Post has not changed: {1}'.format(self.feed.id, link))
+				log.extra( ( '[{0}] Post has not changed: {1}' if not changed else
+					'[{0}] Post changed, but feed is marked as immutable: {1}' )\
+					.format(self.feed.id, link) )
 
 		else:
 			retval = ENTRY_NEW
@@ -140,10 +142,8 @@ class ProcessEntry:
 				# mtime or the current time
 				if self.fpf.feed.has_key('modified_parsed'):
 					date_modified = mtime(self.fpf.feed.modified_parsed)
-				elif self.fpf.has_key('modified'):
-					date_modified = mtime(self.fpf.modified)
-			if not date_modified:
-				date_modified = datetime.datetime.now()
+				elif self.fpf.has_key('modified'): date_modified = mtime(self.fpf.modified)
+			if not date_modified: date_modified = datetime.datetime.now()
 			tobj = dict(feed=self.feed)
 			for field in [ 'link', 'title', 'guid', 'author', 'author_email',
 				'content', 'comments', 'date_modified' ]: tobj[field] = getattr(entry_data, field)
