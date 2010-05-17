@@ -25,8 +25,9 @@ sys.stdout = codec(sys.stdout)
 sys.stderr = codec(sys.stderr)
 
 import logging, functools as ft
+logging.EXTRA = (logging.DEBUG + logging.INFO) // 2
 log = logging.getLogger(os.path.basename(__file__))
-log.extra = ft.partial(log.log, (logging.DEBUG + logging.INFO) // 2)
+log.extra = ft.partial(log.log, logging.EXTRA)
 # TODO: special formatter to insert feed_id to the prefix
 
 def mtime(ttime):
@@ -374,24 +375,40 @@ class Dispatcher:
 def main():
 	""" Main function. Nothing to see here. Move along.
 	"""
+
 	import optparse
 	parser = optparse.OptionParser(usage='%prog [options]', version=USER_AGENT)
+
 	parser.add_option('--settings',
 		help='Python path to settings module. If this isn\'t provided, '
 			'the DJANGO_SETTINGS_MODULE enviroment variable will be used.')
+
 	parser.add_option('-f', '--feed', action='append', type='int',
 		help='A feed id to be updated. This option can be given multiple '
 			'times to update several feeds at the same time (-f 1 -f 4 -f 7).')
 	parser.add_option('-s', '--site', type='int', help='A site id to update.')
-	parser.add_option('-v', '--verbose', action='store_true',
-		dest='verbose', default=False, help='Verbose output.')
+
 	parser.add_option('-t', '--timeout', type='int', default=10,
 		help='Wait timeout in seconds when connecting to feeds.')
 	parser.add_option('-w', '--workerthreads', type='int', default=10,
 		help='Worker threads that will fetch feeds in parallel.')
+
+	parser.add_option('-q', '--quiet', action='store_true',
+		dest='quiet', help='Report only severe errors, no info or warnings.')
+	parser.add_option('-v', '--verbose', action='store_true',
+		dest='verbose', help='Verbose output.')
+	parser.add_option('--debug', action='store_true',
+		dest='debug', help='Even more verbose output.')
+
 	options = parser.parse_args()[0]
 	if options.settings:
 		os.environ["DJANGO_SETTINGS_MODULE"] = options.settings
+
+
+	if options.debug: logging.basicConfig(level=logging.DEBUG)
+	elif options.verbose: logging.basicConfig(level=logging.EXTRA)
+	elif options.quiet: logging.basicConfig(level=logging.ERROR)
+	else: logging.basicConfig(level=logging.INFO)
 
 
 	from feedjack import models, fjcache
