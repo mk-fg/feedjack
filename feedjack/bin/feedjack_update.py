@@ -57,29 +57,21 @@ class ProcessEntry:
 		"""
 		from feedjack import models
 
-		fcat = []
+		fcat = list()
 		if self.entry.has_key('tags'):
 			for tcat in self.entry.tags:
-				if tcat.label != None:
-					term = tcat.label
-				else:
-					term = tcat.term
-				qcat = term.strip()
-				if ',' in qcat or '/' in qcat:
-					qcat = qcat.replace(',', '/').split('/')
-				else:
-					qcat = [qcat]
+				qcat = (tcat.label if tcat.label not is None else tcat.term).strip()
+				if ',' in qcat or '/' in qcat: qcat = qcat.replace(',', '/').split('/')
+				else: qcat = [qcat]
+
 				for zcat in qcat:
-					tagname = zcat.lower()
-					while '  ' in tagname:
-						tagname = tagname.replace('  ', ' ')
-					tagname = tagname.strip()
-					if not tagname or tagname == ' ':
-						continue
+					tagname = ' '.join(zcat.lower().split()).strip()
+					if not tagname: continue
 					if not models.Tag.objects.filter(name=tagname):
 						cobj = models.Tag(name=tagname)
 						cobj.save()
 					fcat.append(models.Tag.objects.get(name=tagname))
+
 		return fcat
 
 	def get_entry_data(self):
