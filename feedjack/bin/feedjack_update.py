@@ -10,6 +10,7 @@ ENTRY_NEW, ENTRY_UPDATED, ENTRY_SAME, ENTRY_ERR = xrange(4)
 FEED_OK, FEED_SAME, FEED_ERRPARSE, FEED_ERRHTTP, FEED_ERREXC = xrange(5)
 
 
+import itertools as it, operator as op, functools as ft
 import os, sys, traceback
 import time, datetime
 import socket
@@ -30,12 +31,20 @@ log = logging.getLogger(os.path.basename(__file__))
 log.extra = ft.partial(log.log, logging.EXTRA)
 # TODO: special formatter to insert feed_id to the prefix
 
+
 def mtime(ttime):
 	""" datetime auxiliar function.
 	"""
 	return datetime.datetime.fromtimestamp(time.mktime(ttime))
 
+
+from collections import namedtuple
+EntryData = namedtuple( 'EntryData', 'link title guid'
+	' author author_email content date_modified fcat comments' )
+
+
 class ProcessEntry:
+
 	def __init__(self, feed, options, entry, postdict, fpf):
 		self.feed = feed
 		self.options = options
@@ -76,81 +85,61 @@ class ProcessEntry:
 	def get_entry_data(self):
 		""" Retrieves data from a post and returns it in a tuple.
 		"""
-		try:
-			link = self.entry.link
-		except AttributeError:
-			link = self.feed.link
-		try:
-			title = self.entry.title
-		except AttributeError:
-			title = link
+		# TODO: just use unsaved Post object with all the validators here
+		#  plus Post should probably have such from_feedparser constructor
+
+		link = getattr(self.entry, 'link', self.feed.link)
+		title = getattr(self.entry, 'title', link)
 		guid = self.entry.get('id', title)
 
-		if self.entry.has_key('author_detail'):
+		if 'author_detail' in self.entry:
 			author = self.entry.author_detail.get('name', '')
 			author_email = self.entry.author_detail.get('email', '')
-		else:
-			author, author_email = '', ''
+		else: author, author_email = '', ''
 
-		if not author:
-			author = self.entry.get('author', self.entry.get('creator', ''))
-		if not author_email:
-			# this should be optional~
-			author_email = 'nospam@nospam.com'
+		if not author: author = self.entry.get('author', self.entry.get('creator', ''))
+		if not author_email: author_email = 'nospam@nospam.com'
 
-		try:
-			content = self.entry.content[0].value
-		except:
-			content = self.entry.get('summary',
-									 self.entry.get('description', ''))
+		try: content = self.entry.content[0].value
+		except: content = self.entry.get('summary', self.entry.get('description', ''))
 
-		if self.entry.has_key('modified_parsed'):
-			date_modified = mtime(self.entry.modified_parsed)
-		else:
-			date_modified = None
+		date_modified = mtime(self.entry.modified_parsed)\
+			if 'modified_parsed' in self.entry else None
 
 		fcat = self.get_tags()
 		comments = self.entry.get('comments', '')
 
-		return (link, title, guid, author, author_email, content,
-				date_modified, fcat, comments)
+		return EntryData( link, title, guid, author,
+			author_email, content, date_modified, fcat, comments )
 
 	def process(self):
 		""" Process a post in a feed and saves it in the DB if necessary.
 		"""
 		from feedjack import models
-
-		(link, title, guid, author, author_email, content, date_modified,
-			fcat, comments) = self.get_entry_data() # TODO: refactory as an entry-object or namedtuple
+		entry_data = self.get_entry_data()
 
 		tags = u' '.join(it.imap(op.attrgetter('name'), fcat))
 		log.debug(u'[{0}] Entry\n{1}'.format(self.feed.id, u'\n'.join(
-			u'  {0}: {1}'.format(key, locals[key]) for key in
-			['title', 'link', 'guid', 'author', 'author_email', 'tags'] )))
+			u'  {0}: {1}'.format(key, getattr(entry_data, key, tags))
+			for key in ['title', 'link', 'guid', 'author', 'author_email', 'tags'] )))
 
-		if guid in self.postdict:
-			tobj = self.postdict[guid]
-			if tobj.content != content\
-					or (date_modified and tobj.date_modified != date_modified):
+		if entry_data.guid in self.postdict:
+			tobj = self.postdict[entry_data.guid]
+			if tobj.content != entry_data.content\
+					or ( entry_data.date_modified
+						and tobj.date_modified != entry_data.date_modified ):
 				retval = ENTRY_UPDATED
-				log.extra('[{0}] Updating existing post: {1}'.format(self.feed.id, link))
-				if not date_modified:
-					# damn non-standard feeds
-					date_modified = tobj.date_modified
-				tobj.title = title
-				tobj.link = link
-				tobj.content = content
-				tobj.guid = guid
-				tobj.date_modified = date_modified
-				tobj.author = author
-				tobj.author_email = author_email
-				tobj.comments = comments
+				log.extra('[{0}] Updating existing post: {1}'.format(self.feed.id, entry_data.link))
+				for field in [ 'link', 'title', 'guid', 'author', 'author_email',
+					'content', 'comments' ]: setattr(tobj, field, getattr(entry_data, field))
+				tobj.date_modified = entry_data.date_modified or tobj.date_modified # damn non-standard feeds
 				tobj.tags.clear()
-				[tobj.tags.add(tcat) for tcat in fcat]
+				for tcat in fcat: tobj.tags.add(tcat)
 				tobj.save()
 			else:
 				retval = ENTRY_SAME
 				log.extra('[{0}] Post has not changed: {1}'.format(self.feed.id, link))
+
 		else:
 			retval = ENTRY_NEW
 			log.extra('[{0}] Saving new post: {1}'.format(self.feed.id, link))
@@ -163,12 +152,13 @@ class ProcessEntry:
 					date_modified = mtime(self.fpf.modified)
 			if not date_modified:
 				date_modified = datetime.datetime.now()
-			tobj = models.Post(feed=self.feed, title=title, link=link,
-				content=content, guid=guid, date_modified=date_modified,
-				author=author, author_email=author_email,
-				comments=comments)
+			tobj = dict(feed=self.feed)
+			for field in [ 'link', 'title', 'guid', 'author', 'author_email',
+				'content', 'comments', 'date_modified' ]: tobj[field] = getattr(entry_data, field)
+			tobj = models.Post(**tobj)
 			tobj.save()
-			[tobj.tags.add(tcat) for tcat in fcat]
+			for tcat in fcat: tobj.tags.add(tcat) # why it's done after save?
+
 		return retval
 
 
@@ -181,8 +171,7 @@ class ProcessFeed:
 	def process_entry(self, entry, postdict):
 		""" wrapper for ProcessEntry
 		"""
-		entry = ProcessEntry(self.feed, self.options, entry, postdict,
-							 self.fpf)
+		entry = ProcessEntry(self.feed, self.options, entry, postdict, self.fpf)
 		ret_entry = entry.process()
 		del entry
 		return ret_entry
@@ -203,9 +192,8 @@ class ProcessFeed:
 		# we check the etag and the modified time to save bandwith and
 		# avoid bans
 		try:
-			self.fpf = feedparser.parse(self.feed.feed_url,
-										agent=USER_AGENT,
-										etag=self.feed.etag)
+			self.fpf = feedparser.parse(
+				self.feed.feed_url, agent=USER_AGENT, etag=self.feed.etag )
 		except:
 			log.error( u'Feed cannot be parsed: {0} (#{1})'\
 				.format(self.feed.feed_url, self.feed.id) )
