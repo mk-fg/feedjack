@@ -223,9 +223,9 @@ def get_paginator(site, sfeeds_ids, page=0, tag=None, user=None):
         except:
             raise Http404
     if site.order_posts_by == 2:
-        localposts = localposts.order_by('-date_created', '-date_modified')
+        localposts = localposts.order_by('-date_created', '-date_modified', 'feed')
     else:
-        localposts = localposts.order_by('-date_modified')
+        localposts = localposts.order_by('-date_modified', 'feed')
 
     paginator = ObjectPaginator(localposts.select_related(), \
       site.posts_per_page)

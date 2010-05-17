@@ -6,7 +6,7 @@ Gustavo Picón
 fjcache.py
 """
 
-import md5
+from hashlib import md5
 
 from django.core.cache import cache
 
@@ -21,9 +21,7 @@ T_META = 3
 def str2md5(key):
     """ Returns the md5 hash of a string.
     """
-    ctx = md5.new()
-    ctx.update(key.encode('utf-8'))
-    return ctx.hexdigest()
+    return md5(key.encode('utf-8')).hexdigest()
 
 def getkey(stype, site_id=None, key=None):
     """ Returns the cache key depending on it's type.

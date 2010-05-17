@@ -139,13 +139,13 @@ class Tag(models.Model):
 class Post(models.Model):
     feed = models.ForeignKey(Feed, verbose_name=_('feed'), null=False, blank=False)
     title = models.CharField(_('title'), max_length=255)
-    link = models.URLField(_('link'), )
+    link = models.URLField(_('link'), max_length=511)
     content = models.TextField(_('content'), blank=True)
     date_modified = models.DateTimeField(_('date modified'), null=True, blank=True)
-    guid = models.CharField(_('guid'), max_length=200, db_index=True)
-    author = models.CharField(_('author'), max_length=50, blank=True)
+    guid = models.CharField(_('guid'), max_length=511, db_index=True)
+    author = models.CharField(_('author'), max_length=255, blank=True)
     author_email = models.EmailField(_('author email'), blank=True)
-    comments = models.URLField(_('comments'), blank=True)
+    comments = models.URLField(_('comments'), max_length=511, blank=True)
     tags = models.ManyToManyField(Tag, verbose_name=_('tags'))
     date_created = models.DateField(_('date created'), auto_now_add=True)
 
