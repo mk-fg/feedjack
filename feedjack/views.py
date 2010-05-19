@@ -83,7 +83,7 @@ def buildfeed(request, feedclass, tag=None, user=None):
 	response, site, cachekey, sfeeds_obj, sfeeds_ids = initview(request)
 	if response: return response
 
-	object_list = fjlib.get_paginator(site, sfeeds_ids, page=0, tag=tag, user=user)[1]
+	object_list = fjlib.get_page(site, sfeeds_ids, page=1, tag=tag, user=user).object_list
 
 	feed = feedclass(
 		title=site.title,

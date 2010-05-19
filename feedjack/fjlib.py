@@ -12,67 +12,6 @@ from feedjack import fjcache
 import itertools as it
 
 
-# this is taken from django, it was removed in r8191
-class ObjectPaginator(Paginator):
-	"""
-	Legacy ObjectPaginator class, for backwards compatibility.
-
-	Note that each method on this class that takes page_number expects a
-	zero-based page number, whereas the new API (Paginator/Page) uses one-based
-	page numbers.
-	"""
-	def __init__(self, query_set, num_per_page, orphans=0):
-		Paginator.__init__(self, query_set, num_per_page, orphans)
-		import warnings
-		warnings.warn( 'The ObjectPaginator is deprecated.'
-			' Use django.core.paginator.Paginator instead.', DeprecationWarning )
-
-		# Keep these attributes around for backwards compatibility.
-		self.query_set = query_set
-		self.num_per_page = num_per_page
-		self._hits = self._pages = None
-
-	def validate_page_number(self, page_number):
-		try: page_number = int(page_number) + 1
-		except ValueError: raise PageNotAnInteger
-		return self.validate_number(page_number)
-
-	def get_page(self, page_number):
-		try: page_number = int(page_number) + 1
-		except ValueError: raise PageNotAnInteger
-		return self.page(page_number).object_list
-
-	def has_next_page(self, page_number):
-		return page_number < self.pages - 1
-
-	def has_previous_page(self, page_number):
-		return page_number > 0
-
-	def first_on_page(self, page_number):
-		"""
-		Returns the 1-based index of the first object on the given page,
-		relative to total objects found (hits).
-		"""
-		page_number = self.validate_page_number(page_number)
-		return (self.num_per_page * (page_number - 1)) + 1
-
-	def last_on_page(self, page_number):
-		"""
-		Returns the 1-based index of the last object on the given page,
-		relative to total objects found (hits).
-		"""
-		page_number = self.validate_page_number(page_number)
-		if page_number == self.num_pages:
-			return self.count
-		return page_number * self.num_per_page
-
-	# The old API called it "hits" instead of "count".
-	hits = Paginator.count
-
-	# The old API called it "pages" instead of "num_pages".
-	pages = Paginator.num_pages
-
-
 def sitefeeds(siteobj):
 	""" Returns the active feeds of a site.
 	"""
@@ -190,7 +129,7 @@ def getcurrentsite(http_post, path_info, query_string):
 	return hostdict[url], pagecachekey
 
 
-def get_paginator(site, sfeeds_ids, page=0, tag=None, user=None):
+def get_page(site, sfeeds_ids, page=1, tag=None, user=None):
 	""" Returns a paginator object and a requested page from it.
 	"""
 
@@ -209,13 +148,9 @@ def get_paginator(site, sfeeds_ids, page=0, tag=None, user=None):
 	localposts = localposts.order_by( *(['-date_created']
 		if site.order_posts_by == 2 else [] + ['-date_modified', 'feed']) )
 
-	paginator = ObjectPaginator(
-		localposts.select_related(), site.posts_per_page )
-	try: object_list = paginator.get_page(page)
-	except InvalidPage:
-		if page == 0: object_list = list()
-		else: raise Http404
-	return paginator, object_list
+	paginator = Paginator(localposts.select_related(), site.posts_per_page)
+	try: return paginator.page(page)
+	except InvalidPage: raise Http404
 
 
 def page_context(request, site, tag=None, user_id=None, sfeeds=None):
@@ -223,31 +158,30 @@ def page_context(request, site, tag=None, user_id=None, sfeeds=None):
 	"""
 	sfeeds_obj, sfeeds_ids = sfeeds
 
-	try: page = int(request.GET.get('page', 0))
-	except ValueError: page = 0
+	try: page = int(request.GET.get('page', 1))
+	except ValueError: page = 1
 
-	paginator, object_list = get_paginator(
-		site, sfeeds_ids, page=page, tag=tag, user=user_id )
-	if object_list:
+	page = get_page(site, sfeeds_ids, page=page, tag=tag, user=user_id)
+	if page.object_list:
 		# This will hit the DB once per page instead of once for every post in
 		# a page. To take advantage of this the template designer must call
 		# the qtags property in every item, instead of the default tags
 		# property.
 		user_obj, tag_obj = get_posts_tags(
-			object_list, sfeeds_obj, user_id, tag )
+			page.object_list, sfeeds_obj, user_id, tag )
 	else: user_obj, tag_obj = None, None
 
 	ctx = dict(
-		object_list = object_list,
-		is_paginated = paginator.pages > 1,
+		object_list = page.object_list,
+		is_paginated = page.paginator.num_pages > 1,
 		results_per_page = site.posts_per_page,
-		has_next = paginator.has_next_page(page),
-		has_previous = paginator.has_previous_page(page),
-		page = page + 1,
-		next = page + 1,
-		previous = page - 1,
-		pages = paginator.pages,
-		hits = paginator.hits )
+		has_next = page.has_next(),
+		has_previous = page.has_previous(),
+		page = page.number,
+		next = page.number + 1,
+		previous = page.number - 1,
+		pages = page.paginator.num_pages,
+		hits = page.paginator.count )
 
 	get_extra_content(site, sfeeds_ids, ctx)
 	from feedjack import fjcloud
