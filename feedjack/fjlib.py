@@ -160,7 +160,7 @@ def getcurrentsite(http_post, path_info, query_string):
 	"""
 
 	url = u'http://{0}/{1}'.format(*it.imap( smart_unicode,
-		http_post.rstrip('/'), path_info.lstrip('/') ))
+		(http_post.rstrip('/'), path_info.lstrip('/')) ))
 	pagecachekey = u'{0}?{1}'.format(*it.imap(smart_unicode, (path_info, query_string)))
 	hostdict = fjcache.hostcache_get() or dict()
 
@@ -205,6 +205,7 @@ def get_paginator(site, sfeeds_ids, page=0, tag=None, user=None):
 	if user:
 		try: localposts = localposts.filter(feed=user)
 		except: raise Http404
+
 	localposts = localposts.order_by( *(['-date_created']
 		if site.order_posts_by == 2 else [] + ['-date_modified', 'feed']) )
 
