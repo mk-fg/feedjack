@@ -11,6 +11,7 @@ from feedjack import models
 from feedjack import fjcache
 import itertools as it
 
+
 # this is taken from django, it was removed in r8191
 class ObjectPaginator(Paginator):
 	"""
@@ -158,10 +159,9 @@ def getcurrentsite(http_post, path_info, query_string):
 	""" Returns the site id and the page cache key based on the request.
 	"""
 
-	url = u'http://%s/%s' % (smart_unicode(http_post.rstrip('/')),
-	  smart_unicode(path_info.lstrip('/')) )
-	pagecachekey = '%s?%s' % (smart_unicode(path_info),
-	  smart_unicode(query_string) )
+	url = u'http://{0}/{1}'.format(*it.imap( smart_unicode,
+		http_post.rstrip('/'), path_info.lstrip('/') ))
+	pagecachekey = u'{0}?{1}'.format(*it.imap(smart_unicode, (path_info, query_string)))
 	hostdict = fjcache.hostcache_get() or dict()
 
 	if url not in hostdict:
@@ -205,10 +205,8 @@ def get_paginator(site, sfeeds_ids, page=0, tag=None, user=None):
 	if user:
 		try: localposts = localposts.filter(feed=user)
 		except: raise Http404
-	if site.order_posts_by == 2:
-		localposts = localposts.order_by('-date_created', '-date_modified', 'feed')
-	else:
-		localposts = localposts.order_by('-date_modified', 'feed')
+	localposts = localposts.order_by( *(['-date_created']
+		if site.order_posts_by == 2 else [] + ['-date_modified', 'feed']) )
 
 	paginator = ObjectPaginator(
 		localposts.select_related(), site.posts_per_page )
@@ -216,7 +214,7 @@ def get_paginator(site, sfeeds_ids, page=0, tag=None, user=None):
 	except InvalidPage:
 		if page == 0: object_list = list()
 		else: raise Http404
-	return (paginator, object_list)
+	return paginator, object_list
 
 
 def page_context(request, site, tag=None, user_id=None, sfeeds=None):
@@ -238,17 +236,17 @@ def page_context(request, site, tag=None, user_id=None, sfeeds=None):
 			object_list, sfeeds_obj, user_id, tag )
 	else: user_obj, tag_obj = None, None
 
-	ctx = {
-		'object_list': object_list,
-		'is_paginated': paginator.pages > 1,
-		'results_per_page': site.posts_per_page,
-		'has_next': paginator.has_next_page(page),
-		'has_previous': paginator.has_previous_page(page),
-		'page': page + 1,
-		'next': page + 1,
-		'previous': page - 1,
-		'pages': paginator.pages,
-		'hits' : paginator.hits }
+	ctx = dict(
+		object_list = object_list,
+		is_paginated = paginator.pages > 1,
+		results_per_page = site.posts_per_page,
+		has_next = paginator.has_next_page(page),
+		has_previous = paginator.has_previous_page(page),
+		page = page + 1,
+		next = page + 1,
+		previous = page - 1,
+		pages = paginator.pages,
+		hits = paginator.hits )
 
 	get_extra_content(site, sfeeds_ids, ctx)
 	from feedjack import fjcloud
