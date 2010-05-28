@@ -126,7 +126,7 @@ class Tag(models.Model):
 
 class Post(models.Model):
 	feed = models.ForeignKey(Feed, verbose_name=_('feed'), null=False, blank=False)
-	title = models.CharField(_('title'), max_length=255)
+	title = models.CharField(_('title'), max_length=511)
 	link = models.URLField(_('link'), max_length=511)
 	content = models.TextField(_('content'), blank=True)
 	date_modified = models.DateTimeField(_('date modified'), null=True, blank=True)
