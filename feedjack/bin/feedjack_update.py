@@ -249,7 +249,7 @@ class ProcessFeed:
 				print '[{0}] ! -------------------------'.format(self.feed.id)
 				print traceback.format_exception(etype, eobj, etb)
 				traceback.print_exception(etype, eobj, etb)
-				print '[{0}] ! -------------------------'.foramt(self.feed.id)
+				print '[{0}] ! -------------------------'.format(self.feed.id)
 				ret_entry = ENTRY_ERR
 			ret_values[ret_entry] += 1
 
