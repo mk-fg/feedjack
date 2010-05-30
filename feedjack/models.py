@@ -108,7 +108,9 @@ class Feed(models.Model):
 		verbose_name_plural = _('feeds')
 		ordering = ('name', 'feed_url',)
 
-	def __unicode__(self): return u'%s (%s)' % (self.name, self.feed_url)
+	def __unicode__(self):
+		return u'{0} ({1})'.format( self.name, self.feed_url
+			if len(self.feed_url) <= 50 else '{0}...'.format(self.feed_url[:47]) )
 
 
 

@@ -36,6 +36,7 @@ class PostAdmin(admin.ModelAdmin):
 	search_fields = 'link', 'title'
 	date_hierarchy = 'date_modified'
 	filter_vertical = 'tags',
+	list_filter = 'feed',
 
 
 
