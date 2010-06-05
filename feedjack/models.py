@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 
-
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from django.utils.encoding import smart_unicode
 
-from feedjack import fjcache
+from feedjack import fjcache, filters
+
+import itertools as it, operator as op, functools as ft
 
 
 SITE_ORDERBY_CHOICES = (
@@ -84,6 +85,70 @@ class Site(models.Model):
 
 
 
+FILTERS_MODULE = 'feedjack.filters'
+
+class FilterBase(models.Model): # I had to resist the urge to call it FilterClass or FilterModel
+
+	name = models.CharField(max_length=64, unique=True)
+	handler_name = models.CharField( max_length=256, blank=True,
+		help_text=( 'Processing function as and import-name, like'
+			' "myapp.filters.some_filter" or just a name if its a built-in filter'
+			' (contained in {0}), latter is implied if this field is omitted.<br />'
+			' Should accept Post object and optional (or not) parameter (derived from'
+			' actual Filter field) and return boolean value, indicating whether post'
+			' should be displayed or not.'.format(FILTERS_MODULE) ) )
+
+	@property
+	def handler(self):
+		'Handler function'
+		filter_func = getattr(filters, self.handler_name or self.name, None)
+		if filter_func is None:
+			if '.' not in self.handler_name:
+				raise ImportError('Filter function not found: {0}'.format(self.handler_name))
+			filter_module, filter_func = it.imap(str, self.handler_name.rsplit('.', 1))
+			filter_func = getattr(__import__(filter_module, fromlist=[filter_func]), filter_func)
+		return filter_func
+
+	def __unicode__(self): return u'{0.name} ({0.handler_name})'.format(self)
+
+
+class Filter(models.Model):
+	base = models.ForeignKey('FilterBase', related_name='filters')
+	# feeds (reverse m2m relation from Feed)
+	parameter = models.CharField( max_length=512, blank=True, null=True,
+		help_text='Parameter keyword to pass to a filter function.<br />Allows to define generic'
+			' filtering alghorithms in code (like "regex_filter") and actual filters in db itself'
+			' (specifying regex to filter by).<br />Null value would mean that "parameter" keyword'
+			' wont be passed to handler at all.' )
+
+	@property
+	def handler(self):
+		'Parametrized handler function'
+		return ft.partial(self.base.handler, parameter=self.parameter)\
+			if self.parameter is not None else self.base.handler
+
+	@property
+	def shortname(self):
+		return u'{0.base.name}{1}'.format( self,
+				u' ({0})'.format(self.parameter) if self.parameter else '' )
+	def __unicode__(self):
+		binding = u', '.join(it.imap(op.attrgetter('shortname'), self.feeds.all()))
+		return u'{0} (used on {1})'.format(self.shortname, binding)\
+			if binding else u'{0} (not used for any feed)'.format(self.shortname)
+
+
+class FilterResult(models.Model):
+	filter = models.ForeignKey('Filter')
+	post = models.ForeignKey('Post', related_name='filtering_results')
+	result = models.BooleanField()
+	timestamp = models.DateTimeField(auto_now=True)
+
+	def __unicode__(self):
+		return u'{0.result} ("{0.post}", {0.filter.shortname} on'\
+			u' {0.post.feed.shortname}, {0.timestamp})'.format(self)
+
+
+
 class Feed(models.Model):
 	feed_url = models.URLField(_('feed url'), unique=True)
 
@@ -97,6 +162,8 @@ class Feed(models.Model):
 	title = models.CharField(_('title'), max_length=200, blank=True)
 	tagline = models.TextField(_('tagline'), blank=True)
 	link = models.URLField(_('link'), blank=True)
+
+	filters = models.ManyToManyField('Filter', related_name='feeds')
 
 	# http://feedparser.org/docs/http-etag.html
 	etag = models.CharField(_('etag'), max_length=50, blank=True)
@@ -138,12 +205,48 @@ class Post(models.Model):
 	comments = models.URLField(_('comments'), max_length=511, blank=True)
 	tags = models.ManyToManyField(Tag, verbose_name=_('tags'))
 	date_created = models.DateField(_('date created'), auto_now_add=True)
+	# filtering_results (reverse m2m relation from FilterResult)
 
 	class Meta:
 		verbose_name = _('post')
 		verbose_name_plural = _('posts')
 		ordering = ('-date_modified',)
 		unique_together = (('feed', 'guid'),)
+
+	def _filtering_result(self, by_or):
+		return self.filtering_results.filter(
+			result=bool(by_or) )[0].result # find at least one failed / passed test
+
+	def filtering_result(self, by_or=False):
+		'Check that bound FilterResult objects are consistent with current feed filters.'
+		'''Check/return if post passes all / at_least_one (by_or parameter) filter(s).
+			Filters are evaluated on if-necessary basis'''
+		filters, results = self.feed.filters.all(), self.filtering_results.all()
+		filters, results_filters = it.imap(set, (filters, it.imap(op.attrgetter('filter'), results)))
+
+		# Check if conclusion can already be made, based on cached results
+		if results_filters.issubset(filters):
+			# If at least one failed/passed test is already there, and/or outcome is defined
+			try: return self._filtering_result(by_or)
+			except IndexError: # inconclusive until results are consistent
+				if filters == results_filters: return not by_or
+
+		# Consistency check / update
+		if filters != results_filters:
+			# Drop obsolete (removed, unbound from feed) filters' results (WILL corrupt outcome)
+			self.filtering_results.filter(filter__in=results_filters.difference(filters)).delete()
+			# One more try, now that results are only from feed filters' subset
+			try: return self._filtering_result(by_or)
+			except IndexError: pass
+			# Check if any filter-results are not cached yet, create them (perform actual filtering)
+			for filter_obj in filters.difference(results_filters):
+				filter_op = FilterResult(filter=filter_obj, post=self, result=filter_obj.handler(self))
+				filter_op.save()
+				if filter_op.result == by_or: return by_or # return as soon as first passed / failed
+
+		# Final result
+		try: return self._filtering_result(by_or)
+		except IndexError: return not by_or # none passed / none failed
 
 	def __unicode__(self): return self.title
 	def get_absolute_url(self): return self.link
