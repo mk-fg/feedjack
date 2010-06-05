@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from django.db.models import signals
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from django.utils.encoding import smart_unicode
@@ -7,11 +8,7 @@ from django.utils.encoding import smart_unicode
 from feedjack import fjcache, filters
 
 import itertools as it, operator as op, functools as ft
-
-
-SITE_ORDERBY_CHOICES = (
-	(1, _('Date published.')),
-	(2, _('Date the post was first obtained.')) )
+from collections import namedtuple
 
 
 
@@ -43,14 +40,14 @@ class Site(models.Model):
 	greets = models.TextField(_('greets'), null=True, blank=True)
 
 	default_site = models.BooleanField(_('default site'), default=False)
-	posts_per_page = models.IntegerField(_('posts per page'), default=20)
-	order_posts_by = models.IntegerField(_('order posts by'), default=1,
-		choices=SITE_ORDERBY_CHOICES)
-	tagcloud_levels = models.IntegerField(_('tagcloud level'), default=5)
+	posts_per_page = models.PositiveIntegerField(_('posts per page'), default=20)
+	order_posts_by = models.PositiveSmallIntegerField(_('order posts by'), default=1, choices=(
+		(1, _('Date published.')), (2, _('Date the post was first obtained.')) ))
+	tagcloud_levels = models.PositiveIntegerField(_('tagcloud level'), default=5)
 	show_tagcloud = models.BooleanField(_('show tagcloud'), default=True)
 
 	use_internal_cache = models.BooleanField(_('use internal cache'), default=True)
-	cache_duration = models.IntegerField(_('cache duration'), default=60*60*24,
+	cache_duration = models.PositiveIntegerField(_('cache duration'), default=60*60*24,
 		help_text=_('Duration in seconds of the cached pages and data.') )
 
 	links = models.ManyToManyField(Link, verbose_name=_('links'),
@@ -149,6 +146,8 @@ class FilterResult(models.Model):
 
 
 
+FEED_FILTERING_LOGIC = namedtuple('FilterLogic', 'all any')(*xrange(2))
+
 class Feed(models.Model):
 	feed_url = models.URLField(_('feed url'), unique=True)
 
@@ -164,6 +163,9 @@ class Feed(models.Model):
 	link = models.URLField(_('link'), blank=True)
 
 	filters = models.ManyToManyField('Filter', related_name='feeds')
+	filters_logic = models.PositiveSmallIntegerField(choices=(
+		(FEED_FILTERING_LOGIC.all, 'Should pass ALL filters (AND logic)'),
+		(FEED_FILTERING_LOGIC.any, 'Should pass ANY of the filters (OR logic)') ))
 
 	# http://feedparser.org/docs/http-etag.html
 	etag = models.CharField(_('etag'), max_length=50, blank=True)
@@ -180,6 +182,18 @@ class Feed(models.Model):
 			if len(self.feed_url) <= 50 else '{0}...'.format(self.feed_url[:47]) )
 
 
+	@staticmethod
+	def _filters_update_handler( sender, instance,
+			created=None, reverse=False, model=None, pk_set=list(), **kwz ):
+		if created is True: return # post_save hook, nothing to check/update
+		for post in it.chain.from_iterable( [instance.posts]
+			if not reverse else Feed.objects.filter(pk__in=pk_set) ): post.filtering_update()
+
+signals.m2m_changed.connect(Feed._filters_update_handler, sender=Feed.filters.through)
+signals.m2m_changed.connect(Feed._filters_update_handler, sender=Feed.filters.through)
+signals.post_save.connect(Feed._filters_update_handler, sender=Feed) # to handle filters_logic field updates
+
+
 
 class Tag(models.Model):
 	name = models.CharField(_('name'), max_length=50, unique=True)
@@ -193,8 +207,13 @@ class Tag(models.Model):
 
 
 
+class Posts(models.Manager):
+	def filtered(self): return self.get_query_set().filter(filtering_result=True)
+
 class Post(models.Model):
-	feed = models.ForeignKey(Feed, verbose_name=_('feed'), null=False, blank=False)
+	objects = Posts()
+
+	feed = models.ForeignKey(Feed, verbose_name=_('feed'))
 	title = models.CharField(_('title'), max_length=511)
 	link = models.URLField(_('link'), max_length=511)
 	content = models.TextField(_('content'), blank=True)
@@ -205,7 +224,9 @@ class Post(models.Model):
 	comments = models.URLField(_('comments'), max_length=511, blank=True)
 	tags = models.ManyToManyField(Tag, verbose_name=_('tags'))
 	date_created = models.DateField(_('date created'), auto_now_add=True)
-	# filtering_results (reverse m2m relation from FilterResult)
+
+	filtering_result = models.NullBooleanField()
+	# filtering_results (reverse fk from FilterResult)
 
 	class Meta:
 		verbose_name = _('post')
@@ -213,33 +234,33 @@ class Post(models.Model):
 		ordering = ('-date_modified',)
 		unique_together = (('feed', 'guid'),)
 
+
 	def _filtering_result(self, by_or):
 		return self.filtering_results.filter(
 			result=bool(by_or) )[0].result # find at least one failed / passed test
 
-	def filtering_result(self, by_or=False):
-		'Check that bound FilterResult objects are consistent with current feed filters.'
-		'''Check/return if post passes all / at_least_one (by_or parameter) filter(s).
-			Filters are evaluated on if-necessary basis'''
-		filters, results = self.feed.filters.all(), self.filtering_results.all()
-		filters, results_filters = it.imap(set, (filters, it.imap(op.attrgetter('filter'), results)))
+	def _filtering_result_checked(self, by_or):
+		'''Check if post passes all / at_least_one (by_or parameter) filter(s).
+			Filters are evaluated on only-if-necessary ("lazy") basis.'''
+		filters, results = it.imap(set, ( self.feed.filters.all(),
+			it.imap(op.attrgetter('filter'), self.filtering_results.all()) ))
 
 		# Check if conclusion can already be made, based on cached results
-		if results_filters.issubset(filters):
+		if results.issubset(filters):
 			# If at least one failed/passed test is already there, and/or outcome is defined
 			try: return self._filtering_result(by_or)
 			except IndexError: # inconclusive until results are consistent
-				if filters == results_filters: return not by_or
+				if filters == results: return not by_or
 
 		# Consistency check / update
-		if filters != results_filters:
+		if filters != results:
 			# Drop obsolete (removed, unbound from feed) filters' results (WILL corrupt outcome)
-			self.filtering_results.filter(filter__in=results_filters.difference(filters)).delete()
+			self.filtering_results.filter(filter__in=results.difference(filters)).delete()
 			# One more try, now that results are only from feed filters' subset
 			try: return self._filtering_result(by_or)
 			except IndexError: pass
 			# Check if any filter-results are not cached yet, create them (perform actual filtering)
-			for filter_obj in filters.difference(results_filters):
+			for filter_obj in filters.difference(results):
 				filter_op = FilterResult(filter=filter_obj, post=self, result=filter_obj.handler(self))
 				filter_op.save()
 				if filter_op.result == by_or: return by_or # return as soon as first passed / failed
@@ -248,8 +269,28 @@ class Post(models.Model):
 		try: return self._filtering_result(by_or)
 		except IndexError: return not by_or # none passed / none failed
 
+	def _filtering_result_update(self):
+		filtering_result = self._filtering_result_checked(
+			by_or=(self.feed.filters_logic == FEED_FILTERING_LOGIC.any) )
+		if self.filtering_result != filtering_result:
+			self.filtering_result = filtering_result
+			self.save()
+
+
 	def __unicode__(self): return self.title
 	def get_absolute_url(self): return self.link
+
+
+	@staticmethod
+	def _update_handler(sender, instance, **kwz):
+		if not instance._update_handler_call:
+			instance._update_handler_call = True
+			try: instance._filtering_result_update()
+			finally: instance._update_handler_call = False
+	_update_handler_call = False # flag to avoid recursion in _filtering_result_update
+
+signals.post_save.connect(Post._update_handler, sender=Post)
+signals.post_delete.connect(Post._update_handler, sender=Post)
 
 
 
@@ -259,12 +300,10 @@ class Subscriber(models.Model):
 
 	name = models.CharField(_('name'), max_length=100, null=True, blank=True,
 		help_text=_('Keep blank to use the Feed\'s original name.') )
-	shortname = models.CharField(_('shortname'), max_length=50, null=True,
-	  blank=True,
-	  help_text=_('Keep blank to use the Feed\'s original shortname.') )
-	is_active = models.BooleanField(_('is active'), default=True,
-		help_text=_('If disabled, this subscriber will not appear in the site or '
-		'in the site\'s feed.') )
+	shortname = models.CharField( _('shortname'), max_length=50, null=True,
+	  blank=True, help_text=_('Keep blank to use the Feed\'s original shortname.') )
+	is_active = models.BooleanField( _('is active'), default=True,
+		help_text=_('If disabled, this subscriber will not appear in the site or in the site\'s feed.') )
 
 	class Meta:
 		verbose_name = _('subscriber')
