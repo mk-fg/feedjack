@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import signals
 from django.db import models, connection
 from django.utils.translation import ugettext_lazy as _
@@ -86,12 +87,15 @@ class FilterBase(models.Model): # I had to resist the urge to call it FilterClas
 
 	name = models.CharField(max_length=64, unique=True)
 	handler_name = models.CharField( max_length=256, blank=True,
-		help_text=( 'Processing function as and import-name, like'
+		help_text='Processing function as and import-name, like'
 			' "myapp.filters.some_filter" or just a name if its a built-in filter'
 			' (contained in feedjack.filters), latter is implied if this field is omitted.<br />'
 			' Should accept Post object and optional (or not) parameter (derived from'
 			' actual Filter field) and return boolean value, indicating whether post'
-			' should be displayed or not.' ) )
+			' should be displayed or not.' )
+	crossref = models.BooleanField( 'Cross-referencing',
+		help_text='Indicates whether filtering results depend on other posts'
+			' (and possibly their filtering results) or not.' )
 
 	@property
 	def handler(self):
@@ -181,16 +185,46 @@ class Feed(models.Model):
 
 
 	@staticmethod
+	def _filters_update_handler_check(sender, instance, **kwz):
+		try:
+			instance._filter_logic_update = ( instance.filters_logic\
+				!= Feed.objects.get(id=instance.id).filters_logic )
+		except ObjectDoesNotExist: pass # shouldn't really matter
+	_filter_logic_update = None
+
+	@staticmethod
 	def _filters_update_handler( sender, instance,
 			created=None, reverse=False, model=None, pk_set=list(), **kwz ):
-		if created is True: return # post_save hook, nothing to check/update
-		for post in it.chain.from_iterable(feed.posts.all() for feed in ( [instance]
-			if not reverse else Feed.objects.filter(pk__in=pk_set) )): post.filtering_result_update()
+		# post_save-specific checks, so it won't be triggered on _every_ Feed save
+		if created is not None and ( created is True
+			or not instance._filter_logic_update ): return
+		# Get set of feeds that are affected by m2m update, note that it's always just
+		#  [instance] in case of post_save hook, since it doesn't pass "reverse" keyword.
+		related_feeds = [instance] if not reverse else Feed.objects.filter(id__in=pk_set)
+		# Then, get all Sites, incorporating the feed.
+		related_feeds = map(op.attrgetter('site.id'), Subscriber.objects.filter(feed__in=related_feeds))
+		# Drop cross-referencing filters' results, as they'd be totally screwed, note that
+		#  this means dropping all such results for every feed that shares a Site with this one.
+		# So, recalculation here is quite excessive op, possibly affecting every Post.
+		related_feeds = set(it.imap( op.attrgetter('feed'),
+			Subscriber.objects.filter(site__in=Site.objects.filter(id__in=related_feeds)) ))
+		FilterResult.objects.filter( post__feed__in=related_feeds,
+			filter__in=instance.filters.filter(base__crossref=True) ).delete()
+		# Walk the posts, checking/updating results for each one. That might take some time.
+		# Posts should be updated in the "added" order, for consistency of cross-ref filters' results.
+		for post in instance.posts.filter(feed__in=related_feeds)\
+			.order_by('date_created'): post.filtering_result_update()
+
+	def posts_update_handler(self):
+		'Update all cross-referencing filters results for this and related feeds'
+		self._filter_logic_update = True
+		return self._filters_update_handler(self.__class__, self, created=False)
 
 signals.m2m_changed.connect(Feed._filters_update_handler, sender=Feed.filters.through)
-signals.m2m_changed.connect(Feed._filters_update_handler, sender=Feed.filters.through)
-signals.post_save.connect(Feed._filters_update_handler, sender=Feed) # to handle filters_logic field updates
 
+# These two are purely to handle filters_logic field updates
+signals.pre_save.connect(Feed._filters_update_handler_check, sender=Feed)
+signals.post_save.connect(Feed._filters_update_handler, sender=Feed)
 
 
 class Tag(models.Model):
@@ -267,22 +301,25 @@ class Post(models.Model):
 		filters, results = it.imap(set, ( self.feed.filters.all(),
 			it.imap(op.attrgetter('filter'), self.filtering_results.all()) ))
 
-		# Check if conclusion can already be made, based on cached results
+		# Check if conclusion can already be made, based on cached results.
 		if results.issubset(filters):
-			# If at least one failed/passed test is already there, and/or outcome is defined
+			# If at least one failed/passed test is already there, and/or outcome is defined.
 			try: return self._filtering_result(by_or)
 			except IndexError: # inconclusive until results are consistent
 				if filters == results: return not by_or
 
-		# Consistency check / update
+		# Consistency check / update.
 		if filters != results:
-			# Drop obsolete (removed, unbound from feed) filters' results (WILL corrupt outcome)
+			# Drop obsolete (removed, unbound from feed)
+			#  filters' results (they WILL corrupt outcome).
 			self.filtering_results.filter(filter__in=results.difference(filters)).delete()
-			# One more try, now that results are only from feed filters' subset
+			# One more try, now that results are only from feed filters' subset.
 			try: return self._filtering_result(by_or)
 			except IndexError: pass
-			# Check if any filter-results are not cached yet, create them (perform actual filtering)
-			for filter_obj in filters.difference(results):
+			# Check if any filter-results are not cached yet, create them (perform actual filtering).
+			# Note that independent filters applied first, since
+			#  crossrefs should be more resource-hungry in general.
+			for filter_obj in sorted(filters.difference(results), key=op.attrgetter('base.crossref')):
 				filter_op = FilterResult(filter=filter_obj, post=self, result=filter_obj.handler(self))
 				filter_op.save()
 				if filter_op.result == by_or: return by_or # return as soon as first passed / failed
@@ -307,12 +344,13 @@ class Post(models.Model):
 	def _update_handler(sender, instance, **kwz):
 		if not instance._update_handler_call:
 			instance._update_handler_call = True
-			try: instance.filtering_result_update()
+			try: instance.feed.posts_update_handler()
 			finally: instance._update_handler_call = False
 	_update_handler_call = False # flag to avoid recursion in filtering_result_update
 
 signals.post_save.connect(Post._update_handler, sender=Post)
 signals.post_delete.connect(Post._update_handler, sender=Post)
+
 
 
 
@@ -343,3 +381,21 @@ class Subscriber(models.Model):
 		if not self.name: self.name = self.feed.name
 		if not self.shortname: self.shortname = self.feed.shortname
 		super(Subscriber, self).save()
+
+
+	@staticmethod
+	def _update_handler_check(sender, instance, **kwz):
+		try: pre_instance = Subscriber.objects.get(id=instance.id)
+		except ObjectDoesNotExist: pass # just created
+		else:
+			self._relation_update = ( instance.site != pre_instance.site
+				or instance.feed != pre_instance.feed )
+	_relation_update = None
+
+	@staticmethod
+	def _update_handler(sender, instance, created, **kwz):
+		if created: return
+		if self._relation_update: instance.feed.posts_update_handler()
+
+signals.pre_save.connect(Subscriber._update_handler_check, sender=Subscriber)
+signals.post_save.connect(Subscriber._update_handler, sender=Subscriber)

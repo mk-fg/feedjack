@@ -44,7 +44,7 @@ admin.site.register(models.Subscriber, SubscriberAdmin)
 
 
 class FilterBaseAdmin(admin.ModelAdmin):
-	list_display = 'name', 'handler_name'
+	list_display = 'name', 'handler_name', 'crossref'
 	ordering = 'name',
 admin.site.register(models.FilterBase, FilterBaseAdmin)
 
