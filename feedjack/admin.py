@@ -6,29 +6,26 @@ from django.utils.translation import ugettext_lazy as _
 from feedjack import models
 
 
-
-class LinkAdmin(admin.ModelAdmin):
-	pass
-
-
-
 class SiteAdmin(admin.ModelAdmin):
 	list_display = 'url', 'name'
 	filter_vertical = 'links',
-
+admin.site.register(models.Site, SiteAdmin)
 
 
 class FeedAdmin(admin.ModelAdmin):
 	list_display = 'name', 'feed_url',\
 		'title', 'last_modified', 'immutable', 'is_active'
+	filter_horizontal = 'filters',
 	fieldsets = (
 		(None,
 			{'fields': ('feed_url', 'name', 'shortname', 'immutable', 'is_active')}),
+		('Filtering',
+			{'classes':('collapse',), 'fields': ('filters_logic', 'filters')}),
 		(_('Fields updated automatically by Feedjack'),
 			{'classes':('collapse',), 'fields':
 				('title', 'tagline', 'link', 'etag', 'last_modified', 'last_checked') }) )
-	search_fields = ['feed_url', 'name', 'title']
-
+	search_fields = 'feed_url', 'name', 'title'
+admin.site.register(models.Feed, FeedAdmin)
 
 
 class PostAdmin(admin.ModelAdmin):
@@ -37,16 +34,20 @@ class PostAdmin(admin.ModelAdmin):
 	date_hierarchy = 'date_modified'
 	filter_vertical = 'tags',
 	list_filter = 'feed',
-
+admin.site.register(models.Post, PostAdmin)
 
 
 class SubscriberAdmin(admin.ModelAdmin):
 	list_display = 'name', 'site', 'feed'
 	list_filter = 'site',
-
-
-admin.site.register(models.Link, LinkAdmin)
-admin.site.register(models.Site, SiteAdmin)
-admin.site.register(models.Feed, FeedAdmin)
-admin.site.register(models.Post, PostAdmin)
 admin.site.register(models.Subscriber, SubscriberAdmin)
+
+
+class FilterBaseAdmin(admin.ModelAdmin):
+	list_display = 'name', 'handler_name'
+	ordering = 'name',
+admin.site.register(models.FilterBase, FilterBaseAdmin)
+
+
+admin.site.register(models.Link)
+admin.site.register(models.Filter)

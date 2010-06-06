@@ -125,13 +125,13 @@ class Filter(models.Model):
 			if self.parameter is not None else self.base.handler
 
 	@property
-	def shortname(self):
-		return u'{0.base.name}{1}'.format( self,
-				u' ({0})'.format(self.parameter) if self.parameter else '' )
-	def __unicode__(self):
-		binding = u', '.join(it.imap(op.attrgetter('shortname'), self.feeds.all()))
-		return u'{0} (used on {1})'.format(self.shortname, binding)\
-			if binding else u'{0} (not used for any feed)'.format(self.shortname)
+	def shortname(self): return self.__unicode__(short=True)
+	def __unicode__(self, short=False):
+		usage = [self.parameter] if self.parameter else list()
+		if not short:
+			binding = u', '.join(it.imap(op.attrgetter('shortname'), self.feeds.all()))
+			usage.append(u'used on {0}'.format(binding) if binding else 'not used for any feed')
+		return u'{0.base.name}{1}'.format(self, u' ({0})'.format(u', '.join(usage) if usage else ''))
 
 
 class FilterResult(models.Model):
@@ -163,7 +163,7 @@ class Feed(models.Model):
 	link = models.URLField(_('link'), blank=True)
 
 	filters = models.ManyToManyField('Filter', related_name='feeds')
-	filters_logic = models.PositiveSmallIntegerField(choices=(
+	filters_logic = models.PositiveSmallIntegerField('Composition', choices=(
 		(FEED_FILTERING_LOGIC.all, 'Should pass ALL filters (AND logic)'),
 		(FEED_FILTERING_LOGIC.any, 'Should pass ANY of the filters (OR logic)') ))
 
@@ -186,8 +186,8 @@ class Feed(models.Model):
 	def _filters_update_handler( sender, instance,
 			created=None, reverse=False, model=None, pk_set=list(), **kwz ):
 		if created is True: return # post_save hook, nothing to check/update
-		for post in it.chain.from_iterable( [instance.posts]
-			if not reverse else Feed.objects.filter(pk__in=pk_set) ): post.filtering_update()
+		for post in it.chain.from_iterable(feed.posts.all() for feed in ( [instance]
+			if not reverse else Feed.objects.filter(pk__in=pk_set) )): post.filtering_result_update()
 
 signals.m2m_changed.connect(Feed._filters_update_handler, sender=Feed.filters.through)
 signals.m2m_changed.connect(Feed._filters_update_handler, sender=Feed.filters.through)
@@ -213,7 +213,7 @@ class Posts(models.Manager):
 class Post(models.Model):
 	objects = Posts()
 
-	feed = models.ForeignKey(Feed, verbose_name=_('feed'))
+	feed = models.ForeignKey(Feed, verbose_name=_('feed'), related_name='posts')
 	title = models.CharField(_('title'), max_length=511)
 	link = models.URLField(_('link'), max_length=511)
 	content = models.TextField(_('content'), blank=True)
@@ -269,7 +269,7 @@ class Post(models.Model):
 		try: return self._filtering_result(by_or)
 		except IndexError: return not by_or # none passed / none failed
 
-	def _filtering_result_update(self):
+	def filtering_result_update(self):
 		filtering_result = self._filtering_result_checked(
 			by_or=(self.feed.filters_logic == FEED_FILTERING_LOGIC.any) )
 		if self.filtering_result != filtering_result:
@@ -285,9 +285,9 @@ class Post(models.Model):
 	def _update_handler(sender, instance, **kwz):
 		if not instance._update_handler_call:
 			instance._update_handler_call = True
-			try: instance._filtering_result_update()
+			try: instance.filtering_result_update()
 			finally: instance._update_handler_call = False
-	_update_handler_call = False # flag to avoid recursion in _filtering_result_update
+	_update_handler_call = False # flag to avoid recursion in filtering_result_update
 
 signals.post_save.connect(Post._update_handler, sender=Post)
 signals.post_delete.connect(Post._update_handler, sender=Post)
