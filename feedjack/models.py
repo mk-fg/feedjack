@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from django.db.models import signals
-from django.db import models
+from django.db import models, connection
 from django.utils.translation import ugettext_lazy as _
 from django.utils.encoding import smart_unicode
 
@@ -82,18 +82,16 @@ class Site(models.Model):
 
 
 
-FILTERS_MODULE = 'feedjack.filters'
-
 class FilterBase(models.Model): # I had to resist the urge to call it FilterClass or FilterModel
 
 	name = models.CharField(max_length=64, unique=True)
 	handler_name = models.CharField( max_length=256, blank=True,
 		help_text=( 'Processing function as and import-name, like'
 			' "myapp.filters.some_filter" or just a name if its a built-in filter'
-			' (contained in {0}), latter is implied if this field is omitted.<br />'
+			' (contained in feedjack.filters), latter is implied if this field is omitted.<br />'
 			' Should accept Post object and optional (or not) parameter (derived from'
 			' actual Filter field) and return boolean value, indicating whether post'
-			' should be displayed or not.'.format(FILTERS_MODULE) ) )
+			' should be displayed or not.' ) )
 
 	@property
 	def handler(self):
@@ -207,8 +205,32 @@ class Tag(models.Model):
 
 
 
+
+class PostQuerySet(models.query.QuerySet):
+	def similar(self, threshold, **criterias):
+		'''Find text-based field matches with similarity (1-levenshtein/length)
+			higher than specified threshold (0 to 1, 1 being an exact match)'''
+		meta = self.model._meta
+		funcs, params = list(), list()
+		for name,val in criterias.iteritems():
+			name = meta.get_field(name, many_to_many=False).column
+			name = '.'.join(it.imap(connection.ops.quote_name, (meta.db_table, name)))
+			# Alas, pg_trgm is for containment tests, not fuzzy matches ;(
+			# funcs.append( 'similarity(CAST({0}.{1} as text), CAST(%s as text))'\
+			funcs.append('length({0}) > 0'.format(name)) # either that or div_by_zero crash
+			funcs.append('levenshtein({0}, %s) / CAST(length({0}) AS numeric) < %s'.format(name))
+			params.extend((val, float(1 - threshold)))
+		return self.extra(where=funcs, params=params)
+
 class Posts(models.Manager):
-	def filtered(self): return self.get_query_set().filter(filtering_result=True)
+	def get_query_set(self): return PostQuerySet(self.model)
+
+	@ft.wraps(PostQuerySet.similar)
+	def similar(self, *argz, **kwz):
+		return self.get_query_set().similar(*argz, **kwz)
+	def filtered(self):
+		return self.get_query_set().filter(filtering_result=True)
+
 
 class Post(models.Model):
 	objects = Posts()
