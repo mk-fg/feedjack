@@ -10,6 +10,7 @@ from feedjack import fjcache, filters
 
 import itertools as it, operator as op, functools as ft
 from collections import namedtuple
+from datetime import datetime, timedelta
 
 
 
@@ -96,6 +97,9 @@ class FilterBase(models.Model): # I had to resist the urge to call it FilterClas
 	crossref = models.BooleanField( 'Cross-referencing',
 		help_text='Indicates whether filtering results depend on other posts'
 			' (and possibly their filtering results) or not.' )
+	crossref_span = models.PositiveSmallIntegerField( 'How many days of history'
+		' should be re-referenced on post changes to keep this results conclusive.'
+		' Performance-quality knob, since ideally this should be an infinity.' )
 
 	@property
 	def handler(self):
@@ -195,25 +199,46 @@ class Feed(models.Model):
 	@staticmethod
 	def _filters_update_handler( sender, instance,
 			created=None, reverse=False, model=None, pk_set=list(), **kwz ):
-		# post_save-specific checks, so it won't be triggered on _every_ Feed save
+		### Main "crossref-rebuild" function. ALL filter-consistency hooks call it in the end.
+		### Logic here is pretty obscure, so I'll try to explain it in comments.
+		## Check if this call is a result of actions initiated from
+		##  this very function in a higher frame (recursion).
+		if Feed._filters_update_handler_lock: return
+		## post_save-specific checks, so it won't be triggered on _every_
+		##  Feed save, only those that change "filter_logic" on existing feeds.
 		if created is not None and ( created is True
 			or not instance._filter_logic_update ): return
-		# Get set of feeds that are affected by m2m update, note that it's always just
-		#  [instance] in case of post_save hook, since it doesn't pass "reverse" keyword.
+		## Set anti-recursion lock
+		Feed._filters_update_handler_lock = True
+		## Get set of feeds that are affected by m2m update, note that it's always just
+		##  [instance] in case of post_save hook, since it doesn't pass "reverse" keyword.
 		related_feeds = [instance] if not reverse else Feed.objects.filter(id__in=pk_set)
-		# Then, get all Sites, incorporating the feed.
+		## Then, get all Sites, incorporating the feed - all their feeds are affected.
 		related_feeds = map(op.attrgetter('site.id'), Subscriber.objects.filter(feed__in=related_feeds))
-		# Drop cross-referencing filters' results, as they'd be totally screwed, note that
-		#  this means dropping all such results for every feed that shares a Site with this one.
-		# So, recalculation here is quite excessive op, possibly affecting every Post.
+		## Drop cross-referencing filters' results, as they'd be totally screwed, note that
+		##  this means dropping all such results for every feed that shares a Site with "instance".
+		# This is a set of feeds that share the Site(s) with "instance".
+		# TODO: some feeds can be dropped right here, on a basis that they have no crossref filters.
 		related_feeds = set(it.imap( op.attrgetter('feed'),
 			Subscriber.objects.filter(site__in=Site.objects.filter(id__in=related_feeds)) ))
+		# Pure performance-hack: find time threshold after which we just "don't care",
+		#  since it's too old history and shouldn't be relevant anymore.
+		# Value is set for FilterBase, so results should be recalculated in max-span delta.
+		date_threshold = datetime.now() - timedelta(max(
+			op.itemgetter('base.crossref_span'), set(feed.filters.all() for feed in related_feeds) ))
+		# This actually drops all the results before "date_threshold" on "related_feeds"
 		FilterResult.objects.filter( post__feed__in=related_feeds,
-			filter__in=instance.filters.filter(base__crossref=True) ).delete()
-		# Walk the posts, checking/updating results for each one. That might take some time.
+			post__date_created__gt=date_threshold, filter__base__crossref==True ).delete()
+		## Now, walk the posts, checking/updating results for each one.
 		# Posts should be updated in the "added" order, for consistency of cross-ref filters' results.
-		for post in instance.posts.filter(feed__in=related_feeds)\
-			.order_by('date_created'): post.filtering_result_update()
+		# Amount of work here is quite extensive, since this (ideally) should affect every Post.
+		for post in instance.posts.filter( feed__in=related_feeds,
+			date_created__gt=date_threshold ).order_by('date_created'): post.filtering_result_update()
+		## Unlock this function again
+		Feed._filters_update_handler_lock = False
+
+	# Anti-recursion flag
+	_filters_update_handler_lock = False
 
 	def posts_update_handler(self):
 		'Update all cross-referencing filters results for this and related feeds'
