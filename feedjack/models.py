@@ -208,7 +208,7 @@ class Feed(models.Model):
 		##  Feed save, only those that change "filter_logic" on existing feeds.
 		if not force and created is not None and (
 			created is True or not instance._filter_logic_update ): return
-		## Set anti-recursion lock
+		## Set anti-recursion lock.
 		Feed._filters_update_handler_lock = True
 		## Get set of feeds that are affected by m2m update, note that it's always just
 		##  [instance] in case of post_save hook, since it doesn't pass "reverse" keyword.
@@ -230,9 +230,13 @@ class Feed(models.Model):
 		## Now, walk the posts, checking/updating results for each one.
 		# Posts should be updated in the "added" order, for consistency of cross-ref filters' results.
 		# Amount of work here is quite extensive, since this (ideally) should affect every Post.
-		for post in instance.posts.filter( feed__in=related_feeds,
+		for post in Post.objects.filter( feed__in=related_feeds,
 			date_created__gt=date_threshold ).order_by('date_created'): post.filtering_result_update()
-		## Unlock this function again
+		# Special case: updated filtering logic, that certainly affects every post of "instance",
+		#  so they all should be updated. Shouldn't happen too often anyway.
+		if created is False and instance._filter_logic_update:
+			for post in instance.posts.order_by('date_created'): post.filtering_result_update()
+		## Unlock this function again.
 		Feed._filters_update_handler_lock = False
 
 	# Anti-recursion flag, class-global
