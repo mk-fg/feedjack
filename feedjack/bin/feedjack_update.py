@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 
-VERSION = '0.9.16-fg1'
+VERSION = '0.9.16-fg2'
 URL = 'http://www.feedjack.org/'
 USER_AGENT = 'Feedjack {0} - {1}'.format(VERSION, URL)
 SLOWFEED_WARNING = 10
@@ -11,8 +11,9 @@ FEED_OK, FEED_SAME, FEED_ERRPARSE, FEED_ERRHTTP, FEED_ERREXC = xrange(5)
 
 
 import itertools as it, operator as op, functools as ft
+from datetime import datetime
+from time import sleep
 import os, sys, traceback
-import time, datetime
 import socket
 
 import feedparser
@@ -32,34 +33,46 @@ log.extra = ft.partial(log.log, logging.EXTRA)
 # TODO: special formatter to insert feed_id to the prefix
 
 
-def mtime(ttime):
-	""" datetime auxiliar function.
-	"""
-	return datetime.datetime.fromtimestamp(time.mktime(ttime))
+mtime = lambda ttime: datetime.fromtimestamp(ttime[:6])
 
 
-from collections import namedtuple
-EntryData = namedtuple( 'EntryData', 'link title guid'
-	' author author_email content date_modified fcat comments' )
+class ProcessFeed:
 
-
-class ProcessEntry:
-
-	def __init__(self, feed, options, entry, postdict, fpf):
+	def __init__(self, feed, options):
 		self.feed = feed
 		self.options = options
-		self.entry = entry
-		self.postdict = postdict
-		self.fpf = fpf
+		self.fpf = None
 
-	def get_tags(self):
-		""" Returns a list of tag objects from an entry.
-		"""
-		from feedjack import models
 
+	def process_entry(self, entry):
+		'Construct a Post from a feedparser entry and save/update it in db'
+
+		from feedjack.models import Post, Tag
+
+		## Construct a Post object from feedparser entry (FeedParserDict)
+		post = Post(feed=self.feed)
+		post.link = entry.get('link', self.feed.link)
+		post.title = entry.get('title', post.link)
+		post.guid = entry.get('id', post.title)
+
+		if 'author_detail' in entry:
+			post.author = entry.author_detail.get('name', '')
+			post.author_email = entry.author_detail.get('email', '')
+		if not post.author: post.author = entry.get('author', entry.get('creator', ''))
+		if not post.author_email: post.author_email = 'nospam@nospam.com'
+
+		try: post.content = entry.content[0].value
+		except: post.content = entry.get('summary', entry.get('description', ''))
+
+		post.date_modified = mtime(entry.modified_parsed)\
+			if 'modified_parsed' in entry else None
+		post.comments = entry.get('comments', '')
+
+		## Get a list of tag objects from an entry
+		# Note that these objects can't go into m2m field until properly saved
 		fcat = list()
-		if self.entry.has_key('tags'):
-			for tcat in self.entry.tags:
+		if entry.has_key('tags'):
+			for tcat in entry.tags:
 				qcat = (tcat.label if tcat.label is not None else tcat.term).strip()
 				if ',' in qcat or '/' in qcat: qcat = qcat.replace(',', '/').split('/')
 				else: qcat = [qcat]
@@ -67,107 +80,57 @@ class ProcessEntry:
 				for zcat in qcat:
 					tagname = ' '.join(zcat.lower().split()).strip()
 					if not tagname: continue
-					if not models.Tag.objects.filter(name=tagname):
-						cobj = models.Tag(name=tagname)
+					if not Tag.objects.filter(name=tagname):
+						cobj = Tag(name=tagname)
 						cobj.save()
-					fcat.append(models.Tag.objects.get(name=tagname))
+					fcat.append(Tag.objects.get(name=tagname))
 
-		return fcat
+		## Some feedback
+		post_base_fields = 'title link guid author author_email'.split()
 
-	def get_entry_data(self):
-		""" Retrieves data from a post and returns it in a tuple.
-		"""
-		# TODO: just use unsaved Post object with all the validators here
-		#  plus Post should probably have such from_feedparser constructor
-
-		link = getattr(self.entry, 'link', self.feed.link)
-		title = getattr(self.entry, 'title', link)
-		guid = self.entry.get('id', title)
-
-		if 'author_detail' in self.entry:
-			author = self.entry.author_detail.get('name', '')
-			author_email = self.entry.author_detail.get('email', '')
-		else: author, author_email = '', ''
-
-		if not author: author = self.entry.get('author', self.entry.get('creator', ''))
-		if not author_email: author_email = 'nospam@nospam.com'
-
-		try: content = self.entry.content[0].value
-		except: content = self.entry.get('summary', self.entry.get('description', ''))
-
-		date_modified = mtime(self.entry.modified_parsed)\
-			if 'modified_parsed' in self.entry else None
-
-		fcat = self.get_tags()
-		comments = self.entry.get('comments', '')
-
-		return EntryData( link, title, guid, author,
-			author_email, content, date_modified, fcat, comments )
-
-	def process(self):
-		""" Process a post in a feed and saves it in the DB if necessary.
-		"""
-		from feedjack import models
-		entry_data = self.get_entry_data()
-
-		tags = u' '.join(it.imap(op.attrgetter('name'), entry_data.fcat))
+		tags = u' '.join(it.imap(op.attrgetter('name'), fcat))
 		log.debug(u'[{0}] Entry\n{1}'.format(self.feed.id, u'\n'.join(
-			u'  {0}: {1}'.format(key, getattr(entry_data, key, tags))
-			for key in ['title', 'link', 'guid', 'author', 'author_email', 'tags'] )))
+			u'  {0}: {1}'.format(key, getattr(post, key, tags))
+			for key in post_basic_fields + ['tags'] )))
 
-		if entry_data.guid in self.postdict:
-			tobj = self.postdict[entry_data.guid]
-			changed = tobj.content != entry_data.content or (
-				entry_data.date_modified and tobj.date_modified != entry_data.date_modified )
+		## Store / update a post
+		if post.guid in self.postdict: # post exists, update if it was modified (and feed is mutable)
+			post_old = self.postdict[post.guid]
+			changed = post_old.content != post.content or (
+				post.date_modified and post_old.date_modified != post.date_modified )
+
 			if not self.feed.immutable and changed:
 				retval = ENTRY_UPDATED
-				log.extra(u'[{0}] Updating existing post: {1}'.format(self.feed.id, entry_data.link))
-				for field in [ 'link', 'title', 'guid', 'author', 'author_email',
-					'content', 'comments' ]: setattr(tobj, field, getattr(entry_data, field))
-				tobj.date_modified = entry_data.date_modified or tobj.date_modified # damn non-standard feeds
-				tobj.tags.clear()
-				for tcat in entry_data.fcat: tobj.tags.add(tcat)
-				tobj.save()
+				log.extra(u'[{0}] Updating existing post: {1}'.format(self.feed.id, post.link))
+				# Update fields
+				for field in post_base_fields + ['content', 'comments']:
+					setattr(post_old, field, getattr(post, field))
+				post_old.date_modified = post.date_modified or post_old.date_modified
+				# Update tags
+				post_old.tags.clear()
+				for tcat in fcat: post_old.tags.add(tcat)
+				post_old.save()
 			else:
 				retval = ENTRY_SAME
 				log.extra( ( u'[{0}] Post has not changed: {1}' if not changed else
 					u'[{0}] Post changed, but feed is marked as immutable: {1}' )\
-						.format(self.feed.id, entry_data.link) )
+						.format(self.feed.id, post.link) )
 
-		else:
+		else: # new post, store it into database
 			retval = ENTRY_NEW
-			log.extra(u'[{0}] Saving new post: {1}'.format(self.feed.id, entry_data.link))
-			date_modified = entry_data.date_modified
-			if not date_modified and self.fpf:
-				# if the feed has no date_modified info, we use the feed
-				# mtime or the current time
-				if self.fpf.feed.has_key('modified_parsed'):
-					date_modified = mtime(self.fpf.feed.modified_parsed)
-				elif self.fpf.has_key('modified'): date_modified = mtime(self.fpf.modified)
-			if not date_modified: date_modified = datetime.datetime.now()
-			tobj = dict(feed=self.feed, date_modified=date_modified)
-			for field in [ 'link', 'title', 'guid', 'author', 'author_email',
-				'content', 'comments' ]: tobj[field] = getattr(entry_data, field)
-			tobj = models.Post(**tobj)
-			tobj.save()
-			for tcat in entry_data.fcat: tobj.tags.add(tcat) # why it's done after save?
+			log.extra(u'[{0}] Saving new post: {1}'.format(self.feed.id, post.link))
+			# Try hard to set date_modified: feed.modified, http.modified and now() as a last resort
+			if not post.date_modified and self.fpf:
+				if self.fpf.feed.get('modified_parsed'):
+					post.date_modified = mtime(self.fpf.feed.modified_parsed)
+				elif self.fpf.get('modified'): post.date_modified = mtime(self.fpf.modified)
+			if not post.date_modified: post.date_modified = datetime.now()
+			post.save()
+			for tcat in fcat: post.tags.add(tcat)
+			self.postdict[post.guid] = post
 
 		return retval
 
-
-class ProcessFeed:
-	def __init__(self, feed, options):
-		self.feed = feed
-		self.options = options
-		self.fpf = None
-
-	def process_entry(self, entry, postdict):
-		""" wrapper for ProcessEntry
-		"""
-		entry = ProcessEntry(self.feed, self.options, entry, postdict, self.fpf)
-		ret_entry = entry.process()
-		del entry
-		return ret_entry
 
 	def process(self):
 		""" Downloads and parses a feed.
@@ -223,7 +186,7 @@ class ProcessFeed:
 		self.feed.title = self.fpf.feed.get('title', '')[0:254]
 		self.feed.tagline = self.fpf.feed.get('tagline', '')
 		self.feed.link = self.fpf.feed.get('link', '')
-		self.feed.last_checked = datetime.datetime.now()
+		self.feed.last_checked = datetime.now()
 
 		log.debug(u'[{0}] Feed info for: {1}\n{2}'.format(
 			self.feed.id, self.feed.feed_url, u'\n'.join(
@@ -237,13 +200,13 @@ class ProcessFeed:
 			elif entry.link: guids.append(entry.link)
 		self.feed.save()
 		if guids:
-			postdict = dict( (post.guid, post)
+			self.postdict = dict( (post.guid, post)
 				for post in models.Post.objects.filter(
 					feed=self.feed.id ).filter(guid__in=guids) )
-		else: postdict = dict()
+		else: self.postdict = dict()
 
 		for entry in self.fpf.entries:
-			try: ret_entry = self.process_entry(entry, postdict)
+			try: ret_entry = self.process_entry(entry)
 			except:
 				(etype, eobj, etb) = sys.exc_info()
 				print '[{0}] ! -------------------------'.format(self.feed.id)
@@ -257,7 +220,10 @@ class ProcessFeed:
 
 		return FEED_OK, ret_values
 
+
+
 class Dispatcher:
+
 	def __init__(self, options, num_threads):
 		self.options = options
 		self.entry_stats = {
@@ -288,7 +254,7 @@ class Dispatcher:
 		if threadpool: self.tpool = threadpool.ThreadPool(num_threads)
 		else: self.tpool = None
 
-		self.time_start = datetime.datetime.now()
+		self.time_start = datetime.now()
 
 
 	def add_job(self, feed):
@@ -301,10 +267,11 @@ class Dispatcher:
 			# no threadpool module, just run the job
 			self.process_feed_wrapper(feed)
 
+
 	def process_feed_wrapper(self, feed):
 		""" wrapper for ProcessFeed
 		"""
-		start_time = datetime.datetime.now()
+		start_time = datetime.now()
 		try:
 			pfeed = ProcessFeed(feed, self.options)
 			ret_feed, ret_entries = pfeed.process()
@@ -318,7 +285,7 @@ class Dispatcher:
 			ret_feed = FEED_ERREXC
 			ret_entries = dict()
 
-		delta = datetime.datetime.now() - start_time
+		delta = datetime.now() - start_time
 		log.info(u'[{0}] Processed {1} in {2} [{3}] [{4}]{5}'.format(
 			feed.id, feed.feed_url, unicode(delta), self.feed_trans[ret_feed],
 			u' '.join(u'{0}={1}'.format( self.entry_trans[key],
@@ -330,6 +297,7 @@ class Dispatcher:
 
 		return ret_feed, ret_entries
 
+
 	def poll(self):
 		""" polls the active threads
 		"""
@@ -338,14 +306,17 @@ class Dispatcher:
 			return
 		while True:
 			try:
-				time.sleep(0.2)
+				# TODO: py sleep/poll loop is obviously wrong, there should be blocking alternative
+				#  like select or join, otherwise what's the point of this "threadpool" module?
+				# TODO: are django transactions threadsafe, anyway? I strongly suspect they are not
+				sleep(0.2)
 				self.tpool.poll()
 			except KeyboardInterrupt:
 				log.error(u'Cancelled by user')
 				break
 			except threadpool.NoResultsPending:
 				log.info(u'* DONE in {0}\n* Feeds: {1}\n* Entries: {2}'.format(
-					unicode(datetime.datetime.now() - self.time_start),
+					unicode(datetime.now() - self.time_start),
 					u' '.join(u'{0}={1}'.format( self.feed_trans[key],
 						self.feed_stats[key] ) for key in self.feed_keys),
 					u' '.join(u'{0}={1}'.format( self.entry_trans[key],
@@ -353,10 +324,8 @@ class Dispatcher:
 				break
 
 
-def main():
-	""" Main function. Nothing to see here. Move along.
-	"""
 
+if __name__ == '__main__':
 	import optparse
 	parser = optparse.OptionParser(usage='%prog [options]', version=USER_AGENT)
 
@@ -381,40 +350,42 @@ def main():
 	parser.add_option('--debug', action='store_true',
 		dest='debug', help='Even more verbose output.')
 
-	options = parser.parse_args()[0]
-	if options.settings:
-		os.environ["DJANGO_SETTINGS_MODULE"] = options.settings
+	optz,argz = parser.parse_args()
+	if argz: parser.error('This command takes no arguments')
 
 
-	if options.debug: logging.basicConfig(level=logging.DEBUG)
-	elif options.verbose: logging.basicConfig(level=logging.EXTRA)
-	elif options.quiet: logging.basicConfig(level=logging.ERROR)
+	if optz.settings:
+		os.environ['DJANGO_SETTINGS_MODULE'] = optz.settings
+
+	if optz.debug: logging.basicConfig(level=logging.DEBUG)
+	elif optz.verbose: logging.basicConfig(level=logging.EXTRA)
+	elif optz.quiet: logging.basicConfig(level=logging.ERROR)
 	else: logging.basicConfig(level=logging.INFO)
 
 
 	from feedjack import models, fjcache
 
 	# settting socket timeout (default= 10 seconds)
-	socket.setdefaulttimeout(options.timeout)
+	socket.setdefaulttimeout(optz.timeout)
 
 	# our job dispatcher
-	disp = Dispatcher(options, options.workerthreads)
+	disp = Dispatcher(optz, optz.workerthreads)
 
-	log.info(u'* BEGIN: {0}'.format(unicode(datetime.datetime.now())))
+	log.info(u'* BEGIN: {0}'.format(unicode(datetime.now())))
 
-	if options.feed:
-		feeds = models.Feed.objects.filter(id__in=options.feed)
+	if optz.feed:
+		feeds = models.Feed.objects.filter(id__in=optz.feed)
 		known_ids = list()
 		for feed in feeds:
 			known_ids.append(feed.id)
 			disp.add_job(feed)
-		for feed in options.feed:
+		for feed in optz.feed:
 			if feed not in known_ids: log.warn(u'Unknown feed id: {0}'.format(feed))
-	elif options.site:
-		try: site = models.Site.objects.get(pk=int(options.site))
+	elif optz.site:
+		try: site = models.Site.objects.get(pk=int(optz.site))
 		except models.Site.DoesNotExist:
 			site = None
-			log.warn(u'Unknown site id: {0}'.format(options.site))
+			log.warn(u'Unknown site id: {0}'.format(optz.site))
 		if site:
 			feeds = [sub.feed for sub in site.subscriber_set.all()]
 			for feed in feeds: disp.add_job(feed)
@@ -423,13 +394,11 @@ def main():
 
 	disp.poll()
 
-	# removing the cached data in all sites, this will only work with the
-	# memcached, db and file backends
-	[fjcache.cache_delsite(site.id) for site in models.Site.objects.all()]
+	# Removing the cached data in all sites,
+	#  this will only work with the memcached, db and file backends
+	# TODO: make it work by "magic" through model signals
+	for site in models.Site.objects.all(): fjcache.cache_delsite(site.id)
 
-	log.info(u'* END: {0} ({1})'.format( unicode(datetime.datetime.now()),
-		u'{0} threads'.format(options.workerthreads) if threadpool
+	log.info(u'* END: {0} ({1})'.format( unicode(datetime.now()),
+		u'{0} threads'.format(optz.workerthreads) if threadpool
 			else u'no threadpool module available, no parallel fetching' ))
-
-
-if __name__ == '__main__': main()
