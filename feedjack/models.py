@@ -191,14 +191,14 @@ class Feed(models.Model):
 	@staticmethod
 	def _filters_update_handler_check(sender, instance, **kwz):
 		try:
-			instance._filter_logic_update = ( instance.filters_logic\
+			instance._filters_logic_update = ( instance.filters_logic\
 				!= Feed.objects.get(id=instance.id).filters_logic )
 		except ObjectDoesNotExist: pass # shouldn't really matter
-	_filter_logic_update = None
+	_filters_logic_update = None
 
 	@staticmethod
 	def _filters_update_handler( sender, instance, force=False,
-			created=None, reverse=False, model=None, pk_set=list(), **kwz ):
+			created=None, reverse=None, model=None, pk_set=list(), **kwz ):
 		### Main "crossref-rebuild" function. ALL filter-consistency hooks call it in the end.
 		### Logic here is pretty obscure, so I'll try to explain it in comments.
 		## Check if this call is a result of actions initiated from
@@ -207,7 +207,7 @@ class Feed(models.Model):
 		## post_save-specific checks, so it won't be triggered on _every_
 		##  Feed save, only those that change "filter_logic" on existing feeds.
 		if not force and created is not None and (
-			created is True or not instance._filter_logic_update ): return
+			created is True or not instance._filters_logic_update ): return
 		## Set anti-recursion lock.
 		Feed._filters_update_handler_lock = True
 		## Get set of feeds that are affected by m2m update, note that it's always just
@@ -234,7 +234,7 @@ class Feed(models.Model):
 			date_created__gt=date_threshold ).order_by('date_created'): post.filtering_result_update()
 		# Special case: updated filtering logic, that certainly affects every post of "instance",
 		#  so they all should be updated. Shouldn't happen too often anyway.
-		if created is False and instance._filter_logic_update:
+		if reverse is not None or (created is False and instance._filters_logic_update):
 			for post in instance.posts.order_by('date_created'): post.filtering_result_update()
 		## Unlock this function again.
 		Feed._filters_update_handler_lock = False
