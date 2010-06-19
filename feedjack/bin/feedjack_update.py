@@ -14,9 +14,9 @@ import itertools as it, operator as op, functools as ft
 from datetime import datetime
 from time import sleep
 import os, sys, traceback
-import socket
 
 import feedparser
+from feedjack.fjlib import transaction_wrapper, transaction
 
 try: import threadpool
 except ImportError: threadpool = None
@@ -132,9 +132,7 @@ class ProcessFeed:
 
 
 	def process(self):
-		""" Downloads and parses a feed.
-		"""
-		from feedjack import models
+		'Downloads and parses a feed.'
 
 		ret_values = {
 			ENTRY_NEW:0,
@@ -197,25 +195,30 @@ class ProcessFeed:
 			if entry.get('id', ''): guids.append(entry.get('id', ''))
 			elif entry.title: guids.append(entry.title)
 			elif entry.link: guids.append(entry.link)
-		self.feed.save()
+
+		self.feed.save() # rollback here should be handled on a higher level
+
 		if guids:
+			from feedjack.models import Post
 			self.postdict = dict( (post.guid, post)
-				for post in models.Post.objects.filter(
+				for post in Post.objects.filter(
 					feed=self.feed.id ).filter(guid__in=guids) )
 		else: self.postdict = dict()
 
 		for entry in self.fpf.entries:
+			tsp = transaction.savepoint()
 			try: ret_entry = self.process_entry(entry)
 			except:
-				(etype, eobj, etb) = sys.exc_info()
+				etype, eobj, etb = sys.exc_info()
 				print '[{0}] ! -------------------------'.format(self.feed.id)
 				print traceback.format_exception(etype, eobj, etb)
 				traceback.print_exception(etype, eobj, etb)
 				print '[{0}] ! -------------------------'.format(self.feed.id)
 				ret_entry = ENTRY_ERR
+				transaction.savepoint_rollback(tsp)
+			else:
+				transaction.savepoint_commit(tsp)
 			ret_values[ret_entry] += 1
-
-		self.feed.save()
 
 		return FEED_OK, ret_values
 
@@ -268,21 +271,25 @@ class Dispatcher:
 
 
 	def process_feed_wrapper(self, feed):
-		""" wrapper for ProcessFeed
-		"""
 		start_time = datetime.now()
+
+		tsp = transaction.savepoint()
 		try:
+			# TODO: get rid of this pseudo-oop as well
 			pfeed = ProcessFeed(feed, self.options)
 			ret_feed, ret_entries = pfeed.process()
 			del pfeed
 		except:
 			(etype, eobj, etb) = sys.exc_info()
-			print '[{0}] ! -------------------------'.format(feed.id,)
+			print '[{0}] ! -------------------------'.format(feed.id)
 			print traceback.format_exception(etype, eobj, etb)
 			traceback.print_exception(etype, eobj, etb)
-			print '[{0}] ! -------------------------'.format(feed.id,)
+			print '[{0}] ! -------------------------'.format(feed.id)
 			ret_feed = FEED_ERREXC
 			ret_entries = dict()
+			transaction.savepoint_rollback(tsp)
+		else:
+			transaction.savepoint_commit(tsp)
 
 		delta = datetime.now() - start_time
 		log.info(u'[{0}] Processed {1} in {2} [{3}] [{4}]{5}'.format(
@@ -324,13 +331,54 @@ class Dispatcher:
 
 
 
+@transaction_wrapper(logging)
+def main(optz):
+	import socket
+	socket.setdefaulttimeout(optz.timeout)
+
+	disp = Dispatcher(optz, optz.workerthreads)
+	log.info(u'* BEGIN: {0}'.format(unicode(datetime.now())))
+
+	from feedjack.models import Feed, Site
+
+	if optz.feed:
+		feeds = Feed.objects.filter(id__in=optz.feed)
+		known_ids = set()
+		for feed in feeds:
+			known_ids.add(feed.id)
+			disp.add_job(feed)
+		for feed in optz.feed:
+			if feed not in known_ids: log.warn(u'Unknown feed id: {0}'.format(feed))
+	elif optz.site:
+		try: site = Site.objects.get(pk=int(optz.site))
+		except Site.DoesNotExist:
+			site = None
+			log.warn(u'Unknown site id: {0}'.format(optz.site))
+		if site:
+			feeds = [sub.feed for sub in site.subscriber_set.all()]
+			for feed in feeds: disp.add_job(feed)
+	else:
+		for feed in Feed.objects.filter(is_active=True): disp.add_job(feed)
+
+	disp.poll()
+	transaction.commit()
+
+	log.info(u'* END: {0} ({1})'.format( unicode(datetime.now()),
+		u'{0} threads'.format(optz.workerthreads) if threadpool
+			else u'no threadpool module available, no parallel fetching' ))
+
+	# Removing the cached data in all sites,
+	#  this will only work with the memcached, db and file backends
+	# TODO: make it work by "magic" through model signals
+	from feedjack import fjcache
+	for site in Site.objects.all(): fjcache.cache_delsite(site.id)
+
+
+
+
 if __name__ == '__main__':
 	import optparse
 	parser = optparse.OptionParser(usage='%prog [options]', version=USER_AGENT)
-
-	parser.add_option('--settings',
-		help='Python path to settings module. If this isn\'t provided, '
-			'the DJANGO_SETTINGS_MODULE enviroment variable will be used.')
 
 	parser.add_option('-f', '--feed', action='append', type='int',
 		help='A feed id to be updated. This option can be given multiple '
@@ -352,52 +400,9 @@ if __name__ == '__main__':
 	optz,argz = parser.parse_args()
 	if argz: parser.error('This command takes no arguments')
 
-
-	if optz.settings:
-		os.environ['DJANGO_SETTINGS_MODULE'] = optz.settings
-
 	if optz.debug: logging.basicConfig(level=logging.DEBUG)
 	elif optz.verbose: logging.basicConfig(level=logging.EXTRA)
 	elif optz.quiet: logging.basicConfig(level=logging.ERROR)
 	else: logging.basicConfig(level=logging.INFO)
 
-
-	from feedjack import models, fjcache
-
-	# settting socket timeout (default= 10 seconds)
-	socket.setdefaulttimeout(optz.timeout)
-
-	# our job dispatcher
-	disp = Dispatcher(optz, optz.workerthreads)
-
-	log.info(u'* BEGIN: {0}'.format(unicode(datetime.now())))
-
-	if optz.feed:
-		feeds = models.Feed.objects.filter(id__in=optz.feed)
-		known_ids = list()
-		for feed in feeds:
-			known_ids.append(feed.id)
-			disp.add_job(feed)
-		for feed in optz.feed:
-			if feed not in known_ids: log.warn(u'Unknown feed id: {0}'.format(feed))
-	elif optz.site:
-		try: site = models.Site.objects.get(pk=int(optz.site))
-		except models.Site.DoesNotExist:
-			site = None
-			log.warn(u'Unknown site id: {0}'.format(optz.site))
-		if site:
-			feeds = [sub.feed for sub in site.subscriber_set.all()]
-			for feed in feeds: disp.add_job(feed)
-	else:
-		for feed in models.Feed.objects.filter(is_active=True): disp.add_job(feed)
-
-	disp.poll()
-
-	# Removing the cached data in all sites,
-	#  this will only work with the memcached, db and file backends
-	# TODO: make it work by "magic" through model signals
-	for site in models.Site.objects.all(): fjcache.cache_delsite(site.id)
-
-	log.info(u'* END: {0} ({1})'.format( unicode(datetime.now()),
-		u'{0} threads'.format(optz.workerthreads) if threadpool
-			else u'no threadpool module available, no parallel fetching' ))
+	main(optz)

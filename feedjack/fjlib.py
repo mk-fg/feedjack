@@ -9,7 +9,33 @@ from django.utils.encoding import smart_unicode
 
 from feedjack import models
 from feedjack import fjcache
-import itertools as it
+
+import itertools as it, operator as op, functools as ft
+
+
+import logging
+log = logging.getLogger()
+
+
+from django.db import transaction
+def transaction_wrapper(func, logger=None):
+	'''Traps exceptions in transaction.commit_manually blocks,
+		instead of just replacing them by non-meaningful no-commit django exceptions'''
+	if (func is not None and logger is not None)\
+			or not (isinstance(func, logging.Logger) or func is logging):
+		@transaction.commit_manually
+		@ft.wraps(func)
+		def _transaction_wrapper(*argz, **kwz):
+			try: return func(*argz, **kwz)
+			except Exception as err:
+				import sys, traceback
+				(logger or log).error(( u'Unhandled exception: {0},'
+					' traceback:\n {1}' ).format( err,
+						smart_unicode(traceback.format_tb(sys.exc_info()[2])) ))
+				raise
+		return _transaction_wrapper
+	else:
+		return ft.partial(transaction_wrapper, logger=func)
 
 
 def sitefeeds(siteobj):
@@ -19,6 +45,7 @@ def sitefeeds(siteobj):
 	#return [subscriber['feed'] \
 	#  for subscriber \
 	#  in siteobj.subscriber_set.filter(is_active=True).values('feed')]
+
 
 
 def getquery(query):
@@ -31,6 +58,7 @@ def getquery(query):
 		conn.close()
 	except: data = list()
 	return data
+
 
 
 def get_extra_content(site, sfeeds_ids, ctx):
@@ -55,6 +83,7 @@ def get_extra_content(site, sfeeds_ids, ctx):
 		ctx['last_modified'] = '??'
 	ctx['site'] = site
 	ctx['media_url'] = '{0}/feedjack/{1}'.format(settings.MEDIA_URL, site.template)
+
 
 
 def get_posts_tags(object_list, sfeeds_obj, user_id, tag_name):
@@ -94,6 +123,7 @@ def get_posts_tags(object_list, sfeeds_obj, user_id, tag_name):
 	return user_obj, tag_obj
 
 
+
 def getcurrentsite(http_post, path_info, query_string):
 	""" Returns the site id and the page cache key based on the request.
 	"""
@@ -129,6 +159,7 @@ def getcurrentsite(http_post, path_info, query_string):
 	return hostdict[url], pagecachekey
 
 
+
 def get_page(site, sfeeds_ids, page=1, tag=None, user=None):
 	""" Returns a paginator object and a requested page from it.
 	"""
@@ -151,6 +182,7 @@ def get_page(site, sfeeds_ids, page=1, tag=None, user=None):
 	paginator = Paginator(localposts.select_related(), site.posts_per_page)
 	try: return paginator.page(page)
 	except InvalidPage: raise Http404
+
 
 
 def page_context(request, site, tag=None, user_id=None, sfeeds=None):
@@ -191,4 +223,6 @@ def page_context(request, site, tag=None, user_id=None, sfeeds=None):
 	ctx['tag'] = tag_obj
 	ctx['subscribers'] = sfeeds_obj
 	return ctx
+
+
 
