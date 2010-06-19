@@ -13,7 +13,7 @@ FEED_OK, FEED_SAME, FEED_ERRPARSE, FEED_ERRHTTP, FEED_ERREXC = xrange(5)
 import itertools as it, operator as op, functools as ft
 from datetime import datetime
 from time import sleep
-import os, sys, traceback
+import os, sys
 
 import feedparser
 from feedjack.fjlib import transaction_wrapper, transaction
@@ -34,6 +34,13 @@ log.extra = ft.partial(log.log, logging.EXTRA)
 
 
 mtime = lambda ttime: datetime(*ttime[:6])
+
+_exc_frame = '[{0}] ! ' + '-'*25
+def print_exc():
+	print _exc_frame.format(self.feed.id)
+	traceback.print_exc()
+	print _exc_frame.format(self.feed.id)
+
 
 
 class ProcessFeed:
@@ -209,11 +216,7 @@ class ProcessFeed:
 			tsp = transaction.savepoint()
 			try: ret_entry = self.process_entry(entry)
 			except:
-				etype, eobj, etb = sys.exc_info()
-				print '[{0}] ! -------------------------'.format(self.feed.id)
-				print traceback.format_exception(etype, eobj, etb)
-				traceback.print_exception(etype, eobj, etb)
-				print '[{0}] ! -------------------------'.format(self.feed.id)
+				print_exc()
 				ret_entry = ENTRY_ERR
 				transaction.savepoint_rollback(tsp)
 			else:
@@ -280,11 +283,7 @@ class Dispatcher:
 			ret_feed, ret_entries = pfeed.process()
 			del pfeed
 		except:
-			(etype, eobj, etb) = sys.exc_info()
-			print '[{0}] ! -------------------------'.format(feed.id)
-			print traceback.format_exception(etype, eobj, etb)
-			traceback.print_exception(etype, eobj, etb)
-			print '[{0}] ! -------------------------'.format(feed.id)
+			print_exc()
 			ret_feed = FEED_ERREXC
 			ret_entries = dict()
 			transaction.savepoint_rollback(tsp)
@@ -402,7 +401,7 @@ if __name__ == '__main__':
 
 	if optz.debug: logging.basicConfig(level=logging.DEBUG)
 	elif optz.verbose: logging.basicConfig(level=logging.EXTRA)
-	elif optz.quiet: logging.basicConfig(level=logging.ERROR)
+	elif optz.quiet: logging.basicConfig(level=logging.WARNING)
 	else: logging.basicConfig(level=logging.INFO)
 
 	main(optz)
