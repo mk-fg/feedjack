@@ -33,7 +33,7 @@ log.extra = ft.partial(log.log, logging.EXTRA)
 # TODO: special formatter to insert feed_id to the prefix
 
 
-mtime = lambda ttime: datetime.fromtimestamp(ttime[:6])
+mtime = lambda ttime: datetime(*ttime[:6])
 
 
 class ProcessFeed:
@@ -88,10 +88,9 @@ class ProcessFeed:
 		## Some feedback
 		post_base_fields = 'title link guid author author_email'.split()
 
-		tags = u' '.join(it.imap(op.attrgetter('name'), fcat))
 		log.debug(u'[{0}] Entry\n{1}'.format(self.feed.id, u'\n'.join(
-			u'  {0}: {1}'.format(key, getattr(post, key, tags))
-			for key in post_basic_fields + ['tags'] )))
+			[u'  {0}: {1}'.format(key, getattr(post, key)) for key in post_base_fields]
+			+ [u'tags: {0}'.format(u' '.join(it.imap(op.attrgetter('name'), fcat)))] )))
 
 		## Store / update a post
 		if post.guid in self.postdict: # post exists, update if it was modified (and feed is mutable)
