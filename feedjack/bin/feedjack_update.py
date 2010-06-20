@@ -331,7 +331,7 @@ class Dispatcher:
 
 
 @transaction_wrapper(logging)
-def main(optz):
+def bulk_update(optz):
 	import socket
 	socket.setdefaulttimeout(optz.timeout)
 
@@ -340,24 +340,29 @@ def main(optz):
 
 	from feedjack.models import Feed, Site
 
+	updated_sites = set() # to drop cache
+
 	if optz.feed:
-		feeds = Feed.objects.filter(id__in=optz.feed)
 		known_ids = set()
-		for feed in feeds:
+		for feed in Feed.objects.filter(pk__in=optz.feed):
 			known_ids.add(feed.id)
 			disp.add_job(feed)
-		for feed in optz.feed:
-			if feed not in known_ids: log.warn(u'Unknown feed id: {0}'.format(feed))
-	elif optz.site:
-		try: site = Site.objects.get(pk=int(optz.site))
-		except Site.DoesNotExist:
-			site = None
-			log.warn(u'Unknown site id: {0}'.format(optz.site))
-		if site:
-			feeds = [sub.feed for sub in site.subscriber_set.all()]
-			for feed in feeds: disp.add_job(feed)
-	else:
+		for feed_id in set(optz.feed).difference(known_ids):
+			log.warn(u'Unknown feed id: {0}'.format(feed_id))
+		updated_sites += set(Site.objects.filter(subscriber_set__feed__pk__in=optz.feed))
+
+	if optz.site:
+		known_ids = set()
+		for feed in Feed.objects.get(subscriber_set__site__pk__in=optz.site):
+			known_ids.add(feed.site.id)
+			disp.add_job(feed)
+		for site_id in set(optz.site).difference(known_ids):
+			log.warn(u'Unknown site id: {0}'.format(site_id))
+		updated_sites += set(Site.objects.filter(pk__in=optz.site))
+
+	if not optz.feed and not optz.site:
 		for feed in Feed.objects.filter(is_active=True): disp.add_job(feed)
+		updated_sites = Site.objects.all()
 
 	disp.poll()
 	transaction.commit()
@@ -370,7 +375,7 @@ def main(optz):
 	#  this will only work with the memcached, db and file backends
 	# TODO: make it work by "magic" through model signals
 	from feedjack import fjcache
-	for site in Site.objects.all(): fjcache.cache_delsite(site.id)
+	for site_id in updated_sites: fjcache.cache_delsite(site_id)
 
 
 
@@ -382,7 +387,8 @@ if __name__ == '__main__':
 	parser.add_option('-f', '--feed', action='append', type='int',
 		help='A feed id to be updated. This option can be given multiple '
 			'times to update several feeds at the same time (-f 1 -f 4 -f 7).')
-	parser.add_option('-s', '--site', type='int', help='A site id to update.')
+	parser.add_option('-s', '--site', action='append', type='int',
+		help='A site id (or several of them) to update.')
 
 	parser.add_option('-t', '--timeout', type='int', default=10,
 		help='Wait timeout in seconds when connecting to feeds.')
@@ -404,4 +410,4 @@ if __name__ == '__main__':
 	elif optz.quiet: logging.basicConfig(level=logging.WARNING)
 	else: logging.basicConfig(level=logging.INFO)
 
-	main(optz)
+	bulk_update(optz)
