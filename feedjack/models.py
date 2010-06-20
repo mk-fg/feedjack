@@ -6,10 +6,10 @@ from django.db import models, connection
 from django.utils.translation import ugettext_lazy as _
 from django.utils.encoding import smart_unicode
 
-from feedjack import fjcache, filters
+from feedjack import fjlib, fjcache, filters
 
 import itertools as it, operator as op, functools as ft
-from collections import namedtuple
+from collections import namedtuple, Iterable, Iterator
 from datetime import datetime, timedelta
 
 
@@ -210,9 +210,10 @@ class Feed(models.Model):
 			created is True or not instance._filters_logic_update ): return
 		## Set anti-recursion lock.
 		Feed._filters_update_handler_lock = True
-		## Get set of feeds that are affected by m2m update, note that it's always just
-		##  [instance] in case of post_save hook, since it doesn't pass "reverse" keyword.
-		related_feeds = [instance] if not reverse else Feed.objects.filter(id__in=pk_set)
+		## Get set of feeds that are affected by m2m update, note that it's always derived
+		##  from instance in case of post_save hook, since it doesn't pass "reverse" keyword.
+		related_feeds = Feed.objects.filter(id__in=pk_set) if reverse else\
+			([instance] if not isinstance(instance, (Iterable, Iterator)) else instance)
 		## Get all Sites, incorporating the feed (all their feeds are affected), then
 		## drop cross-referencing filters' results, as they'd be totally screwed, note that
 		##  this means dropping all such results for every feed that shares a Site with "instance".
@@ -226,7 +227,7 @@ class Feed(models.Model):
 			models.Max(models.F('base__crossref_span')) ).itervalues()
 		# This actually drops all the results before "date_threshold" on "related_feeds"
 		FilterResult.objects.filter( post__feed__in=related_feeds,
-			post__date_created__gt=date_threshold, filter__base__crossref==True ).delete()
+			post__date_created__gt=date_threshold, filter__base__crossref=True ).delete()
 		## Now, walk the posts, checking/updating results for each one.
 		# Posts should be updated in the "added" order, for consistency of cross-ref filters' results.
 		# Amount of work here is quite extensive, since this (ideally) should affect every Post.
@@ -242,15 +243,17 @@ class Feed(models.Model):
 	# Anti-recursion flag, class-global
 	_filters_update_handler_lock = False
 
-	def posts_update_handler(self):
-		'Update all cross-referencing filters results for this and related feeds'
-		return self._filters_update_handler(self.__class__, self, force=True)
+	@staticfunction
+	def update_handler(feeds):
+		'Update all cross-referencing filters results for feeds and others, related to them'
+		return self._filters_update_handler(self.__class__, feeds, force=True)
 
 signals.m2m_changed.connect(Feed._filters_update_handler, sender=Feed.filters.through)
 
 # These two are purely to handle filters_logic field updates
 signals.pre_save.connect(Feed._filters_update_handler_check, sender=Feed)
 signals.post_save.connect(Feed._filters_update_handler, sender=Feed)
+
 
 
 class Tag(models.Model):
@@ -307,6 +310,7 @@ class Post(models.Model):
 	tags = models.ManyToManyField(Tag, verbose_name=_('tags'))
 	date_created = models.DateField(_('date created'), auto_now_add=True)
 
+	# This one is an aggregate of filtering_results, for performance benefit
 	filtering_result = models.NullBooleanField()
 	# filtering_results (reverse fk from FilterResult)
 
@@ -368,9 +372,12 @@ class Post(models.Model):
 
 	@staticmethod
 	def _update_handler(sender, instance, **kwz):
-		if not instance._update_handler_call:
+		if transaction_in_progress.is_set():
+			# In case of post_delete hook, added object is not in db anymore
+			transaction_affected_feeds.add(instance.feed)
+		elif not instance._update_handler_call:
 			instance._update_handler_call = True
-			try: instance.feed.posts_update_handler()
+			try: Feed.update_handler(instance.feed)
 			finally: instance._update_handler_call = False
 	_update_handler_call = False # flag to avoid recursion in filtering_result_update
 
@@ -421,7 +428,28 @@ class Subscriber(models.Model):
 	@staticmethod
 	def _update_handler(sender, instance, created, **kwz):
 		if created: return
-		if self._relation_update: instance.feed.posts_update_handler()
+		if self._relation_update: Feed.update_handler(instance.feed)
 
 signals.pre_save.connect(Subscriber._update_handler_check, sender=Subscriber)
 signals.post_save.connect(Subscriber._update_handler, sender=Subscriber)
+
+
+
+
+# These are here to defer costly FilterResult updates until the end of transaction,
+#  so they won't be dropped-recalculated for every new or updated Post
+# Note that this is only for Post-hooks, any relation changes
+#  (Feed-Filter, Subscriber, etc) should still trigger a rebuild
+
+from threading import Event
+transaction_in_progress = Event()
+transaction_affected_feeds = set()
+
+def transaction_handler():
+	Feed.update_handler(transaction_affected_feeds)
+	transaction_affected_feeds.clear()
+	transaction_in_progress.clear()
+
+fjlib.transaction_start.connect(lambda *a,**k: transaction_in_progress.set(), sender='bulk_update')
+fjlib.transaction_done.connect(transaction_handler, sender='bulk_update')
+
