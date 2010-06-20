@@ -36,10 +36,10 @@ log.extra = ft.partial(log.log, logging.EXTRA)
 mtime = lambda ttime: datetime(*ttime[:6])
 
 _exc_frame = '[{0}] ! ' + '-'*25
-def print_exc():
-	print _exc_frame.format(self.feed.id)
+def print_exc(feed_id):
+	print _exc_frame.format(feed_id)
 	traceback.print_exc()
-	print _exc_frame.format(self.feed.id)
+	print _exc_frame.format(feed_id)
 
 
 
@@ -216,7 +216,7 @@ class ProcessFeed:
 			tsp = transaction.savepoint()
 			try: ret_entry = self.process_entry(entry)
 			except:
-				print_exc()
+				print_exc(self.feed.id)
 				ret_entry = ENTRY_ERR
 				transaction.savepoint_rollback(tsp)
 			else:
@@ -283,7 +283,7 @@ class Dispatcher:
 			ret_feed, ret_entries = pfeed.process()
 			del pfeed
 		except:
-			print_exc()
+			print_exc(self.feed.id)
 			ret_feed = FEED_ERREXC
 			ret_entries = dict()
 			transaction.savepoint_rollback(tsp)
