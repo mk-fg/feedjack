@@ -37,6 +37,7 @@ mtime = lambda ttime: datetime(*ttime[:6])
 
 _exc_frame = '[{0}] ! ' + '-'*25
 def print_exc(feed_id):
+	import traceback
 	print _exc_frame.format(feed_id)
 	traceback.print_exc()
 	print _exc_frame.format(feed_id)
@@ -124,7 +125,7 @@ class ProcessFeed:
 
 		else: # new post, store it into database
 			retval = ENTRY_NEW
-			log.extra(u'[{0}] Saving new post: {1}'.format(self.feed.id, post.link))
+			log.extra(u'[{0}] Saving new post: {1}'.format(self.feed.id, post.guid))
 			# Try hard to set date_modified: feed.modified, http.modified and now() as a last resort
 			if not post.date_modified and self.fpf:
 				if self.fpf.feed.get('modified_parsed'):
@@ -283,7 +284,7 @@ class Dispatcher:
 			ret_feed, ret_entries = pfeed.process()
 			del pfeed
 		except:
-			print_exc(self.feed.id)
+			print_exc(feed.id)
 			ret_feed = FEED_ERREXC
 			ret_entries = dict()
 			transaction.savepoint_rollback(tsp)
