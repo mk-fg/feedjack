@@ -16,7 +16,7 @@ from time import sleep
 import os, sys
 
 import feedparser
-from feedjack.fjlib import transaction_wrapper, transaction
+from feedjack.models import transaction_wrapper, transaction
 
 try: import threadpool
 except ImportError: threadpool = None
@@ -175,7 +175,7 @@ class ProcessFeed:
 				return FEED_ERRHTTP, ret_values
 
 		if hasattr(self.fpf, 'bozo') and self.fpf.bozo:
-			log.error( u'[{0}] BOZO! Feed is not well formed: {1}'\
+			log.error( u'[{0}] Feed is not well formed: {1}'\
 				.format(self.feed.id, self.feed.feed_url) )
 
 		# the feed has changed (or it is the first time we parse it)
@@ -349,16 +349,16 @@ def bulk_update(optz):
 			disp.add_job(feed)
 		for feed_id in set(optz.feed).difference(known_ids):
 			log.warn(u'Unknown feed id: {0}'.format(feed_id))
-		updated_sites += set(Site.objects.filter(subscriber_set__feed__pk__in=optz.feed))
+		updated_sites.update(Site.objects.filter(subscriber__feed__pk__in=optz.feed))
 
 	if optz.site:
 		known_ids = set()
-		for feed in Feed.objects.get(subscriber_set__site__pk__in=optz.site):
+		for feed in Feed.objects.get(subscriber__site__pk__in=optz.site):
 			known_ids.add(feed.site.id)
 			disp.add_job(feed)
 		for site_id in set(optz.site).difference(known_ids):
 			log.warn(u'Unknown site id: {0}'.format(site_id))
-		updated_sites += set(Site.objects.filter(pk__in=optz.site))
+		updated_sites.update(Site.objects.filter(pk__in=optz.site))
 
 	if not optz.feed and not optz.site:
 		for feed in Feed.objects.filter(is_active=True): disp.add_job(feed)
@@ -375,7 +375,7 @@ def bulk_update(optz):
 	#  this will only work with the memcached, db and file backends
 	# TODO: make it work by "magic" through model signals
 	from feedjack import fjcache
-	for site_id in updated_sites: fjcache.cache_delsite(site_id)
+	for site_id in it.imap(op.attrgetter('id'), updated_sites): fjcache.cache_delsite(site_id)
 
 
 

@@ -13,38 +13,6 @@ from feedjack import fjcache
 import itertools as it, operator as op, functools as ft
 
 
-import logging
-log = logging.getLogger()
-
-
-
-from django.dispatch import Signal
-transaction_start = Signal(providing_args=list())
-transaction_done = Signal(providing_args=list())
-
-from django.db import transaction
-def transaction_wrapper(func, logger=None):
-	'''Traps exceptions in transaction.commit_manually blocks,
-		instead of just replacing them by non-meaningful no-commit django exceptions'''
-	if (func is not None and logger is not None)\
-			or not (isinstance(func, logging.Logger) or func is logging):
-		@transaction.commit_manually
-		@ft.wraps(func)
-		def _transaction_wrapper(*argz, **kwz):
-			transaction_start.send(sender=func.func_name)
-			try: result = func(*argz, **kwz)
-			except Exception as err:
-				import sys, traceback
-				(logger or log).error(( u'Unhandled exception: {0},'
-					' traceback:\n {1}' ).format( err,
-						smart_unicode(traceback.format_tb(sys.exc_info()[2])) ))
-				raise
-			finally: transaction_done.send(sender=func.func_name)
-			return result
-		return _transaction_wrapper
-	else:
-		return ft.partial(transaction_wrapper, logger=func)
-
 
 def sitefeeds(siteobj):
 	""" Returns the active feeds of a site.

@@ -6,11 +6,15 @@ from django.db import models, connection
 from django.utils.translation import ugettext_lazy as _
 from django.utils.encoding import smart_unicode
 
-from feedjack import fjlib, fjcache, filters
+from feedjack import fjcache, filters
 
 import itertools as it, operator as op, functools as ft
 from collections import namedtuple, Iterable, Iterator
 from datetime import datetime, timedelta
+
+
+import logging
+log = logging.getLogger()
 
 
 
@@ -169,9 +173,10 @@ class Feed(models.Model):
 	link = models.URLField(_('link'), blank=True)
 
 	filters = models.ManyToManyField('Filter', related_name='feeds')
-	filters_logic = models.PositiveSmallIntegerField('Composition', choices=(
+	filters_logic = models.PositiveSmallIntegerField( 'Composition', choices=(
 		(FEED_FILTERING_LOGIC.all, 'Should pass ALL filters (AND logic)'),
-		(FEED_FILTERING_LOGIC.any, 'Should pass ANY of the filters (OR logic)') ))
+		(FEED_FILTERING_LOGIC.any, 'Should pass ANY of the filters (OR logic)') ),
+		default=FEED_FILTERING_LOGIC.all )
 
 	# http://feedparser.org/docs/http-etag.html
 	etag = models.CharField(_('etag'), max_length=127, blank=True)
@@ -208,45 +213,51 @@ class Feed(models.Model):
 		##  Feed save, only those that change "filter_logic" on existing feeds.
 		if not force and created is not None and (
 			created is True or not instance._filters_logic_update ): return
-		## Set anti-recursion lock.
-		Feed._filters_update_handler_lock = True
 		## Get set of feeds that are affected by m2m update, note that it's always derived
 		##  from instance in case of post_save hook, since it doesn't pass "reverse" keyword.
 		related_feeds = Feed.objects.filter(id__in=pk_set) if reverse else\
 			([instance] if not isinstance(instance, (Iterable, Iterator)) else instance)
 		## Get all Sites, incorporating the feed (all their feeds are affected), then
-		## drop cross-referencing filters' results, as they'd be totally screwed, note that
-		##  this means dropping all such results for every feed that shares a Site with "instance".
+		##  drop cross-referencing filters' results, as they'd be totally screwed.
+		## That means dropping all such results for every feed that shares a Site with "instance".
 		# This is a set of feeds that share the Site(s) with "instance" _and_ have crossref filters.
 		related_feeds = Feed.objects.filter( filters__base__crossref=True,
-			subscriber_set__site__subscriber_set__feed__in=related_feeds )
+			subscriber__site__subscriber__feed__in=related_feeds )
+		# Shortcut in case there are no affected feeds with crossref filters
+		if not related_feeds: return
 		# Pure performance-hack: find time threshold after which we just "don't care",
 		#  since it's too old history and shouldn't be relevant anymore.
 		# Value is set for FilterBase, so results should be recalculated in max-span delta.
 		date_threshold, = related_feeds.aggregate(
-			models.Max(models.F('base__crossref_span')) ).itervalues()
-		# This actually drops all the results before "date_threshold" on "related_feeds"
+			models.Max('filters__base__crossref_span') ).itervalues() # shouldn't be None
+		date_threshold = datetime.now() - timedelta(date_threshold)
+		# Set anti-recursion lock.
+		Feed._filters_update_handler_lock = True
+		# Special case: updated filtering logic of Feed, like AND/OR flip or filters m2m change.
+		# That certainly affects every post of "instance", so they all should be updated.
+		# Shouldn't happen too often, anyway.
+		if reverse is not None or (created is False and instance._filters_logic_update):
+			FilterResult.objects.filter(post__feed=instance, filter__base__crossref=True).delete()
+			for post in instance.posts.order_by('date_updated'): post.filtering_result_update()
+		# This actually drops all the results before "date_threshold" on "related_feeds".
+		# Note that local update-date is checked, not the remote "date_modified" field.
 		FilterResult.objects.filter( post__feed__in=related_feeds,
-			post__date_created__gt=date_threshold, filter__base__crossref=True ).delete()
+			post__date_updated__gt=date_threshold, filter__base__crossref=True ).delete()
 		## Now, walk the posts, checking/updating results for each one.
-		# Posts should be updated in the "added" order, for consistency of cross-ref filters' results.
+		# Posts are be updated in the "last-touched" order, for consistency of cross-ref filters' results.
 		# Amount of work here is quite extensive, since this (ideally) should affect every Post.
 		for post in Post.objects.filter( feed__in=related_feeds,
-			date_created__gt=date_threshold ).order_by('date_created'): post.filtering_result_update()
-		# Special case: updated filtering logic, that certainly affects every post of "instance",
-		#  so they all should be updated. Shouldn't happen too often anyway.
-		if reverse is not None or (created is False and instance._filters_logic_update):
-			for post in instance.posts.order_by('date_created'): post.filtering_result_update()
+			date_updated__gt=date_threshold ).order_by('date_updated'): post.filtering_result_update()
 		## Unlock this function again.
 		Feed._filters_update_handler_lock = False
 
 	# Anti-recursion flag, class-global
 	_filters_update_handler_lock = False
 
-	@staticfunction
+	@staticmethod
 	def update_handler(feeds):
 		'Update all cross-referencing filters results for feeds and others, related to them'
-		return self._filters_update_handler(self.__class__, feeds, force=True)
+		return Feed._filters_update_handler(Feed, feeds, force=True)
 
 signals.m2m_changed.connect(Feed._filters_update_handler, sender=Feed.filters.through)
 
@@ -308,7 +319,11 @@ class Post(models.Model):
 	author_email = models.EmailField(_('author email'), blank=True)
 	comments = models.URLField(_('comments'), max_length=511, blank=True)
 	tags = models.ManyToManyField(Tag, verbose_name=_('tags'))
-	date_created = models.DateField(_('date created'), auto_now_add=True)
+
+	# These two will be quite different from date_modified, since the latter is
+	#  parsed from the feed itself, and should always be earlier than either of two
+	date_created = models.DateTimeField(_('date created'), auto_now_add=True)
+	date_updated = models.DateTimeField(_('date updated'), auto_now=True)
 
 	# This one is an aggregate of filtering_results, for performance benefit
 	filtering_result = models.NullBooleanField()
@@ -436,6 +451,34 @@ signals.post_save.connect(Subscriber._update_handler, sender=Subscriber)
 
 
 
+from django.dispatch import Signal
+transaction_start = Signal(providing_args=list())
+transaction_done = Signal(providing_args=list())
+
+from django.db import transaction
+def transaction_wrapper(func, logger=None):
+	'''Traps exceptions in transaction.commit_manually blocks,
+		instead of just replacing them by non-meaningful no-commit django exceptions'''
+	if (func is not None and logger is not None)\
+			or not (isinstance(func, logging.Logger) or func is logging):
+		@transaction.commit_manually
+		@ft.wraps(func)
+		def _transaction_wrapper(*argz, **kwz):
+			transaction_start.send(sender=func.func_name)
+			try: result = func(*argz, **kwz)
+			except Exception as err:
+				import sys, traceback
+				(logger or log).error(( u'Unhandled exception: {0},'
+					' traceback:\n {1}' ).format( err,
+						smart_unicode(''.join(traceback.format_tb(sys.exc_info()[2]))) ))
+				raise
+			finally: transaction_done.send(sender=func.func_name)
+			return result
+		return _transaction_wrapper
+	else:
+		return ft.partial(transaction_wrapper, logger=func)
+
+
 # These are here to defer costly FilterResult updates until the end of transaction,
 #  so they won't be dropped-recalculated for every new or updated Post
 # Note that this is only for Post-hooks, any relation changes
@@ -445,11 +488,11 @@ from threading import Event
 transaction_in_progress = Event()
 transaction_affected_feeds = set()
 
-def transaction_handler():
+def transaction_handler(signal, sender):
 	Feed.update_handler(transaction_affected_feeds)
 	transaction_affected_feeds.clear()
 	transaction_in_progress.clear()
 
-fjlib.transaction_start.connect(lambda *a,**k: transaction_in_progress.set(), sender='bulk_update')
-fjlib.transaction_done.connect(transaction_handler, sender='bulk_update')
+transaction_start.connect(lambda *a,**k: transaction_in_progress.set(), sender='bulk_update')
+transaction_done.connect(transaction_handler, sender='bulk_update')
 
