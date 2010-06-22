@@ -172,7 +172,7 @@ class Feed(models.Model):
 	tagline = models.TextField(_('tagline'), blank=True)
 	link = models.URLField(_('link'), blank=True)
 
-	filters = models.ManyToManyField('Filter', related_name='feeds')
+	filters = models.ManyToManyField('Filter', blank=True, related_name='feeds')
 	filters_logic = models.PositiveSmallIntegerField( 'Composition', choices=(
 		(FEED_FILTERING_LOGIC.all, 'Should pass ALL filters (AND logic)'),
 		(FEED_FILTERING_LOGIC.any, 'Should pass ANY of the filters (OR logic)') ),
