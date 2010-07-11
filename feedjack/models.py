@@ -6,7 +6,7 @@ from django.db import models, connection
 from django.utils.translation import ugettext_lazy as _
 from django.utils.encoding import smart_unicode
 
-from feedjack import fjcache, filters
+from feedjack import fjcache
 
 import itertools as it, operator as op, functools as ft
 from collections import namedtuple, Iterable, Iterator
@@ -108,6 +108,7 @@ class FilterBase(models.Model): # I had to resist the urge to call it FilterClas
 	@property
 	def handler(self):
 		'Handler function'
+		from feedjack import filters # shouldn't be imported globally, as they may depend on models
 		filter_func = getattr(filters, self.handler_name or self.name, None)
 		if filter_func is None:
 			if '.' not in self.handler_name:
@@ -281,6 +282,12 @@ class Tag(models.Model):
 
 
 class PostQuerySet(models.query.QuerySet):
+	# Limit on a string length (in bytes!) to match with levenshtein function
+	# It's hardcoded in fuzzymatch.c as 255, by default, so this
+	#  setting should not be higher than that or you'll get runtime errors.
+	# My default is 1023 because fuzzymatch.c is patched as well ;)
+	levenshtein_limit = 1023
+
 	def similar(self, threshold, **criterias):
 		'''Find text-based field matches with similarity (1-levenshtein/length)
 			higher than specified threshold (0 to 1, 1 being an exact match)'''
@@ -291,9 +298,15 @@ class PostQuerySet(models.query.QuerySet):
 			name = '.'.join(it.imap(connection.ops.quote_name, (meta.db_table, name)))
 			# Alas, pg_trgm is for containment tests, not fuzzy matches ;(
 			# funcs.append( 'similarity(CAST({0}.{1} as text), CAST(%s as text))'\
-			funcs.append('length({0}) > 0'.format(name)) # either that or div_by_zero crash
+			# Ok, these two are just to make sure levenshtein() won't crash
+			#  w/ "argument exceeds the maximum length of N bytes error"
+			funcs.append('octet_length({0}) <= {1}'.format(name, self.levenshtein_limit))
+			funcs.append('octet_length(%s) <= {0}'.format(self.levenshtein_limit))
+			# Then there's a possibility of division by zero...
+			funcs.append('length({0}) > 0'.format(name))
+			# And if everything else fits, the comparison itself
 			funcs.append('levenshtein({0}, %s) / CAST(length({0}) AS numeric) < %s'.format(name))
-			params.extend((val, float(1 - threshold)))
+			params.extend((val, val, float(1 - threshold)))
 		return self.extra(where=funcs, params=params)
 
 class Posts(models.Manager):
