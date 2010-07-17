@@ -101,9 +101,10 @@ class FilterBase(models.Model): # I had to resist the urge to call it FilterClas
 	crossref = models.BooleanField( 'Cross-referencing',
 		help_text='Indicates whether filtering results depend on other posts'
 			' (and possibly their filtering results) or not.' )
-	crossref_span = models.PositiveSmallIntegerField( 'How many days of history'
-		' should be re-referenced on post changes to keep this results conclusive.'
-		' Performance-quality knob, since ideally this should be an infinity.' )
+	crossref_span = models.PositiveSmallIntegerField( blank=True, null=True,
+		help_text='How many days of history should be re-referenced on post '
+			'changes to keep this results conclusive. Performance-quality knob, since'
+			' ideally this should be an infinity (indicated by NULL value).' )
 
 	@property
 	def handler(self):
@@ -229,9 +230,9 @@ class Feed(models.Model):
 		# Pure performance-hack: find time threshold after which we just "don't care",
 		#  since it's too old history and shouldn't be relevant anymore.
 		# Value is set for FilterBase, so results should be recalculated in max-span delta.
-		date_threshold, = related_feeds.aggregate(
-			models.Max('filters__base__crossref_span') ).itervalues() # shouldn't be None
-		date_threshold = datetime.now() - timedelta(date_threshold)
+		date_threshold, = next(related_feeds.aggregate(
+			models.Max('filters__base__crossref_span') ).itervalues())
+		if date_threshold: date_threshold = datetime.now() - timedelta(date_threshold)
 		# Set anti-recursion lock.
 		Feed._filters_update_handler_lock = True
 		# Special case: updated filtering logic of Feed, like AND/OR flip or filters m2m change.
@@ -242,13 +243,15 @@ class Feed(models.Model):
 			for post in instance.posts.order_by('date_updated'): post.filtering_result_update()
 		# This actually drops all the results before "date_threshold" on "related_feeds".
 		# Note that local update-date is checked, not the remote "date_modified" field.
-		FilterResult.objects.filter( post__feed__in=related_feeds,
-			post__date_updated__gt=date_threshold, filter__base__crossref=True ).delete()
+		tainted = FilterResult.objects.filter(post__feed__in=related_feeds, filter__base__crossref=True)
+		if date_threshold: tainted = tainted.filter(post__date_updated__gt=date_threshold)
+		tainted.delete()
 		## Now, walk the posts, checking/updating results for each one.
 		# Posts are be updated in the "last-touched" order, for consistency of cross-ref filters' results.
 		# Amount of work here is quite extensive, since this (ideally) should affect every Post.
-		for post in Post.objects.filter( feed__in=related_feeds,
-			date_updated__gt=date_threshold ).order_by('date_updated'): post.filtering_result_update()
+		tainted = Post.objects.filter(feed__in=related_feeds)
+		if date_threshold: tainted = tainted.filter(date_updated__gt=date_threshold)
+		for post in tainted.order_by('date_updated'): post.filtering_result_update()
 		## Unlock this function again.
 		Feed._filters_update_handler_lock = False
 
@@ -501,7 +504,7 @@ from threading import Event
 transaction_in_progress = Event()
 transaction_affected_feeds = set()
 
-def transaction_handler(signal, sender):
+def transaction_handler(signal, sender, **kwz):
 	Feed.update_handler(transaction_affected_feeds)
 	transaction_affected_feeds.clear()
 	transaction_in_progress.clear()

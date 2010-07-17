@@ -49,5 +49,9 @@ class FilterBaseAdmin(admin.ModelAdmin):
 admin.site.register(models.FilterBase, FilterBaseAdmin)
 
 
+class FilterAdmin(admin.ModelAdmin):
+	list_display = '__unicode__', 'parameter'
+admin.site.register(models.Filter, FilterAdmin)
+
+
 admin.site.register(models.Link)
-admin.site.register(models.Filter)

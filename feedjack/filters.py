@@ -25,6 +25,9 @@ def title_similarity(post, parameter=None):
 		threshold, timespan = float(threshold), int(timespan)
 	else:
 		threshold, timespan = DEFAULT_SIMILARITY_THRESHOLD, DEFAULT_SIMILARITY_TIMESPAN
+	similar = Post.objects.filtered().similar(threshold, title=post.title)\
+		.filter(date_updated__gt=datetime.now() - timedelta(seconds=timespan)
+	similar = similar.filter(
 	return not bool(Post.objects.filtered().similar(threshold, title=post.title)\
-		.filter(date_updated__gt=datetime.now() - timedelta(seconds=timespan))[:1])
+		)[:1])
 
