@@ -81,7 +81,10 @@ class ProcessFeed:
 		fcat = list()
 		if entry.has_key('tags'):
 			for tcat in entry.tags:
-				qcat = (tcat.label if tcat.label is not None else tcat.term).strip()
+				qcat = tcat.label if tcat.label is not None else tcat.term
+				if not qcat: continue
+
+				qcat = qcat.strip()
 				if ',' in qcat or '/' in qcat: qcat = qcat.replace(',', '/').split('/')
 				else: qcat = [qcat]
 
