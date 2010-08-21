@@ -58,7 +58,7 @@ def get_extra_content(site, sfeeds_ids, ctx):
 		ctx['feeds'] = list()
 		ctx['last_modified'] = '??'
 	ctx['site'] = site
-	ctx['media_url'] = '{0}/feedjack/{1}'.format(settings.MEDIA_URL, site.template)
+	ctx['media_url'] = '{0}feedjack/{1}'.format(settings.MEDIA_URL, site.template)
 
 
 
