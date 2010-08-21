@@ -1,5 +1,19 @@
 CHANGES:
 
+Feedjack 0.9.16-fg2
+* Added extensive feed filtering mechanism (still experimental).
+* Replaced custom ObjectPaginator with native Paginator (now part of django),
+   thus eliminating many DeprecationWarning's.
+* Added "fern" and "fern_grid" minimalistic themes.
+* feedjack_update now uses transactions/savepoints to isolate and rollback
+   failures, instead of aborting whole update or leaving inconsistent data in db.
+* Support for fine-grained updates (site, feed).
+* Improved cache-invalidation mechanism (see ae18d26f66).
+* Revised admin interface fields, added filtering subsystem models.
+* Fixed feed entires time conversion bug (see 1d0fc79a96).
+* Further extended model fields.
+* Minor bugfixes.
+
 Feedjack 0.9.16-fg1
 * Revised feedjack_update, models. Added "immutable"
    feed-flag to prevent updating posts based on content or mtime
