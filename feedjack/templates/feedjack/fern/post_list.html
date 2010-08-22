@@ -2,16 +2,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
+
 <head>
-    <meta http-equiv="Content-Type" content="application/xhtml+xml" />
-    <title>{% if user_id %}{{ user.feed.title }} - {% endif %}{{ site.title }}</title>
-    <link rel="stylesheet" href="{{ media_url }}/default.css" type="text/css"/>
-    <link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="{{ site.url }}/feed/rss/" />
-    {% block extrastyle %}{% endblock %}
-    {% block extrahead %}{% endblock %}
+	<meta http-equiv="Content-Type" content="application/xhtml+xml" />
+	<title>{% if user_id %}{{ user.feed.title }} - {% endif %}{{ site.title }}</title>
+	<link rel="stylesheet" href="{{ media_url }}/default.css" type="text/css"/>
+	<link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="{{ site.url }}/feed/rss/" />
+	{% block extrastyle %}{% endblock %}
+	{% block extrahead %}{% endblock %}
 </head>
 
 <body>
+
 
 <div id="header">
 
@@ -31,48 +33,48 @@
 
 <div id="container">
 
+
 <div id="center" class="column">
 
 {% for item in object_list %}
-{% ifchanged %}
-<h1>{{ item.date_modified|date:"F j, Y" }}</h1>
-{% endifchanged %}
 
 {% with item.date_modified|date:"F j, Y" as date_key %}
 {% ifchanged item.feed.id date_key %}
 {% if not forloop.first %}
-	<!-- End .channel -->
 	<br class="clear"/>
-</div>
+</div> {# /.channel #}
 {% endif %}
+{% endifchanged %}
+
+{% ifchanged date_key %}
+<h1>{{ item.date_modified|date:"F j, Y" }}</h1>
+{% endifchanged %}
+
+{% ifchanged item.feed.id date_key %}
 <div class="channel">
-    <h2><a href="{{ item.feed.link }}" title="{{ item.feed.title }}">{{ item.feed.shortname }}</a></h2>
+	<h2><a href="{{ item.feed.link }}" title="{{ item.feed.title }}">{{ item.feed.shortname }}</a></h2>
 {% endifchanged %}
 {% endwith %}
 
-    <div class="entry">
-        <h3><a href="{{ item.link }}">{% if item.title %}{{ item.title }}
+	<div class="entry">
+		<h3><a href="{{ item.link }}">{% if item.title %}{{ item.title }}
 					{% else %}{{ item.subscriber.name }}{% endif %}</a></h3>
-        <div class="content">
-        {{ item.content|safe }}
-        <!-- End .content -->
-        </div>
-        <p class="date"><a href="{{ item.link }}" title="{% trans "Author link" %}">{% if item.author %}{% blocktrans with item.author as author %}by {{ author }} at{% endblocktrans %}{% endif %}{{ item.date_modified|date:"g:i A" }}</a>{% for tag in item.qtags %}{% if forloop.first %} {% trans "under" %} {% endif %}<a href="{{ site.url }}/tag/{{ tag.name }}" title="Tag">{{ tag.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}
-        {% if item.comments %}<a href="{{ item.comments }}" title="{% trans "Comments" %}">({% trans "Comments" %})</a> {% endif %}
-        </p>
-    <!-- End .entry -->
-    </div>
+		<div class="content">
+		{{ item.content|safe }}
+		</div> {# /.content #}
+		<p class="date"><a href="{{ item.link }}" title="{% trans "Author link" %}">{% if item.author %}{% blocktrans with item.author as author %}by {{ author }} at{% endblocktrans %}{% endif %}{{ item.date_modified|date:"g:i A" }}</a>{% for tag in item.qtags %}{% if forloop.first %} {% trans "under" %} {% endif %}<a href="{{ site.url }}/tag/{{ tag.name }}" title="Tag">{{ tag.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}
+		{% if item.comments %}<a href="{{ item.comments }}" title="{% trans "Comments" %}">({% trans "Comments" %})</a> {% endif %}
+		</p>
+	</div> {# /.entry #}
 
 {% if forloop.last %}
-	<!-- End .channel -->
 	<br class="clear"/>
-</div>
+</div> {# /.channel #}
 {% endif %}
 
 {% endfor %}
 
-<!-- End #center -->
-</div>
+</div> {# /#center #}
 
 
 {% if false %}
@@ -80,23 +82,22 @@
 <h2>{% trans "Tag soup" %}</h2>
 <p id="cloud">
 {% for tag in tagcloud %}
-      <a
-      {% if user_id %}
-      href="{{ site.url }}/user/{{ user_id }}/tag/{{ tag.tagname|urlencode }}/"
-      {% else %}
-      href="{{ site.url }}/tag/{{ tag.tagname|urlencode }}/"
-      {% endif %}
-      title="{% blocktrans count tag.count as posts %}{{ posts }} post{% plural %}{{ posts }} posts{% endblocktrans %}"
-      class="cloud_{{ tag.weight }}">{{ tag.tagname }}</a>
+	<a
+	{% if user_id %}
+	href="{{ site.url }}/user/{{ user_id }}/tag/{{ tag.tagname|urlencode }}/"
+	{% else %}
+	href="{{ site.url }}/tag/{{ tag.tagname|urlencode }}/"
+	{% endif %}
+	title="{% blocktrans count tag.count as posts %}{{ posts }} post{% plural %}{{ posts }} posts{% endblocktrans %}"
+	class="cloud_{{ tag.weight }}">{{ tag.tagname }}</a>
 {% endfor %}
 </p>
-<!-- End #left -->
-</div>
+</div> {# /#left #}
 {% endif %}
 
 
-<!-- End #container -->
-</div>
+</div> {# /#container #}
+
 
 <div id="footer">
 {% if site.welcome %}
@@ -113,21 +114,19 @@
 {% endif %}
 
 <p class="paginator clear">
-  Page {{ page }} of {{ pages }} (
-    {% blocktrans count hits as posts %}{{ posts }} post{% plural %}{{ posts }} posts{% endblocktrans %}
-  ) <br/>
+	Page {{ page }} of {{ pages }} (
+	{% blocktrans count hits as posts %}{{ posts }} post{% plural %}{{ posts }} posts{% endblocktrans %}
+	) <br/>
 {% if has_previous %}<a href="?page={{ previous }}">&lt;&lt; {% trans "Back" %}</a>{% endif %} {% if has_next %}<a href="?page={{ next }}">{% trans "Forward" %} &gt;&gt;</a>{% endif %}</p>
 </div>
 
 
 <div class="subfeeds_dd">
-<p>Subfeeds:</p>
-{% for feed in subscribers %}
-<p>
-<a href="{{ site.url }}/user/{{ feed.feed.id }}/"
-	title="{{ feed.feed.title }}">{{ feed.name }}</a>
-</p>
-{% endfor %}
+	<p>Subfeeds:</p>
+	{% for feed in subscribers %}
+		<p><a href="{{ site.url }}/user/{{ feed.feed.id }}/"
+			title="{{ feed.feed.title }}">{{ feed.name }}</a></p>
+	{% endfor %}
 </div>
 
 

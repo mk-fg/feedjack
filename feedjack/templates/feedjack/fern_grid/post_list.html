@@ -2,6 +2,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
+
 <head>
 	<meta http-equiv="Content-Type" content="application/xhtml+xml" />
 	<title>{% if user_id %}{{ user.feed.title }} - {% endif %}{{ site.title }}</title>
@@ -12,6 +13,7 @@
 </head>
 
 <body>
+
 
 <div id="header">
 
@@ -31,6 +33,7 @@
 
 <div id="container">
 
+
 <div id="center" class="column">
 
 {% for item in object_list %}
@@ -38,11 +41,17 @@
 {% with item.date_created|date:"F j, Y" as date_key %}
 {% ifchanged item.feed.id date_key %}
 {% if not forloop.first %}
-	</div>
+	</div> {# /.grid #}
 	<br class="clear"/>
-</div>
+</div> {# /.channel #}
 {% endif %}
-<h1>{{ item.date_created|date:"F j, Y" }}</h1>
+{% endifchanged %}
+
+{% ifchanged date_key %}
+<h1>{{ item.date_modified|date:"F j, Y" }}</h1>
+{% endifchanged %}
+
+{% ifchanged item.feed.id date_key %}
 <div class="channel">
 	<h2><a href="{{ item.feed.link }}" title="{{ item.feed.title }}">{{ item.feed.shortname }}</a></h2>
 	<div class="grid">
@@ -57,19 +66,18 @@
 	{% endif %}
 
 {% if forloop.last %}
-	</div>
+	</div> {# /.grid #}
 	<br class="clear"/>
-</div>
+</div> {# /.channel #}
 {% endif %}
 
 {% endfor %}
 
-<!-- End #center -->
-</div>
+</div> {# /#center #}
 
 
-<!-- End #container -->
-</div>
+</div> {# /#container #}
+
 
 <div id="footer">
 {% if site.welcome %}
