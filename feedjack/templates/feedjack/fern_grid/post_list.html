@@ -48,7 +48,7 @@
 {% endifchanged %}
 
 {% ifchanged date_key %}
-<h1>{{ item.date_modified|date:"F j, Y" }}</h1>
+<h1>{{ item.date_created|date:"F j, Y" }}</h1>
 {% endifchanged %}
 
 {% ifchanged item.feed.id date_key %}
