@@ -179,8 +179,8 @@ class ProcessFeed:
 				return FEED_ERRHTTP, ret_values
 
 		if hasattr(self.fpf, 'bozo') and self.fpf.bozo:
-			log.error( u'[{0}] Feed is not well formed: {1}'\
-				.format(self.feed.id, self.feed.feed_url) )
+			log.error( u'[{0}] Feed is not well formed: {1} ({2})'\
+				.format(self.feed.id, self.feed.feed_url, getattr(self.fpf, 'bozo_exception', 'unknown error')) )
 
 		# the feed has changed (or it is the first time we parse it)
 		# saving the etag and last_modified fields
@@ -356,12 +356,7 @@ def bulk_update(optz):
 		updated_sites.update(Site.objects.filter(subscriber__feed__pk__in=optz.feed))
 
 	if optz.site:
-		known_ids = set()
-		for feed in Feed.objects.get(subscriber__site__pk__in=optz.site):
-			known_ids.add(feed.site.id)
-			disp.add_job(feed)
-		for site_id in set(optz.site).difference(known_ids):
-			log.warn(u'Unknown site id: {0}'.format(site_id))
+		for feed in Feed.objects.filter(subscriber__site__pk__in=optz.site): disp.add_job(feed)
 		updated_sites.update(Site.objects.filter(pk__in=optz.site))
 
 	if not optz.feed and not optz.site:
