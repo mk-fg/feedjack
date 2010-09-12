@@ -118,6 +118,12 @@ class FilterBase(models.Model): # I had to resist the urge to call it FilterClas
 			filter_func = getattr(__import__(filter_module, fromlist=[filter_func]), filter_func)
 		return filter_func
 
+	@property
+	def handler_description(self):
+		try: doc = self.handler.__doc__
+		except ImportError: doc = '<Failed to import handler>'
+		return smart_unicode(doc or '')
+
 	def __unicode__(self): return u'{0.name} ({0.handler_name})'.format(self)
 
 
@@ -134,14 +140,14 @@ class Filter(models.Model):
 	def handler(self):
 		'Parametrized handler function'
 		return ft.partial(self.base.handler, parameter=self.parameter)\
-			if self.parameter is not None else self.base.handler
+			if self.parameter else self.base.handler
 
 	@property
 	def shortname(self): return self.__unicode__(short=True)
 	def __unicode__(self, short=False):
 		usage = [self.parameter] if self.parameter else list()
 		if not short:
-			binding = u', '.join(it.imap(op.attrgetter('shortname'), self.feeds.all()))
+			binding = u', '.join(self.feeds.values_list('shortname', flat=True))
 			usage.append(u'used on {0}'.format(binding) if binding else 'not used for any feed')
 		return u'{0.base.name}{1}'.format(self, u' ({0})'.format(u', '.join(usage) if usage else ''))
 
@@ -205,16 +211,35 @@ class Feed(models.Model):
 
 	@staticmethod
 	def _filters_update_handler( sender, instance, force=False,
-			created=None, reverse=None, model=None, pk_set=list(), **kwz ):
-		### Main "crossref-rebuild" function. ALL filter-consistency hooks call it in the end.
+			created=None, # post_save-specific
+			model=None, pk_set=list(), reverse=None, action=None, # m2m-specific
+			**kwz ):
+		m2m_update = reverse is not None
+		### Main "crossref-rebuild" function.
+		### ALL filter-consistency hooks call it in the end.
+		### It MUST make sure that all filtering results are up2date.
 		### Logic here is pretty obscure, so I'll try to explain it in comments.
 		## Check if this call is a result of actions initiated from
-		##  this very function in a higher frame (recursion).
+		##  one of the hooks in a higher frame (resulting in recursion).
+		## Note that there's a similar check in Feed.update_handler, as a shortcut.
 		if Feed._filters_update_handler_lock: return
-		## post_save-specific checks, so it won't be triggered on _every_
-		##  Feed save, only those that change "filter_logic" on existing feeds.
-		if not force and created is not None and (
-			created is True or not instance._filters_logic_update ): return
+		## In case of m2m changes, pre_* hooks (pre_clear, pre_add, pre_delete)
+		##  are skipped in favor of inevitable post_* hooks, when data will be consistent.
+		if m2m_update and action.startswith('pre_'): return
+		## post_save-specific checks (force=False), so it won't be triggered on _every_
+		##  Feed save, only those that change "filters_logic" on existing feeds.
+		if not force and not m2m_update and (
+			created or not instance._filters_logic_update ): return
+		## Special "preparation" of instance if filtering logic of Feed is updated,
+		##  like AND/OR flip for crossref or filters' m2m change.
+		## Only valid for m2m_update and post_save hook (when "created is False").
+		## That certainly affects every Post of "instance", so they all should be updated.
+		## Shouldn't happen too often, hopefully.
+		if m2m_update or (created is False and instance._filters_logic_update):
+			Feed._filters_update_handler_lock = True # this _is_ recursive!
+			FilterResult.objects.filter(post__feed=instance, filter__base__crossref=True).delete()
+			for post in instance.posts.order_by('date_updated'): post.filtering_result_update()
+			Feed._filters_update_handler_lock = False
 		## Get set of feeds that are affected by m2m update, note that it's always derived
 		##  from instance in case of post_save hook, since it doesn't pass "reverse" keyword.
 		related_feeds = Feed.objects.filter(id__in=pk_set) if reverse else\
@@ -230,17 +255,11 @@ class Feed(models.Model):
 		# Pure performance-hack: find time threshold after which we just "don't care",
 		#  since it's too old history and shouldn't be relevant anymore.
 		# Value is set for FilterBase, so results should be recalculated in max-span delta.
-		date_threshold, = next(related_feeds.aggregate(
+		date_threshold = next(related_feeds.aggregate(
 			models.Max('filters__base__crossref_span') ).itervalues())
 		if date_threshold: date_threshold = datetime.now() - timedelta(date_threshold)
 		# Set anti-recursion lock.
 		Feed._filters_update_handler_lock = True
-		# Special case: updated filtering logic of Feed, like AND/OR flip or filters m2m change.
-		# That certainly affects every post of "instance", so they all should be updated.
-		# Shouldn't happen too often, anyway.
-		if reverse is not None or (created is False and instance._filters_logic_update):
-			FilterResult.objects.filter(post__feed=instance, filter__base__crossref=True).delete()
-			for post in instance.posts.order_by('date_updated'): post.filtering_result_update()
 		# This actually drops all the results before "date_threshold" on "related_feeds".
 		# Note that local update-date is checked, not the remote "date_modified" field.
 		tainted = FilterResult.objects.filter(post__feed__in=related_feeds, filter__base__crossref=True)
@@ -260,7 +279,11 @@ class Feed(models.Model):
 
 	@staticmethod
 	def update_handler(feeds):
-		'Update all cross-referencing filters results for feeds and others, related to them'
+		'''Update all cross-referencing filters results for feeds and others, related to them.
+			Intended to be called from non-Feed update hooks (like new Post saving).'''
+		# Check if this call is a result of actions initiated from
+		#  one of the hooks in a higher frame (resulting in recursion).
+		if Feed._filters_update_handler_lock: return
 		return Feed._filters_update_handler(Feed, feeds, force=True)
 
 signals.m2m_changed.connect(Feed._filters_update_handler, sender=Feed.filters.through)
@@ -319,7 +342,10 @@ class Posts(models.Manager):
 	def similar(self, *argz, **kwz):
 		return self.get_query_set().similar(*argz, **kwz)
 	def filtered(self):
-		return self.get_query_set().filter(filtering_result=True)
+		# Check is "not False" because there can be NULLs for
+		#  feeds with no filters (also provided there never was any filters).
+		# TODO: make this field pure-bool?
+		return self.get_query_set().exclude(filtering_result=False)
 
 
 class Post(models.Model):
@@ -360,7 +386,7 @@ class Post(models.Model):
 		'''Check if post passes all / at_least_one (by_or parameter) filter(s).
 			Filters are evaluated on only-if-necessary ("lazy") basis.'''
 		filters, results = it.imap(set, ( self.feed.filters.all(),
-			it.imap(op.attrgetter('filter'), self.filtering_results.all()) ))
+			self.filtering_results.values_list('filter', flat=True) ))
 
 		# Check if conclusion can already be made, based on cached results.
 		if results.issubset(filters):
@@ -467,11 +493,39 @@ signals.post_save.connect(Subscriber._update_handler, sender=Subscriber)
 
 
 
-from django.dispatch import Signal
-transaction_start = Signal(providing_args=list())
-transaction_done = Signal(providing_args=list())
-
 from django.db import transaction
+from django.dispatch import Signal
+
+# Following signals are wired into django by monkey-patching,
+#  because there's no support for these in 1.2.
+# See also: http://code.djangoproject.com/ticket/14051
+
+transaction_pre_commit = Signal(providing_args=list())
+transaction_post_commit = Signal(providing_args=list())
+transaction_pre_rollback = Signal(providing_args=list())
+transaction_post_rollback = Signal(providing_args=list())
+
+_django_commit = transaction.commit
+@ft.wraps(transaction.commit)
+def signaled_commit(using=None):
+	transaction_pre_commit.send(sender=using)
+	_django_commit(using=using)
+	transaction_post_commit.send(sender=using)
+transaction.commit = signaled_commit
+
+_django_rollback = transaction.rollback
+@ft.wraps(transaction.rollback)
+def signaled_rollback(using=None):
+	transaction_pre_rollback.send(sender=using)
+	_django_rollback(using=using)
+	transaction_post_rollback.send(sender=using)
+transaction.rollback = signaled_rollback
+
+
+# These are sent along with transaction_wrapper func start/finish
+transaction_start = Signal(providing_args=list())
+transaction_finish = Signal(providing_args=['error']) # error holds exception or None
+
 def transaction_wrapper(func, logger=None):
 	'''Traps exceptions in transaction.commit_manually blocks,
 		instead of just replacing them by non-meaningful no-commit django exceptions'''
@@ -483,12 +537,14 @@ def transaction_wrapper(func, logger=None):
 			transaction_start.send(sender=func.func_name)
 			try: result = func(*argz, **kwz)
 			except Exception as err:
+				transaction_finish.send(sender=func.func_name, error=err)
 				import sys, traceback
 				(logger or log).error(( u'Unhandled exception: {0},'
 					' traceback:\n {1}' ).format( err,
 						smart_unicode(''.join(traceback.format_tb(sys.exc_info()[2]))) ))
 				raise
-			finally: transaction_done.send(sender=func.func_name)
+			else:
+				transaction_finish.send(sender=func.func_name, error=None)
 			return result
 		return _transaction_wrapper
 	else:
@@ -496,19 +552,32 @@ def transaction_wrapper(func, logger=None):
 
 
 # These are here to defer costly FilterResult updates until the end of transaction,
-#  so they won't be dropped-recalculated for every new or updated Post
+#  so they won't be dropped-recalculated for every new or updated Post.
 # Note that this is only for Post-hooks, any relation changes
-#  (Feed-Filter, Subscriber, etc) should still trigger a rebuild
+#  (Feed-Filter, Subscriber, etc) should still trigger an immediate rebuild.
 
 from threading import Event
 transaction_in_progress = Event()
 transaction_affected_feeds = set()
 
-def transaction_handler(signal, sender, **kwz):
+def transaction_bulk_start(signal, sender, **kwz):
+	transaction_in_progress.set()
+
+def transaction_bulk_process(signal, sender, **kwz):
+	if not transaction_in_progress.is_set(): return
 	Feed.update_handler(transaction_affected_feeds)
-	transaction_affected_feeds.clear()
+	transaction_affected_feeds.clear() # in case of several commits
+
+def transaction_bulk_cancel(signal, sender, **kwz):
+	if transaction_in_progress.is_set(): return
+	transaction_affected_feeds.clear() # not to interfere with next commit
+
+def transaction_bulk_finish(signal, sender, **kwz):
+	# Transaction should be already comitted/rolled-back at this point
 	transaction_in_progress.clear()
+	transaction_affected_feeds.clear()
 
-transaction_start.connect(lambda *a,**k: transaction_in_progress.set(), sender='bulk_update')
-transaction_done.connect(transaction_handler, sender='bulk_update')
-
+transaction_start.connect(transaction_bulk_start, sender='bulk_update')
+transaction_pre_commit.connect(transaction_bulk_process)
+transaction_post_rollback.connect(transaction_bulk_cancel)
+transaction_finish.connect(transaction_bulk_finish, sender='bulk_update')

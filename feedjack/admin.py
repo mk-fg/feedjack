@@ -29,9 +29,9 @@ admin.site.register(models.Feed, FeedAdmin)
 
 
 class PostAdmin(admin.ModelAdmin):
-	list_display = 'title', 'link', 'author', 'date_modified'
+	list_display = 'title', 'link', 'filtering_result', 'date_created'
 	search_fields = 'link', 'title'
-	date_hierarchy = 'date_modified'
+	date_hierarchy = 'date_created'
 	filter_vertical = 'tags',
 	list_filter = 'feed',
 admin.site.register(models.Post, PostAdmin)
@@ -44,7 +44,8 @@ admin.site.register(models.Subscriber, SubscriberAdmin)
 
 
 class FilterBaseAdmin(admin.ModelAdmin):
-	list_display = 'name', 'handler_name', 'crossref', 'crossref_span'
+	list_display = 'name', 'handler_name',\
+		'crossref', 'crossref_span', 'handler_description'
 	ordering = 'name',
 admin.site.register(models.FilterBase, FilterBaseAdmin)
 
