@@ -392,7 +392,7 @@ if __name__ == '__main__':
 	parser.add_option('-s', '--site', action='append', type='int',
 		help='A site id (or several of them) to update.')
 
-	parser.add_option('-t', '--timeout', type='int', default=10,
+	parser.add_option('-t', '--timeout', type='int', default=20,
 		help='Wait timeout in seconds when connecting to feeds.')
 	parser.add_option('-w', '--workerthreads', type='int', default=10,
 		help='Worker threads that will fetch feeds in parallel.')
