@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 
-VERSION = '0.9.16-fg2'
+VERSION = '0.9.16-fg3'
 URL = 'http://www.feedjack.org/'
 USER_AGENT = 'Feedjack {0} - {1}'.format(VERSION, URL)
 SLOWFEED_WARNING = 10

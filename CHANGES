@@ -1,5 +1,12 @@
 CHANGES:
 
+Feedjack 0.9.16-fg3
+* Working feed filtering.
+* Added a few default filter bases, with descriptions to these.
+* Much more descriptive feed-fetching error messages.
+* Tag clouds aren't calculated if they won't be displayed anymore.
+* CLI, template bugfixes.
+
 Feedjack 0.9.16-fg2
 * Added extensive feed filtering mechanism (still experimental).
 * Replaced custom ObjectPaginator with native Paginator (now part of django),
