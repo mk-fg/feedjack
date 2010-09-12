@@ -170,14 +170,16 @@ def page_context(request, site, tag=None, user_id=None, sfeeds=None):
 	except ValueError: page = 1
 
 	page = get_page(site, sfeeds_ids, page=page, tag=tag, user=user_id)
-	if page.object_list:
+	if site.show_tagcloud and page.object_list:
 		# This will hit the DB once per page instead of once for every post in
 		# a page. To take advantage of this the template designer must call
 		# the qtags property in every item, instead of the default tags
 		# property.
-		user_obj, tag_obj = get_posts_tags(
-			page.object_list, sfeeds_obj, user_id, tag )
-	else: user_obj, tag_obj = None, None
+		user_obj, tag_obj = get_posts_tags(page.object_list, sfeeds_obj, user_id, tag)
+	else:
+		tag_obj = None
+		user_obj = models.Subscriber.objects\
+			.get(site=site, feed=user_id) if user_id else None
 
 	ctx = dict(
 		object_list = page.object_list,
