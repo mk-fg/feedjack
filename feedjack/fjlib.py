@@ -140,7 +140,7 @@ def get_page(site, sfeeds_ids, page=1, tag=None, feed_id=None):
 	""" Returns a paginator object and a requested page from it.
 	"""
 
-	localposts = models.Post.objects.filter(feed__in=sfeeds_ids)
+	localposts = models.Post.objects.filtered().filter(feed__in=sfeeds_ids)
 	if tag: localposts = localposts.filter(tags__name=tag)
 	if feed_id: localposts = localposts.filter(feed=feed_id)
 
