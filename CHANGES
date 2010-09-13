@@ -1,10 +1,15 @@
 CHANGES:
 
 Feedjack 0.9.16-fg3
-* Working feed filtering.
+* Actually working feed filtering.
 * Added a few default filter bases, with descriptions to these.
 * Much more descriptive feed-fetching error messages.
 * Tag clouds aren't calculated if they won't be displayed anymore.
+* Deprecated whole "user" concept in favor of "feed", also deprecating
+   "/feed/{atom,rss}" urls in favor of "/syndication/{atom,rss}", while retaining
+   all the backward compatibility.
+* "/feed/X" and "/tag/X" have no special ordering in urls anymore, just as
+   long as there's at most one specification of each.
 * CLI, template bugfixes.
 
 Feedjack 0.9.16-fg2
