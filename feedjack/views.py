@@ -6,6 +6,7 @@ from django.shortcuts import render_to_response
 from django.http import HttpResponse
 from django.utils.cache import patch_vary_headers
 from django.template import Context, RequestContext, loader
+from django.views.generic.simple import redirect_to
 
 from feedjack import models
 from feedjack import fjlib
@@ -13,15 +14,13 @@ from feedjack import fjcache
 
 
 def initview(request):
-	""" Retrieves the basic data needed by all feeds (host, feeds, etc)
-
-	Returns a tuple of:
-	1. A valid cached response or None
-	2. The current site object
-	3. The cache key
-	4. The subscribers for the site (objects)
-	5. The feeds for the site (ids)
-	"""
+	'''Retrieves the basic data needed by all feeds (host, feeds, etc)
+		Returns a tuple of:
+			1. A valid cached response or None
+			2. The current site object
+			3. The cache key
+			4. The subscribers for the site (objects)
+			5. The feeds for the site (ids)'''
 
 	site_id, cachekey = fjlib.getcurrentsite( request.META['HTTP_HOST'],
 	  request.META.get('REQUEST_URI', request.META.get('PATH_INFO', '/')),
@@ -36,10 +35,16 @@ def initview(request):
 	return None, site, cachekey, sfeeds_obj, sfeeds_ids
 
 
-def blogroll(request, btype):
-	""" View that handles the generation of blogrolls.
-	"""
+def redirect(request, url, **kwz):
+	'''Simple redirect, taking site prefix into account,
+		otherwise similar to redirect_to generic view.'''
+	response, site, cachekey, sfeeds_obj, sfeeds_ids = initview(request)
+	if response: return response
+	return redirect_to(request, url=site.url + url, **kwz)
 
+
+def blogroll(request, btype):
+	'View that handles the generation of blogrolls.'
 	response, site, cachekey, sfeeds_obj, sfeeds_ids = initview(request)
 	if response: return response
 
@@ -63,33 +68,27 @@ def blogroll(request, btype):
 
 
 def foaf(request):
-	""" View that handles the generation of the FOAF blogroll.
-	"""
-
+	'View that handles the generation of the FOAF blogroll.'
 	return blogroll(request, 'foaf')
 
 
 def opml(request):
-	""" View that handles the generation of the OPML blogroll.
-	"""
-
+	'View that handles the generation of the OPML blogroll.'
 	return blogroll(request, 'opml')
 
 
-def buildfeed(request, feedclass, tag=None, user=None):
-	""" View that handles the feeds.
-	"""
-
+def buildfeed(request, feedclass, tag=None, feed_id=None):
+	'View that handles the feeds.'
+	# TODO: quote a mess, can't it be handled with a default feed-vews?
 	response, site, cachekey, sfeeds_obj, sfeeds_ids = initview(request)
 	if response: return response
 
-	object_list = fjlib.get_page(site, sfeeds_ids, page=1, tag=tag, user=user).object_list
+	feed_title = site.title
+	if feed_id: feed_title = '{0} - {1}'.format(models.Feed.objects.get(id=feed_id).title, feed_title)
+	object_list = fjlib.get_page(site, sfeeds_ids, page=1, tag=tag, feed_id=feed_id).object_list
 
-	feed = feedclass(
-		title=site.title,
-		link=site.url,
-		description=site.description,
-		feed_url=u'{0}/{1}'.format(site.url, '/feed/rss/') )
+	feed = feedclass( title=feed_title, link=site.url,
+		description=site.description, feed_url=u'{0}/{1}'.format(site.url, '/feed/rss/') )
 	for post in object_list:
 		feed.add_item(
 			title = u'{0}: {1}'.format(post.feed.name, post.title),
@@ -110,26 +109,22 @@ def buildfeed(request, feedclass, tag=None, user=None):
 	return response
 
 
-def rssfeed(request, tag=None, user=None):
-	""" Generates the RSS2 feed.
-	"""
-	return buildfeed(request, feedgenerator.Rss201rev2Feed, tag, user)
+def rssfeed(request, tag=None, feed_id=None):
+	'Generates the RSS2 feed.'
+	return buildfeed(request, feedgenerator.Rss201rev2Feed, tag, feed_id)
 
 
-def atomfeed(request, tag=None, user=None):
-	""" Generates the Atom 1.0 feed.
-	"""
-	return buildfeed(request, feedgenerator.Atom1Feed, tag, user)
+def atomfeed(request, tag=None, feed_id=None):
+	'Generates the Atom 1.0 feed.'
+	return buildfeed(request, feedgenerator.Atom1Feed, tag, feed_id)
 
 
-def mainview(request, tag=None, user=None):
-	""" View that handles all page requests.
-	"""
-
+def mainview(request, tag=None, feed_id=None):
+	'View that handles all page requests.'
 	response, site, cachekey, sfeeds_obj, sfeeds_ids = initview(request)
 	if response: return response
 
-	ctx = fjlib.page_context(request, site, tag, user, (sfeeds_obj, sfeeds_ids))
+	ctx = fjlib.page_context(request, site, tag, feed_id, (sfeeds_obj, sfeeds_ids))
 
 	response = render_to_response(
 		u'feedjack/{0}/post_list.html'.format(site.template),

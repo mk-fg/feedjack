@@ -5,7 +5,7 @@
 
 <head>
 	<meta http-equiv="Content-Type" content="application/xhtml+xml" />
-	<title>{% if user_id %}{{ user.feed.title }} - {% endif %}{{ site.title }}</title>
+	<title>{% if feed %}{{ feed.title }} - {% endif %}{{ site.title }}</title>
 	<link rel="stylesheet" href="{{ media_url }}/default.css" type="text/css"/>
 	<link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="{{ site.url }}/feed/rss/" />
 	{% block extrastyle %}{% endblock %}
@@ -17,15 +17,17 @@
 
 <div id="header">
 
-<div class="tit"><h1><a href="{{ site.url }}" title="{% if user_id %}{{ user.feed.title }} - {% endif %}{{ site.title }}">{% if user_id %}{{ user.feed.shortname }} - {% endif %}{{ site.title }}</a></h1></div>
+<div class="tit"><h1><a href="{{ site.url }}" title="{% if feed %}{{ feed.title }} - {% endif %}{{ site.title }}">{% if feed %}{{ feed.shortname }} - {% endif %}{{ site.title }}</a></h1></div>
 
 <div class="subfeeds"></div>
 
 <div class="buttons">
-	<a href="{{ site.url }}/feed/atom/" title="Atom 1.0 feed"><img src="{{ media_url }}/button-atom.png"/></a>
-	<a href="{{ site.url }}/feed/rss/" title="RSS 2.0 feed"><img src="{{ media_url }}/button-rss.png"/></a>
-	<a href="{{ site.url }}/opml/" title="OPML"><img src="{{ media_url }}/button-opml.png"/></a>
-	<a href="{{ site.url }}/foaf/" title="FOAF"><img src="{{ media_url }}/button-foaf.png"/></a>
+	<a href="{{ site.url }}/syndication/atom{{ url_suffix }}/" title="Atom 1.0 feed">
+		<img src="{{ media_url }}/button-atom.png"/></a>
+	<a href="{{ site.url }}/syndication/rss{{ url_suffix }}/" title="RSS 2.0 feed">
+		<img src="{{ media_url }}/button-rss.png"/></a>
+	<a href="{{ site.url }}/syndication/opml/" title="OPML"><img src="{{ media_url }}/button-opml.png"/></a>
+	<a href="{{ site.url }}/syndication/foaf/" title="FOAF"><img src="{{ media_url }}/button-foaf.png"/></a>
 </div>
 
 </div>
@@ -83,13 +85,9 @@
 <p id="cloud">
 {% for tag in tagcloud %}
 	<a
-	{% if user_id %}
-	href="{{ site.url }}/user/{{ user_id }}/tag/{{ tag.tagname|urlencode }}/"
-	{% else %}
-	href="{{ site.url }}/tag/{{ tag.tagname|urlencode }}/"
-	{% endif %}
-	title="{% blocktrans count tag.count as posts %}{{ posts }} post{% plural %}{{ posts }} posts{% endblocktrans %}"
-	class="cloud_{{ tag.weight }}">{{ tag.tagname }}</a>
+		href="{{ site.url }}/{{ url_suffix }}"
+		title="{% blocktrans count tag.count as posts %}{{ posts }} post{% plural %}{{ posts }} posts{% endblocktrans %}"
+		class="cloud_{{ tag.weight }}">{{ tag.tagname }}</a>
 {% endfor %}
 </p>
 </div> {# /#left #}
@@ -123,9 +121,9 @@
 
 <div class="subfeeds_dd">
 	<p>Subfeeds:</p>
-	{% for feed in subscribers %}
-		<p><a href="{{ site.url }}/user/{{ feed.feed.id }}/"
-			title="{{ feed.feed.title }}">{{ feed.name }}</a></p>
+	{% for subsciber in subscribers %}
+		<p><a href="{{ site.url }}/feed/{{ subsciber.feed.id }}/"
+			title="{{ subsciber.feed.title }}">{{ subsciber.name }}</a></p>
 	{% endfor %}
 </div>
 

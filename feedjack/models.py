@@ -34,12 +34,12 @@ class Link(models.Model):
 
 class Site(models.Model):
 	name = models.CharField(_('name'), max_length=100)
-	url = models.CharField(_('url'),
-	  max_length=100,
-	  unique=True,
-	  help_text=u'%s: %s, %s' % (smart_unicode(_('Example')),
-		u'http://www.planetexample.com',
-		u'http://www.planetexample.com:8000/foo'))
+	url = models.CharField( _('url'),
+	  max_length=100, unique=True,
+	  help_text=u'{0}: {1}, {2}'.format(
+			smart_unicode(_('Example')),
+			u'http://www.planetexample.com',
+			u'http://www.planetexample.com:8000/foo' ) )
 	title = models.CharField(_('title'), max_length=200)
 	description = models.TextField(_('description'))
 	welcome = models.TextField(_('welcome'), null=True, blank=True)

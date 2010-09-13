@@ -11,6 +11,7 @@ from feedjack import models
 from feedjack import fjcache
 
 import itertools as it, operator as op, functools as ft
+from urllib import urlencode
 
 
 
@@ -188,9 +189,18 @@ def page_context(request, site, tag=None, feed_id=None, sfeeds=None):
 
 	get_extra_content(site, sfeeds_ids, ctx)
 	ctx['tagcloud'] = tag_cloud
-	ctx['user_id'] = feed_id # totally misnamed and inconsistent with user_obj
-	ctx['user'] = user_obj
 	ctx['tag'] = tag_obj
 	ctx['subscribers'] = sfeeds_obj
+
+	# New
+	ctx['feed'] = models.Feed.objects.get(id=feed_id) if feed_id else None
+	ctx['url_suffix'] = ''.join((
+		'/feed/{0}'.format(feed_id) if feed_id else '',
+		'/tag/{0}'.format(urlencode(tag)) if tag else '' ))
+
+	# Deprecated
+	ctx['user_id'] = feed_id # totally misnamed and inconsistent with user_obj
+	ctx['user'] = user_obj
+
 	return ctx
 
