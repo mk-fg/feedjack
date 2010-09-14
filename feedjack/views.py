@@ -21,31 +21,26 @@ def initview(request):
 			3. The cache key
 			4. The subscribers for the site (objects)
 			5. The feeds for the site (ids)'''
-
 	site_id, cachekey = fjlib.getcurrentsite( request.META['HTTP_HOST'],
 	  request.META.get('REQUEST_URI', request.META.get('PATH_INFO', '/')),
 	  request.META['QUERY_STRING'] )
 	response = fjcache.cache_get(site_id, cachekey)
-	if response: return response, None, cachekey, list(), list()
-
+	if response: return response, None, cachekey
 	site = models.Site.objects.get(pk=site_id)
-	sfeeds_obj = fjlib.sitefeeds(site)
-	sfeeds_ids = list(subscriber.feed.id for subscriber in sfeeds_obj)
-
-	return None, site, cachekey, sfeeds_obj, sfeeds_ids
+	return None, site, cachekey
 
 
 def redirect(request, url, **kwz):
 	'''Simple redirect, taking site prefix into account,
 		otherwise similar to redirect_to generic view.'''
-	response, site, cachekey, sfeeds_obj, sfeeds_ids = initview(request)
+	response, site, cachekey = initview(request)
 	if response: return response
 	return redirect_to(request, url=site.url + url, **kwz)
 
 
 def blogroll(request, btype):
 	'View that handles the generation of blogrolls.'
-	response, site, cachekey, sfeeds_obj, sfeeds_ids = initview(request)
+	response, site, cachekey = initview(request)
 	if response: return response
 
 	# for some reason this isn't working:
@@ -58,7 +53,7 @@ def blogroll(request, btype):
 
 	template = loader.get_template('feedjack/{0}.xml'.format(btype))
 	ctx = dict()
-	fjlib.get_extra_content(site, sfeeds_ids, ctx)
+	fjlib.get_extra_content(site, ctx)
 	ctx = Context(ctx)
 	response = HttpResponse(template.render(ctx), mimetype='text/xml; charset=utf-8')
 
@@ -80,12 +75,12 @@ def opml(request):
 def buildfeed(request, feedclass, tag=None, feed_id=None):
 	'View that handles the feeds.'
 	# TODO: quote a mess, can't it be handled with a default feed-vews?
-	response, site, cachekey, sfeeds_obj, sfeeds_ids = initview(request)
+	response, site, cachekey = initview(request)
 	if response: return response
 
 	feed_title = site.title
 	if feed_id: feed_title = '{0} - {1}'.format(models.Feed.objects.get(id=feed_id).title, feed_title)
-	object_list = fjlib.get_page(site, sfeeds_ids, page=1, tag=tag, feed_id=feed_id).object_list
+	object_list = fjlib.get_page(site, page=1, tag=tag, feed=feed_id).object_list
 
 	feed = feedclass( title=feed_title, link=site.url,
 		description=site.description, feed_url=u'{0}/{1}'.format(site.url, '/feed/rss/') )
@@ -121,11 +116,10 @@ def atomfeed(request, tag=None, feed_id=None):
 
 def mainview(request, tag=None, feed_id=None):
 	'View that handles all page requests.'
-	response, site, cachekey, sfeeds_obj, sfeeds_ids = initview(request)
+	response, site, cachekey = initview(request)
 	if response: return response
 
-	ctx = fjlib.page_context(request, site, tag, feed_id, (sfeeds_obj, sfeeds_ids))
-
+	ctx = fjlib.page_context(request, site, tag, feed_id)
 	response = render_to_response(
 		u'feedjack/{0}/post_list.html'.format(site.template),
 		ctx, context_instance=RequestContext(request) )

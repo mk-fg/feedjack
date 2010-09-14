@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import signals
+from django.db.models import signals, Avg, Max, Min, Count
 from django.db import models, connection
 from django.utils.translation import ugettext_lazy as _
 from django.utils.encoding import smart_unicode
@@ -18,6 +18,21 @@ log = logging.getLogger()
 
 
 
+# from weakref import WeakKeyDictionary
+
+# class PyCache(WeakKeyDictionary):
+# 	def get(self, k, v=None):
+# 		if isinstance(k, tuple):
+# 			return self[k[0]].get(k[1]) if k[0] in self else None
+# 		else: super(WeakKeyDictionary, self).get(k, v)
+# 	def set(self, k, v):
+# 		if isinstance(k, tuple):
+# 			if k[0] in self: self[k[0]][k[1]] = v
+# 			else: self[k[0]] = WeakKeyDictionary(k[1]=v)
+# 		else: return self[k] = v
+# _pycache = PyCache()
+
+
 class Link(models.Model):
 	name = models.CharField(_('name'), max_length=100, unique=True)
 	link = models.URLField(_('link'), verify_exists=True)
@@ -31,6 +46,8 @@ class Link(models.Model):
 	def __unicode__(self): return u'%s (%s)' % (self.name, self.link)
 
 
+
+SITE_ORDERING = namedtuple('SiteOrdering', 'modified created created_day')(*xrange(1, 4))
 
 class Site(models.Model):
 	name = models.CharField(_('name'), max_length=100)
@@ -47,8 +64,13 @@ class Site(models.Model):
 
 	default_site = models.BooleanField(_('default site'), default=False)
 	posts_per_page = models.PositiveIntegerField(_('posts per page'), default=20)
-	order_posts_by = models.PositiveSmallIntegerField(_('order posts by'), default=1, choices=(
-		(1, _('Date published.')), (2, _('Date the post was first obtained.')) ))
+	order_posts_by = models.PositiveSmallIntegerField(_('order posts by'),
+		choices=(
+			(SITE_ORDERING.modified, _('Time the post was published.')),
+			(SITE_ORDERING.created, _('Time the post was first obtained.')),
+			(SITE_ORDERING.created_day,
+				_('Day the post was first obtained (for nicer per-feed grouping).')) ),
+		default=SITE_ORDERING.modified )
 	tagcloud_levels = models.PositiveIntegerField(_('tagcloud level'), default=5)
 	show_tagcloud = models.BooleanField(_('show tagcloud'), default=True)
 
@@ -67,6 +89,16 @@ class Site(models.Model):
 		verbose_name = _('site')
 		verbose_name_plural = _('sites')
 		ordering = ('name',)
+
+
+	@property
+	def active_subscribers(self):
+		return self.subscriber_set.filter(is_active=True)
+
+	@property
+	def active_feeds(self):
+		return Feed.objects.filter(subscriber__site=self, subscriber__is_active=True)
+
 
 	def __unicode__(self): return self.name
 
@@ -166,7 +198,20 @@ class FilterResult(models.Model):
 
 FEED_FILTERING_LOGIC = namedtuple('FilterLogic', 'all any')(*xrange(2))
 
+
+class FeedQuerySet(models.query.QuerySet):
+	@property
+	def timestamps(self):
+		return dict(it.izip( ('modified', 'checked'), self.filter(last_checked__isnull=False)\
+			.aggregate(Max('last_modified'), Max('last_checked')).itervalues() ))
+
+class Feeds(models.Manager):
+	def get_query_set(self): return FeedQuerySet(self.model)
+
+
 class Feed(models.Model):
+	objects = Feeds()
+
 	feed_url = models.URLField(_('feed url'), unique=True)
 
 	name = models.CharField(_('name'), max_length=100)
@@ -335,17 +380,35 @@ class PostQuerySet(models.query.QuerySet):
 			params.extend((val, val, float(1 - threshold)))
 		return self.extra(where=funcs, params=params)
 
+	def with_criterias(self, site, feed=None, tag=None):
+		self = self.filter(feed__subscriber__site=site)
+		if feed is not None: self = self.filter(feed=feed)
+		if tag: self = self.filter(tags__name=tag)
+		return self
+
+	def sorted(self, site_ordering_id):
+		if site_ordering_id == SITE_ORDERING.modified: prime = '-date_modified'
+		elif site_ordering_id == SITE_ORDERING.created: prime = '-date_created'
+		elif site_ordering_id == SITE_ORDERING.created_day:
+			self = self.extra(dict(date_created_day="date_trunc('day', date_created)"))
+			prime = '-date_created_day'
+		else: raise ValueError('Unknown ordering method id: {0}'.format(site_ordering_id))
+		return self.order_by(prime, 'feed')
+
+
 class Posts(models.Manager):
 	def get_query_set(self): return PostQuerySet(self.model)
 
 	@ft.wraps(PostQuerySet.similar)
 	def similar(self, *argz, **kwz):
 		return self.get_query_set().similar(*argz, **kwz)
-	def filtered(self):
+
+	def filtered(self, site=None, feed=None, tag=None):
 		# Check is "not False" because there can be NULLs for
 		#  feeds with no filters (also provided there never was any filters).
 		# TODO: make this field pure-bool?
-		return self.get_query_set().exclude(filtering_result=False)
+		posts = self.get_query_set().exclude(filtering_result=False)
+		return posts.with_criterias(site, feed, tag) if site else posts
 
 
 class Post(models.Model):
@@ -445,8 +508,8 @@ signals.post_delete.connect(Post._update_handler, sender=Post)
 
 
 class Subscriber(models.Model):
-	site = models.ForeignKey(Site, verbose_name=_('site') )
-	feed = models.ForeignKey(Feed, verbose_name=_('feed') )
+	site = models.ForeignKey(Site, verbose_name=_('site'))
+	feed = models.ForeignKey(Feed, verbose_name=_('feed'))
 
 	name = models.CharField(_('name'), max_length=100, null=True, blank=True,
 		help_text=_('Keep blank to use the Feed\'s original name.') )

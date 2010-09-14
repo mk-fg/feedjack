@@ -15,19 +15,8 @@ from urllib import urlencode
 
 
 
-def sitefeeds(siteobj):
-	""" Returns the active feeds of a site.
-	"""
-	return siteobj.subscriber_set.filter(is_active=True).select_related()
-	#return [subscriber['feed'] \
-	#  for subscriber \
-	#  in siteobj.subscriber_set.filter(is_active=True).values('feed')]
-
-
-
 def getquery(query):
-	""" Performs a query and get the results.
-	"""
+	'Performs a query and get the results.'
 	try:
 		conn = connection.cursor()
 		conn.execute(query)
@@ -38,35 +27,24 @@ def getquery(query):
 
 
 
-def get_extra_content(site, sfeeds_ids, ctx):
-	""" Returns extra data useful to the templates.
-	"""
-
+def get_extra_content(site, ctx):
+	'Returns extra data useful to the templates.'
 	# get the subscribers' feeds
-	if sfeeds_ids:
-		basefeeds = models.Feed.objects.filter(id__in=sfeeds_ids)
-		try: ctx['feeds'] = basefeeds.order_by('name').select_related()
-		except: ctx['feeds'] = list()
-
-		# get the last_checked time
-		try:
-			ctx['last_modified'] = basefeeds\
-				.filter(last_checked__isnull=False)\
-				.order_by('-last_checked')\
-				.select_related()[0].last_checked.ctime()
-		except: ctx['last_modified'] = '??'
-	else:
-		ctx['feeds'] = list()
-		ctx['last_modified'] = '??'
+	feeds = site.active_feeds
+	ctx['feeds'] = feeds.order_by('name')
+	# get the last_modified/checked time
+	mod,chk = op.itemgetter('modified', 'checked')(feeds.timestamps)
+	chk = chk.ctime() if chk else '??'
+	mod = mod.ctime() if mod else chk
+	ctx['last_modified'], ctx['last_checked'] = mod, chk
 	ctx['site'] = site
 	ctx['media_url'] = '{0}feedjack/{1}'.format(settings.MEDIA_URL, site.template)
 
 
 
-def get_posts_tags(object_list, sfeeds_obj, feed_id, tag_name):
-	""" Adds a qtags property in every post object in a page.
-	Use "qtags" instead of "tags" in templates to avoid innecesary DB hits.
-	"""
+def get_posts_tags(subscribers, object_list, feed_id, tag_name):
+	'''Adds a qtags property in every post object in a page.
+		Use "qtags" instead of "tags" in templates to avoid innecesary DB hits.'''
 
 	tagd = dict()
 	user_obj = None
@@ -90,7 +68,7 @@ def get_posts_tags(object_list, sfeeds_obj, feed_id, tag_name):
 		if tag_name and tag.name == tag_name: tag_obj = tag
 
 	subd = dict()
-	for sub in sfeeds_obj: subd[sub.feed.id] = sub
+	for sub in subscribers: subd[sub.feed.id] = sub
 	for post in object_list:
 		if post.id in tagd: post.qtags = tagd[post.id]
 		else: post.qtags = list()
@@ -102,8 +80,7 @@ def get_posts_tags(object_list, sfeeds_obj, feed_id, tag_name):
 
 
 def getcurrentsite(http_post, path_info, query_string):
-	""" Returns the site id and the page cache key based on the request.
-	"""
+	'Returns the site id and the page cache key based on the request.'
 
 	url = u'http://{0}/{1}'.format(*it.imap( smart_unicode,
 		(http_post.rstrip('/'), path_info.lstrip('/')) ))
@@ -137,38 +114,33 @@ def getcurrentsite(http_post, path_info, query_string):
 
 
 
-def get_page(site, sfeeds_ids, page=1, tag=None, feed_id=None):
-	""" Returns a paginator object and a requested page from it.
-	"""
+def get_page(site, page=1, tag=None, feed=None):
+	'Returns a paginator object and a requested page from it.'
 
-	localposts = models.Post.objects.filtered().filter(feed__in=sfeeds_ids)
-	if tag: localposts = localposts.filter(tags__name=tag)
-	if feed_id: localposts = localposts.filter(feed=feed_id)
+	posts = models.Post.objects.filtered(site, feed=feed, tag=tag)\
+		.sorted(site.order_posts_by).select_related('feed')
 
-	localposts = localposts.order_by( *(['-date_created']
-		if site.order_posts_by == 2 else [] + ['-date_modified', 'feed']) )
-
-	paginator = Paginator(localposts.select_related(), site.posts_per_page)
+	paginator = Paginator(posts, site.posts_per_page)
 	try: return paginator.page(page)
 	except InvalidPage: raise Http404
 
 
 
-def page_context(request, site, tag=None, feed_id=None, sfeeds=None):
+def page_context(request, site, tag=None, feed_id=None):
 	'Returns the context dictionary for a page view.'
-	sfeeds_obj, sfeeds_ids = sfeeds
-
 	try: page = int(request.GET.get('page', 1))
 	except ValueError: page = 1
 
-	page = get_page(site, sfeeds_ids, page=page, tag=tag, feed_id=feed_id)
+	page = get_page(site, page=page, tag=tag, feed=feed_id)
+	subscribers = site.active_subscribers
+
 	if site.show_tagcloud and page.object_list:
 		from feedjack import fjcloud
 		# This will hit the DB once per page instead of once for every post in
 		# a page. To take advantage of this the template designer must call
 		# the qtags property in every item, instead of the default tags
 		# property.
-		user_obj, tag_obj = get_posts_tags(page.object_list, sfeeds_obj, feed_id, tag)
+		user_obj, tag_obj = get_posts_tags(subscribers, page.object_list, feed_id, tag)
 		tag_cloud = fjcloud.getcloud(site, feed_id)
 	else:
 		tag_obj, tag_cloud = None, tuple()
@@ -187,10 +159,10 @@ def page_context(request, site, tag=None, feed_id=None, sfeeds=None):
 		pages = page.paginator.num_pages,
 		hits = page.paginator.count )
 
-	get_extra_content(site, sfeeds_ids, ctx)
+	get_extra_content(site, ctx)
 	ctx['tagcloud'] = tag_cloud
 	ctx['tag'] = tag_obj
-	ctx['subscribers'] = sfeeds_obj
+	ctx['subscribers'] = subscribers
 
 	# New
 	ctx['feed'] = models.Feed.objects.get(id=feed_id) if feed_id else None
