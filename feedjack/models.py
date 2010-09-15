@@ -393,7 +393,7 @@ class PostQuerySet(models.query.QuerySet):
 			self = self.extra(dict(date_created_day="date_trunc('day', date_created)"))
 			prime = '-date_created_day'
 		else: raise ValueError('Unknown ordering method id: {0}'.format(site_ordering_id))
-		return self.order_by(prime, 'feed')
+		return self.order_by(prime, 'feed', '-date_created')
 
 
 class Posts(models.Manager):
