@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import signals, Avg, Max, Min, Count
 from django.db import models, connection
 from django.utils.translation import ugettext_lazy as _
@@ -9,7 +9,7 @@ from django.utils.encoding import smart_unicode
 from feedjack import fjcache
 
 import itertools as it, operator as op, functools as ft
-from collections import namedtuple, Iterable, Iterator
+from collections import namedtuple, defaultdict, Iterable, Iterator
 from datetime import datetime, timedelta
 
 
@@ -47,7 +47,8 @@ class Link(models.Model):
 
 
 
-SITE_ORDERING = namedtuple('SiteOrdering', 'modified created created_day')(*xrange(1, 4))
+SITE_ORDERING = namedtuple( 'SiteOrdering',
+	'modified created created_day' )(*xrange(1, 4))
 
 class Site(models.Model):
 	name = models.CharField(_('name'), max_length=100)
@@ -120,7 +121,14 @@ class Site(models.Model):
 
 
 
-class FilterBase(models.Model): # I had to resist the urge to call it FilterClass or FilterModel
+FILTER_CR_REBUILD = namedtuple(
+	'CrossrefRebuild', 'new all' )(*xrange(2))
+FILTER_CR_TIMELINE_MAP = 'created', 'modified' # used to get column name
+FILTER_CR_TIMELINE = namedtuple( 'CrossrefTimeline',
+	' '.join(FILTER_CR_TIMELINE_MAP) )(*xrange(2))
+
+class FilterBase(models.Model):
+	# I had to resist the urge to call it FilterClass or FilterModel
 
 	name = models.CharField(max_length=64, unique=True)
 	handler_name = models.CharField( max_length=256, blank=True,
@@ -132,7 +140,25 @@ class FilterBase(models.Model): # I had to resist the urge to call it FilterClas
 			' should be displayed or not.' )
 	crossref = models.BooleanField( 'Cross-referencing',
 		help_text='Indicates whether filtering results depend on other posts'
-			' (and possibly their filtering results) or not.' )
+			' (and possibly their filtering results) or not.<br />'
+			' Note that ordering in which these filters are applied to a posts,'
+			' as well as "update condition" should match for any'
+			' cross-referenced feeds. This restriction might go away in the future.' )
+	crossref_rebuild = models.PositiveSmallIntegerField(
+		choices=(
+			( FILTER_CR_REBUILD.new,
+				'Rebuild newer results, starting from the changed point, but not older than crossref_span' ),
+			( FILTER_CR_REBUILD.all,
+				'Rebuild last results on any changes to the last posts inside crossref_span' ) ),
+		help_text="Neighbor posts' filtering results update condition.",
+		default=FILTER_CR_REBUILD.new )
+	crossref_timeline = models.PositiveSmallIntegerField(
+		choices=(
+			(FILTER_CR_TIMELINE.created, 'Time the post was first fetched'),
+			( FILTER_CR_TIMELINE.modified,
+				'Time of last modification to the post, according to the source' ) ),
+		help_text="Which time to use for timespan calculations on rebuild.",
+		default=FILTER_CR_TIMELINE.created )
 	crossref_span = models.PositiveSmallIntegerField( blank=True, null=True,
 		help_text='How many days of history should be re-referenced on post '
 			'changes to keep this results conclusive. Performance-quality knob, since'
@@ -249,8 +275,9 @@ class Feed(models.Model):
 	@staticmethod
 	def _filters_update_handler_check(sender, instance, **kwz):
 		try:
-			instance._filters_logic_update = ( instance.filters_logic\
-				!= Feed.objects.get(id=instance.id).filters_logic )
+			original = Feed.objects.get(id=instance.id).select_related()
+			instance._filters_logic_update =\
+				instance.filters_logic != original.filters_logic
 		except ObjectDoesNotExist: pass # shouldn't really matter
 	_filters_logic_update = None
 
@@ -268,13 +295,41 @@ class Feed(models.Model):
 		##  one of the hooks in a higher frame (resulting in recursion).
 		## Note that there's a similar check in Feed.update_handler, as a shortcut.
 		if Feed._filters_update_handler_lock: return
-		## In case of m2m changes, pre_* hooks (pre_clear, pre_add, pre_delete)
-		##  are skipped in favor of inevitable post_* hooks, when data will be consistent.
-		if m2m_update and action.startswith('pre_'): return
 		## post_save-specific checks (force=False), so it won't be triggered on _every_
 		##  Feed save, only those that change "filters_logic" on existing feeds.
 		if not force and not m2m_update and (
 			created or not instance._filters_logic_update ): return
+		## Get set of feeds that are affected by m2m update, note that it's always derived
+		##  from instance in case of post_save hook, since it doesn't pass "reverse" keyword.
+		related_feeds = set(Feed.objects.filter(id__in=pk_set) if reverse else\
+			([instance] if not isinstance(instance, (Iterable, Iterator)) else instance))
+		## In case of m2m changes, pre_* hooks (pre_clear, pre_add, pre_delete)
+		##  only do crossref ordering consistency check. Updates to results are
+		##  delayed to inevitable post_* hooks, when updated feed data will hit db.
+		rebuild_spec = 'crossref_timeline', 'crossref_rebuild'
+		if m2m_update and action.startswith('pre_'):
+			aggregate = dict(it.izip(rebuild_spec, it.repeat(None)))
+			for k,v in it.chain.from_iterable(it.imap(
+					op.methodcaller('iteritems'), FilterBase.objects.filter( crossref=True,
+						filters__feeds__in=related_feeds ).values(*aggregate.iterkeys()) )):
+				if aggregate[k] is not None and aggregate[k] != v:
+					raise ValidationError( 'Crossref filters ordering and update condition'
+						' should match for all cross-referenced feeds. Not matching: {0}'.format(k) )
+				else: aggregate[k] = v
+			return # validaton success
+		## Since these are forced to be the same for all feeds...
+		## Note, that they are same just because it's convenient. Otherwise, filtering
+		##  results should be rebuild on per-FilterBase basis, not per-Post, which would
+		##  certainly eat a lot more resources, at least without any optimizations.
+		try:
+			rebuild_order, rebuild_spec = FilterBase.objects.filter( crossref=True,
+				filters__feeds__in=related_feeds ).values_list(*rebuild_spec)[0]
+		except IndexError: # indicates that there are no crossref filters
+			rebuild_order = rebuild_spec = None
+		else: rebuild_order = 'date_{0}'.format(FILTER_CR_TIMELINE_MAP[rebuild_order])
+		## Then there's a matter of directly-affected posts (if any) - their results must be updated
+		affected_posts = list(it.chain.from_iterable(
+			instance.itervalues() )) if isinstance(instance, dict) else list()
 		## Special "preparation" of instance if filtering logic of Feed is updated,
 		##  like AND/OR flip for crossref or filters' m2m change.
 		## Only valid for m2m_update and post_save hook (when "created is False").
@@ -282,40 +337,57 @@ class Feed(models.Model):
 		## Shouldn't happen too often, hopefully.
 		if m2m_update or (created is False and instance._filters_logic_update):
 			Feed._filters_update_handler_lock = True # this _is_ recursive!
-			FilterResult.objects.filter(post__feed=instance, filter__base__crossref=True).delete()
-			for post in instance.posts.order_by('date_updated'): post.filtering_result_update()
+			tainted = Post.objects.filter(feed__in=related_feeds)
+			if rebuild_spec:
+				FilterResult.objects.filter(
+					post__feed__in=related_feeds, filter__base__crossref=True ).delete()
+				tainted = tainted.order_by(rebuild_order) # doesn't matter otherwise
+			for post in tainted: post.filtering_result_update()
 			Feed._filters_update_handler_lock = False
-		## Get set of feeds that are affected by m2m update, note that it's always derived
-		##  from instance in case of post_save hook, since it doesn't pass "reverse" keyword.
-		related_feeds = Feed.objects.filter(id__in=pk_set) if reverse else\
-			([instance] if not isinstance(instance, (Iterable, Iterator)) else instance)
+		else: # build/update results for directly-affected posts, won't rebuild crossref results
+			Feed._filters_update_handler_lock = True
+			for post in affected_posts: post.filtering_result_update()
+			Feed._filters_update_handler_lock = False
+		# Shortcut in case there are no affected feeds with crossref filters
+		if not rebuild_spec: return
 		## Get all Sites, incorporating the feed (all their feeds are affected), then
 		##  drop cross-referencing filters' results, as they'd be totally screwed.
 		## That means dropping all such results for every feed that shares a Site with "instance".
 		# This is a set of feeds that share the Site(s) with "instance" _and_ have crossref filters.
 		related_feeds = Feed.objects.filter( filters__base__crossref=True,
 			subscriber__site__subscriber__feed__in=related_feeds )
-		# Shortcut in case there are no affected feeds with crossref filters
-		if not related_feeds: return
 		# Pure performance-hack: find time threshold after which we just "don't care",
 		#  since it's too old history and shouldn't be relevant anymore.
 		# Value is set for FilterBase, so results should be recalculated in max-span delta.
-		date_threshold = next(related_feeds.aggregate(
-			models.Max('filters__base__crossref_span') ).itervalues())
-		if date_threshold: date_threshold = datetime.now() - timedelta(date_threshold)
+		date_threshold = related_feeds\
+			.values_list('filters__base__crossref_span', flat=True)
+		try: next(it.dropwhile(bool, date_threshold))
+		except StopIteration: date_threshold = max(date_threshold)
+		else: date_threshold = None # there's at least one "reference-all" value
+		if date_threshold:
+			date_threshold = datetime.now() - timedelta(date_threshold)
+			if rebuild_spec == FILTER_CR_REBUILD.new and isinstance(instance, dict):
+				# date_threshold here is one of the timestamps (determined by rebuild_order)
+				#  of the oldest post. This should affect each new/updated post's filtering result,
+				#  as well as other feeds' results within the same timespan.
+				date_threshold = max( date_threshold,
+					min(it.imap(op.attrgetter(rebuild_order), affected_posts)) )
 		# Set anti-recursion lock.
 		Feed._filters_update_handler_lock = True
 		# This actually drops all the results before "date_threshold" on "related_feeds".
 		# Note that local update-date is checked, not the remote "date_modified" field.
+		related_feeds = set(related_feeds) # so it won't generate repeated queries
 		tainted = FilterResult.objects.filter(post__feed__in=related_feeds, filter__base__crossref=True)
-		if date_threshold: tainted = tainted.filter(post__date_updated__gt=date_threshold)
+		if date_threshold:
+			tainted = tainted.filter(**{ 'post__{0}__gt'\
+				.format(rebuild_order): date_threshold })
 		tainted.delete()
 		## Now, walk the posts, checking/updating results for each one.
 		# Posts are be updated in the "last-touched" order, for consistency of cross-ref filters' results.
 		# Amount of work here is quite extensive, since this (ideally) should affect every Post.
 		tainted = Post.objects.filter(feed__in=related_feeds)
-		if date_threshold: tainted = tainted.filter(date_updated__gt=date_threshold)
-		for post in tainted.order_by('date_updated'): post.filtering_result_update()
+		if date_threshold: tainted = tainted.filter(**{'{0}__gt'.format(rebuild_order): date_threshold})
+		for post in tainted.order_by(rebuild_order): post.filtering_result_update()
 		## Unlock this function again.
 		Feed._filters_update_handler_lock = False
 
@@ -494,10 +566,10 @@ class Post(models.Model):
 	def _update_handler(sender, instance, **kwz):
 		if transaction_in_progress.is_set():
 			# In case of post_delete hook, added object is not in db anymore
-			transaction_affected_feeds.add(instance.feed)
+			transaction_affected_feeds[instance.feed].add(instance)
 		elif not instance._update_handler_call:
 			instance._update_handler_call = True
-			try: Feed.update_handler(instance.feed)
+			try: Feed.update_handler({instance.feed: [instance]})
 			finally: instance._update_handler_call = False
 	_update_handler_call = False # flag to avoid recursion in filtering_result_update
 
@@ -621,7 +693,7 @@ def transaction_wrapper(func, logger=None):
 
 from threading import Event
 transaction_in_progress = Event()
-transaction_affected_feeds = set()
+transaction_affected_feeds = defaultdict(set)
 
 def transaction_bulk_start(signal, sender, **kwz):
 	transaction_in_progress.set()
