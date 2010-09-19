@@ -275,7 +275,7 @@ class Feed(models.Model):
 	@staticmethod
 	def _filters_update_handler_check(sender, instance, **kwz):
 		try:
-			original = Feed.objects.get(id=instance.id).select_related()
+			original = Feed.objects.get(id=instance.id)
 			instance._filters_logic_update =\
 				instance.filters_logic != original.filters_logic
 		except ObjectDoesNotExist: pass # shouldn't really matter
