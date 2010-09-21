@@ -192,7 +192,7 @@ class Filter(models.Model):
 		help_text='Parameter keyword to pass to a filter function.<br />Allows to define generic'
 			' filtering alghorithms in code (like "regex_filter") and actual filters in db itself'
 			' (specifying regex to filter by).<br />Null value would mean that "parameter" keyword'
-			' wont be passed to handler at all.' )
+			' wont be passed to handler at all. See selected filter base for handler description.' )
 
 	@property
 	def handler(self):
@@ -205,9 +205,10 @@ class Filter(models.Model):
 	def __unicode__(self, short=False):
 		usage = [self.parameter] if self.parameter else list()
 		if not short:
-			binding = u', '.join(self.feeds.values_list('shortname', flat=True))
+			binding = self.feeds.values_list('shortname', flat=True)
+			binding = u', '.join(binding) if len(binding) < 5 else '{0} feeds'.format(len(binding))
 			usage.append(u'used on {0}'.format(binding) if binding else 'not used for any feed')
-		return u'{0.base.name}{1}'.format(self, u' ({0})'.format(u', '.join(usage) if usage else ''))
+		return u'{0.base.name}{1}'.format(self, u' ({0})'.format(u', '.join(usage)) if usage else '')
 
 
 class FilterResult(models.Model):

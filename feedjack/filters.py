@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 import itertools as it, operator as op, functools as ft
 
 
@@ -17,15 +18,19 @@ regex_in_content.__doc__ = 'Match only posts with RegEx'\
 
 
 ### Similarity cross-referencing filters
-DEFAULT_SIMILARITY_THRESHOLD = 0.85
-DEFAULT_SIMILARITY_TIMESPAN = 7 * 24 * 3600
-
 from datetime import datetime, timedelta
 import types
 
+DEFAULT_SIMILARITY_THRESHOLD = 0.85
+DEFAULT_SIMILARITY_TIMESPAN = 7 * 24 * 3600
+
+default_span_hr = unicode(timedelta(
+	seconds=DEFAULT_SIMILARITY_TIMESPAN )).rsplit(', 0:00:00', 1)[0]
+
+
 def same_guid(post, parameter=DEFAULT_SIMILARITY_TIMESPAN):
 	'''Skip posts with exactly same GUID.
-		Parameter: comparison timespan, seconds (int, 0 = inf).'''
+		Parameter: comparison timespan, seconds (int, 0 = inf, default: {0}).'''
 	from feedjack.models import Post
 	if isinstance(parameter, types.StringTypes): parameter = int(parameter.strip())
 	similar = Post.objects.filtered().exclude(id=post.id).filter(guid=post.guid)
@@ -33,11 +38,14 @@ def same_guid(post, parameter=DEFAULT_SIMILARITY_TIMESPAN):
 		similar = similar.filter(date_updated__gt=datetime.now() - timedelta(seconds=parameter))
 	return not bool(similar.exists())
 
+same_guid.__doc__ = same_guid.__doc__.format(default_span_hr)
+
+
 def similar_title(post, parameter=None):
 	'''Skip posts with fuzzy-matched (threshold = levenshtein distance / length) title.
 		Parameters (comma-delimited):
-			minimal threshold, at which values are considired similar (float, 0 < x < 1);
-			comparison timespan, seconds (int, 0 = inf).'''
+			minimal threshold, at which values are considired similar (float, 0 < x < 1, default: {0});
+			comparison timespan, seconds (int, 0 = inf, default: {1}).'''
 	from feedjack.models import Post
 	threshold, timespan = DEFAULT_SIMILARITY_THRESHOLD, DEFAULT_SIMILARITY_TIMESPAN
 	if parameter:
@@ -50,3 +58,6 @@ def similar_title(post, parameter=None):
 	if timespan:
 		similar = similar.filter(date_updated__gt=datetime.now() - timedelta(seconds=timespan))
 	return not bool(similar.exists())
+
+similar_title.__doc__ = similar_title.__doc__.format(
+	DEFAULT_SIMILARITY_THRESHOLD, default_span_hr )
