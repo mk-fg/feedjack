@@ -226,7 +226,8 @@ class ProcessFeed(object):
 
 		if not ret_values[ENTRY_ERR]: # etag/mtime updated only if there's no errors
 			self.feed.etag = self.fpf.get('etag') or ''
-			self.feed.last_modified = mtime(self.fpf.modified)
+			try: self.feed.last_modified = mtime(self.fpf.modified)
+			except AttributeError: pass
 			self.feed.save()
 
 		return FEED_OK, ret_values
