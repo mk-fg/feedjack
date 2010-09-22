@@ -564,18 +564,20 @@ class Post(models.Model):
 
 
 	@staticmethod
-	def _update_handler(sender, instance, **kwz):
+	def _update_handler(sender, instance, delete=False, **kwz):
 		if transaction_in_progress.is_set():
 			# In case of post_delete hook, added object is not in db anymore
 			transaction_affected_feeds[instance.feed].add(instance)
 		elif not instance._update_handler_call:
 			instance._update_handler_call = True
-			try: Feed.update_handler({instance.feed: [instance]})
+			try:
+				Feed.update_handler( {instance.feed: [instance]}
+					if not delete else [instance.feed] ) # so handler won't try to recalculate filtering for it
 			finally: instance._update_handler_call = False
 	_update_handler_call = False # flag to avoid recursion in filtering_result_update
 
 signals.post_save.connect(Post._update_handler, sender=Post)
-signals.post_delete.connect(Post._update_handler, sender=Post)
+signals.post_delete.connect(ft.partial(Post._update_handler, delete=True), sender=Post)
 
 
 
