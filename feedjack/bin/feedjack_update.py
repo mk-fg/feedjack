@@ -301,7 +301,7 @@ class Dispatcher(object):
 		log.info(u'[{0}] Processed {1} in {2} [{3}] [{4}]{5}'.format(
 			feed.id, feed.feed_url, unicode(delta), self.feed_trans[ret_feed],
 			u' '.join(u'{0}={1}'.format( self.entry_trans[key],
-				ret_entries[key] ) for key in self.entry_keys),
+				ret_entries.get(key) ) for key in self.entry_keys),
 			u' (SLOW FEED!)' if delta.seconds > SLOWFEED_WARNING else u'' ))
 
 		self.feed_stats[ret_feed] += 1
