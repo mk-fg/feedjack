@@ -629,7 +629,7 @@ signals.post_save.connect(Subscriber._update_handler, sender=Subscriber)
 
 
 
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.dispatch import Signal
 
 # Following signals are wired into django by monkey-patching,

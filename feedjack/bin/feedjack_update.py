@@ -16,7 +16,7 @@ from time import sleep
 import os, sys
 
 import feedparser
-from feedjack.models import transaction_wrapper, transaction
+from feedjack.models import transaction_wrapper, transaction, IntegrityError
 
 try: import threadpool
 except ImportError: threadpool = None
@@ -35,16 +35,16 @@ log.extra = ft.partial(log.log, logging.EXTRA)
 
 mtime = lambda ttime: datetime(*ttime[:6])
 
-_exc_frame = '[{0}] ! ' + '-'*25
+_exc_frame = '[{0}] ! ' + '-'*25 + '\n'
 def print_exc(feed_id):
 	import traceback
-	print _exc_frame.format(feed_id)
+	sys.stderr.write(_exc_frame.format(feed_id))
 	traceback.print_exc()
-	print _exc_frame.format(feed_id)
+	sys.stderr.write(_exc_frame.format(feed_id))
 
 
 
-class ProcessFeed:
+class ProcessFeed(object):
 
 	def __init__(self, feed, options):
 		self.feed = feed
@@ -61,7 +61,7 @@ class ProcessFeed:
 		post = Post(feed=self.feed)
 		post.link = entry.get('link', self.feed.link)
 		post.title = entry.get('title', post.link)
-		post.guid = entry.get('id', post.title)
+		post.guid = entry.get('id') or post.title
 
 		if 'author_detail' in entry:
 			post.author = entry.author_detail.get('name', '')
@@ -135,7 +135,11 @@ class ProcessFeed:
 					post.date_modified = mtime(self.fpf.feed.modified_parsed)
 				elif self.fpf.get('modified'): post.date_modified = mtime(self.fpf.modified)
 			if not post.date_modified: post.date_modified = datetime.now()
-			post.save()
+			try: post.save()
+			except IntegrityError:
+				print 'IntegrityError while saving (supposedly) new'\
+					' post with guid: {0.guid}, link: {0.link}, title: {0.title}'.format(post)
+				raise
 			for tcat in fcat: post.tags.add(tcat)
 			self.postdict[post.guid] = post
 
@@ -146,10 +150,10 @@ class ProcessFeed:
 		'Downloads and parses a feed.'
 
 		ret_values = {
-			ENTRY_NEW:0,
-			ENTRY_UPDATED:0,
-			ENTRY_SAME:0,
-			ENTRY_ERR:0}
+			ENTRY_NEW: 0,
+			ENTRY_UPDATED: 0,
+			ENTRY_SAME: 0,
+			ENTRY_ERR: 0 }
 
 		log.info(u'[{0}] Processing feed {1}'.format(self.feed.id, self.feed.feed_url))
 
@@ -157,7 +161,8 @@ class ProcessFeed:
 		# avoid bans
 		try:
 			self.fpf = feedparser.parse(
-				self.feed.feed_url, agent=USER_AGENT, etag=self.feed.etag )
+				self.feed.feed_url, agent=USER_AGENT,
+				etag=self.feed.etag if not self.options.force else '' )
 		except:
 			log.error( u'Feed cannot be parsed: {0} (#{1})'\
 				.format(self.feed.feed_url, self.feed.id) )
@@ -182,15 +187,6 @@ class ProcessFeed:
 			log.error( u'[{0}] Failed to fetch feed: {1} ({2})'\
 				.format( self.feed.id, self.feed.feed_url,
 					getattr(self.fpf, 'bozo_exception', 'unknown error') ) )
-
-		# the feed has changed (or it is the first time we parse it)
-		# saving the etag and last_modified fields
-		self.feed.etag = self.fpf.get('etag', '')
-		# some times this is None (it never should) *sigh*
-		if self.feed.etag is None: self.feed.etag = ''
-
-		try: self.feed.last_modified = mtime(self.fpf.modified)
-		except: pass
 
 		self.feed.title = self.fpf.feed.get('title', '')[0:254]
 		self.feed.tagline = self.fpf.feed.get('tagline', '')
@@ -228,11 +224,16 @@ class ProcessFeed:
 				transaction.savepoint_commit(tsp)
 			ret_values[ret_entry] += 1
 
+		if not ret_values[ENTRY_ERR]: # etag/mtime updated only if there's no errors
+			self.feed.etag = self.fpf.get('etag') or ''
+			self.feed.last_modified = mtime(self.fpf.modified)
+			self.feed.save()
+
 		return FEED_OK, ret_values
 
 
 
-class Dispatcher:
+class Dispatcher(object):
 
 	def __init__(self, options, num_threads):
 		self.options = options
@@ -386,6 +387,9 @@ if __name__ == '__main__':
 	import optparse
 	parser = optparse.OptionParser(usage='%prog [options]', version=USER_AGENT)
 
+	parser.add_option('--force', action='store_true',
+		help='Do not use stored modification time or etag when fetching feed updates.')
+
 	parser.add_option('-f', '--feed', action='append', type='int',
 		help='A feed id to be updated. This option can be given multiple '
 			'times to update several feeds at the same time (-f 1 -f 4 -f 7).')
@@ -398,11 +402,9 @@ if __name__ == '__main__':
 		help='Worker threads that will fetch feeds in parallel.')
 
 	parser.add_option('-q', '--quiet', action='store_true',
-		dest='quiet', help='Report only severe errors, no info or warnings.')
-	parser.add_option('-v', '--verbose', action='store_true',
-		dest='verbose', help='Verbose output.')
-	parser.add_option('--debug', action='store_true',
-		dest='debug', help='Even more verbose output.')
+		help='Report only severe errors, no info or warnings.')
+	parser.add_option('-v', '--verbose', action='store_true', help='Verbose output.')
+	parser.add_option('--debug', action='store_true', help='Even more verbose output.')
 
 	optz,argz = parser.parse_args()
 	if argz: parser.error('This command takes no arguments')
