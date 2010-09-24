@@ -79,7 +79,8 @@ def buildfeed(request, feedclass, tag=None, feed_id=None):
 	if response: return response
 
 	feed_title = site.title
-	if feed_id: feed_title = '{0} - {1}'.format(models.Feed.objects.get(id=feed_id).title, feed_title)
+	if feed_id:
+		feed_title = u'{0} - {1}'.format(models.Feed.objects.get(id=feed_id).title, feed_title)
 	object_list = fjlib.get_page(site, page=1, tag=tag, feed=feed_id).object_list
 
 	feed = feedclass( title=feed_title, link=site.url,
