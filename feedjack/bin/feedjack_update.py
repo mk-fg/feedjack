@@ -51,6 +51,8 @@ class ProcessFeed(object):
 		self.options = options
 		self.fpf = None
 
+	def _get_guid(self, fp_entry):
+		return fp_entry.get('id', '') or fp_entry.get('title', '') or fp_entry.get('link', '')
 
 	def process_entry(self, entry):
 		'Construct a Post from a feedparser entry and save/update it in db'
@@ -61,7 +63,7 @@ class ProcessFeed(object):
 		post = Post(feed=self.feed)
 		post.link = entry.get('link', self.feed.link)
 		post.title = entry.get('title', post.link)
-		post.guid = entry.get('id') or post.title
+		post.guid = self._get_guid(entry)
 
 		if 'author_detail' in entry:
 			post.author = entry.author_detail.get('name', '')
@@ -198,14 +200,9 @@ class ProcessFeed(object):
 			u'  {0}: {1}'.format(key, getattr(self.feed, key))
 			for key in ['title', 'tagline', 'link', 'last_checked'] )))
 
-		guids = list()
-		for entry in self.fpf.entries:
-			if entry.get('id', ''): guids.append(entry.get('id', ''))
-			elif entry.title: guids.append(entry.title)
-			elif entry.link: guids.append(entry.link)
-
 		self.feed.save() # rollback here should be handled on a higher level
 
+		guids = filter(None, it.imap(self._get_guid, self.fpf.entries))
 		if guids:
 			from feedjack.models import Post
 			self.postdict = dict( (post.guid, post)
