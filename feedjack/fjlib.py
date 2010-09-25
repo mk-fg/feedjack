@@ -122,7 +122,7 @@ def get_page(site, page=1, tag=None, feed=None):
 
 	paginator = Paginator(posts, site.posts_per_page)
 	try: return paginator.page(page)
-	except InvalidPage: raise Http404
+	except InvalidPage: raise Http404()
 
 
 
@@ -143,9 +143,12 @@ def page_context(request, site, tag=None, feed_id=None):
 		user_obj, tag_obj = get_posts_tags(subscribers, page.object_list, feed_id, tag)
 		tag_cloud = fjcloud.getcloud(site, feed_id)
 	else:
+		from django.core.exceptions import ObjectDoesNotExist
 		tag_obj, tag_cloud = None, tuple()
-		user_obj = models.Subscriber.objects\
-			.get(site=site, feed=feed_id) if feed_id else None
+		try:
+			user_obj = models.Subscriber.objects\
+				.get(site=site, feed=feed_id) if feed_id else None
+		except ObjectDoesNotExist: raise Http404()
 
 	ctx = dict(
 		object_list = page.object_list,
