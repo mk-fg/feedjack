@@ -33,7 +33,8 @@ def same_guid(post, parameter=DEFAULT_SIMILARITY_TIMESPAN):
 		Parameter: comparison timespan, seconds (int, 0 = inf, default: {0}).'''
 	from feedjack.models import Post
 	if isinstance(parameter, types.StringTypes): parameter = int(parameter.strip())
-	similar = Post.objects.filtered().exclude(id=post.id).filter(guid=post.guid)
+	similar = Post.objects.filtered(for_display=False)\
+		.exclude(id=post.id).filter(guid=post.guid)
 	if parameter:
 		similar = similar.filter(date_updated__gt=datetime.now() - timedelta(seconds=parameter))
 	return not bool(similar.exists())
@@ -54,7 +55,8 @@ def similar_title(post, parameter=None):
 		try: threshold, timespan = parameter.pop(), threshold
 		except IndexError: pass
 		threshold, timespan = float(threshold), int(timespan)
-	similar = Post.objects.filtered().exclude(id=post.id).similar(threshold, title=post.title)
+	similar = Post.objects.filtered(for_display=False)\
+		.exclude(id=post.id).similar(threshold, title=post.title)
 	if timespan:
 		similar = similar.filter(date_updated__gt=datetime.now() - timedelta(seconds=timespan))
 	return not bool(similar.exists())

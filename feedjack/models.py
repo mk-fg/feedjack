@@ -476,11 +476,12 @@ class Posts(models.Manager):
 	def similar(self, *argz, **kwz):
 		return self.get_query_set().similar(*argz, **kwz)
 
-	def filtered(self, site=None, feed=None, tag=None):
+	def filtered(self, site=None, feed=None, tag=None, for_display=True):
 		# Check is "not False" because there can be NULLs for
 		#  feeds with no filters (also provided there never was any filters).
 		# TODO: make this field pure-bool?
 		posts = self.get_query_set().exclude(filtering_result=False)
+		if for_display: posts = posts.exclude(hidden=True)
 		return posts.with_criterias(site, feed, tag) if site else posts
 
 
@@ -496,7 +497,10 @@ class Post(models.Model):
 	author = models.CharField(_('author'), max_length=255, blank=True)
 	author_email = models.EmailField(_('author email'), blank=True)
 	comments = models.URLField(_('comments'), max_length=511, blank=True)
-	tags = models.ManyToManyField(Tag, verbose_name=_('tags'))
+	tags = models.ManyToManyField(Tag, verbose_name=_('tags'), blank=True)
+	hidden = models.BooleanField( default=False,
+		help_text='Manual switch to completely hide the Post,'
+			' although it will be present for internal checks, like filters.' )
 
 	# These two will be quite different from date_modified, since the latter is
 	#  parsed from the feed itself, and should always be earlier than either of two
