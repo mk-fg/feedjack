@@ -257,7 +257,7 @@ class FeedProcessor(object):
 			ret_values[ret_entry] += 1
 
 		if optz.max_diff:
-			diff = op.truediv(ret_values[ENTRY_NEW], sum(ret_values.iterkeys())) * 100
+			diff = op.truediv(ret_values[ENTRY_NEW], sum(ret_values.itervalues())) * 100
 			if diff > optz.max_diff:
 				log.warn( '[{0}] Feed validation failed: {1} (diff: {2}% > {3}%)'\
 					.format(self.feed.id, self.feed.feed_url, round(diff, 1), optz.max_diff) )
