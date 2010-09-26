@@ -1,32 +1,54 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from __future__ import unicode_literals
 
 
 VERSION = '0.9.16-fg3'
 URL = 'http://www.feedjack.org/'
 USER_AGENT = 'Feedjack {0} - {1}'.format(VERSION, URL)
 SLOWFEED_WARNING = 10
-ENTRY_NEW, ENTRY_UPDATED, ENTRY_SAME, ENTRY_ERR = xrange(4)
-FEED_OK, FEED_SAME, FEED_ERRPARSE, FEED_ERRHTTP, FEED_ERREXC = xrange(5)
+
+
+ENTRY_NEW, ENTRY_UPDATED,\
+	ENTRY_SAME, ENTRY_ERR = xrange(4)
+
+entry_keys = (
+	(ENTRY_NEW, 'new'),
+	(ENTRY_UPDATED, 'updated'),
+	(ENTRY_SAME, 'same'),
+	(ENTRY_ERR, 'error') )
+
+
+FEED_OK, FEED_SAME, FEED_INVALID, FEED_ERRPARSE,\
+	FEED_ERRFETCH, FEED_ERREXC = xrange(6)
+
+feed_keys = (
+	(FEED_OK, 'ok'),
+	(FEED_SAME, 'unchanged'),
+	(FEED_INVALID, 'validation_error'),
+	(FEED_ERRPARSE, 'cant_parse'),
+	(FEED_ERRFETCH, 'fetch_error'),
+	(FEED_ERREXC, 'exception') )
+feed_keys_dict = dict(feed_keys)
+
+class FeedValidationError(Exception): pass
 
 
 import itertools as it, operator as op, functools as ft
 from datetime import datetime
 from time import sleep
+from collections import defaultdict
 import os, sys
 
 import feedparser
 from feedjack.models import transaction_wrapper, transaction, IntegrityError
-
-try: import threadpool
-except ImportError: threadpool = None
 
 import codecs
 codec = codecs.getwriter('utf-8')
 sys.stdout = codec(sys.stdout)
 sys.stderr = codec(sys.stderr)
 
-import logging, functools as ft
+import logging
 logging.EXTRA = (logging.DEBUG + logging.INFO) // 2
 log = logging.getLogger(os.path.basename(__file__))
 log.extra = ft.partial(log.log, logging.EXTRA)
@@ -44,11 +66,10 @@ def print_exc(feed_id):
 
 
 
-class ProcessFeed(object):
+class FeedProcessor(object):
 
 	def __init__(self, feed, options):
-		self.feed = feed
-		self.options = options
+		self.feed, self.options = feed, options
 		self.fpf = None
 
 	def _get_guid(self, fp_entry):
@@ -101,9 +122,9 @@ class ProcessFeed(object):
 		## Some feedback
 		post_base_fields = 'title link guid author author_email'.split()
 
-		log.debug(u'[{0}] Entry\n{1}'.format(self.feed.id, u'\n'.join(
-			[u'  {0}: {1}'.format(key, getattr(post, key)) for key in post_base_fields]
-			+ [u'tags: {0}'.format(u' '.join(it.imap(op.attrgetter('name'), fcat)))] )))
+		log.debug('[{0}] Entry\n{1}'.format(self.feed.id, '\n'.join(
+			['  {0}: {1}'.format(key, getattr(post, key)) for key in post_base_fields]
+			+ ['tags: {0}'.format(' '.join(it.imap(op.attrgetter('name'), fcat)))] )))
 
 		## Store / update a post
 		if post.guid in self.postdict: # post exists, update if it was modified (and feed is mutable)
@@ -113,7 +134,7 @@ class ProcessFeed(object):
 
 			if not self.feed.immutable and changed:
 				retval = ENTRY_UPDATED
-				log.extra(u'[{0}] Updating existing post: {1}'.format(self.feed.id, post.link))
+				log.extra('[{0}] Updating existing post: {1}'.format(self.feed.id, post.link))
 				# Update fields
 				for field in post_base_fields + ['content', 'comments']:
 					setattr(post_old, field, getattr(post, field))
@@ -124,13 +145,13 @@ class ProcessFeed(object):
 				post_old.save()
 			else:
 				retval = ENTRY_SAME
-				log.extra( ( u'[{0}] Post has not changed: {1}' if not changed else
-					u'[{0}] Post changed, but feed is marked as immutable: {1}' )\
+				log.extra( ( '[{0}] Post has not changed: {1}' if not changed else
+					'[{0}] Post changed, but feed is marked as immutable: {1}' )\
 						.format(self.feed.id, post.link) )
 
 		else: # new post, store it into database
 			retval = ENTRY_NEW
-			log.extra(u'[{0}] Saving new post: {1}'.format(self.feed.id, post.guid))
+			log.extra('[{0}] Saving new post: {1}'.format(self.feed.id, post.guid))
 			# Try hard to set date_modified: feed.modified, http.modified and now() as a last resort
 			if not post.date_modified and self.fpf:
 				if self.fpf.feed.get('modified_parsed'):
@@ -149,6 +170,22 @@ class ProcessFeed(object):
 
 
 	def process(self):
+		tsp = transaction.savepoint()
+		try:
+			ret_feed, ret_entries = self._process()
+			if ret_feed != FEED_OK: raise FeedValidationError()
+		except FeedValidationError: # no extra noise necessary
+			transaction.savepoint_rollback(tsp)
+		except:
+			print_exc(self.feed.id)
+			ret_feed, ret_entries = FEED_ERREXC, dict()
+			transaction.savepoint_rollback(tsp)
+		else:
+			transaction.savepoint_commit(tsp)
+		return ret_feed, ret_entries
+
+
+	def _process(self):
 		'Downloads and parses a feed.'
 
 		ret_values = {
@@ -157,47 +194,45 @@ class ProcessFeed(object):
 			ENTRY_SAME: 0,
 			ENTRY_ERR: 0 }
 
-		log.info(u'[{0}] Processing feed {1}'.format(self.feed.id, self.feed.feed_url))
+		log.info('[{0}] Processing feed {1}'.format(self.feed.id, self.feed.feed_url))
 
-		# we check the etag and the modified time to save bandwith and
-		# avoid bans
 		try:
 			self.fpf = feedparser.parse(
 				self.feed.feed_url, agent=USER_AGENT,
 				etag=self.feed.etag if not self.options.force else '' )
+		except KeyboardInterrupt: raise
 		except:
-			log.error( u'Feed cannot be parsed: {0} (#{1})'\
+			log.error( 'Feed cannot be parsed: {0} (#{1})'\
 				.format(self.feed.feed_url, self.feed.id) )
 			return FEED_ERRPARSE, ret_values
 
 		if hasattr(self.fpf, 'status'):
-			log.extra(u'[{0}] HTTP status {1}: {2}'.format(
+			log.extra('[{0}] HTTP status {1}: {2}'.format(
 				self.feed.id, self.fpf.status, self.feed.feed_url ))
 			if self.fpf.status == 304:
-				# this means the feed has not changed
-				log.extra(( u'[{0}] Feed has not changed since '
+				log.extra(( '[{0}] Feed has not changed since '
 					'last check: {1}' ).format(self.feed.id, self.feed.feed_url))
 				return FEED_SAME, ret_values
 
 			if self.fpf.status >= 400:
-				# http error, ignore
-				log.warn(u'[{0}] HTTP_ERROR {1}: {2}'.format(
+				log.warn('[{0}] HTTP error {1}: {2}'.format(
 					self.feed.id, self.fpf.status, self.feed.feed_url ))
-				return FEED_ERRHTTP, ret_values
+				return FEED_ERRFETCH, ret_values
 
 		if hasattr(self.fpf, 'bozo') and self.fpf.bozo:
-			log.error( u'[{0}] Failed to fetch feed: {1} ({2})'\
+			log.warn( '[{0}] Failed to fetch feed: {1} ({2})'\
 				.format( self.feed.id, self.feed.feed_url,
 					getattr(self.fpf, 'bozo_exception', 'unknown error') ) )
+			return FEED_ERRFETCH, ret_values
 
 		self.feed.title = self.fpf.feed.get('title', '')[0:254]
 		self.feed.tagline = self.fpf.feed.get('tagline', '')
 		self.feed.link = self.fpf.feed.get('link', '')
 		self.feed.last_checked = datetime.now()
 
-		log.debug(u'[{0}] Feed info for: {1}\n{2}'.format(
-			self.feed.id, self.feed.feed_url, u'\n'.join(
-			u'  {0}: {1}'.format(key, getattr(self.feed, key))
+		log.debug('[{0}] Feed info for: {1}\n{2}'.format(
+			self.feed.id, self.feed.feed_url, '\n'.join(
+			'  {0}: {1}'.format(key, getattr(self.feed, key))
 			for key in ['title', 'tagline', 'link', 'last_checked'] )))
 
 		self.feed.save() # rollback here should be handled on a higher level
@@ -221,6 +256,13 @@ class ProcessFeed(object):
 				transaction.savepoint_commit(tsp)
 			ret_values[ret_entry] += 1
 
+		if optz.max_diff:
+			diff = op.truediv(ret_values[ENTRY_NEW], sum(ret_values.iterkeys())) * 100
+			if diff > optz.max_diff:
+				log.warn( '[{0}] Feed validation failed: {1} (diff: {2}% > {3}%)'\
+					.format(self.feed.id, self.feed.feed_url, round(diff, 1), optz.max_diff) )
+				return FEED_INVALID, ret_values
+
 		if not ret_values[ENTRY_ERR]: # etag/mtime updated only if there's no errors
 			self.feed.etag = self.fpf.get('etag') or ''
 			try: self.feed.last_modified = mtime(self.fpf.modified)
@@ -231,152 +273,67 @@ class ProcessFeed(object):
 
 
 
-class Dispatcher(object):
-
-	def __init__(self, options, num_threads):
-		self.options = options
-		self.entry_stats = {
-			ENTRY_NEW:0,
-			ENTRY_UPDATED:0,
-			ENTRY_SAME:0,
-			ENTRY_ERR:0}
-		self.feed_stats = {
-			FEED_OK:0,
-			FEED_SAME:0,
-			FEED_ERRPARSE:0,
-			FEED_ERRHTTP:0,
-			FEED_ERREXC:0}
-		self.entry_trans = {
-			ENTRY_NEW:'new',
-			ENTRY_UPDATED:'updated',
-			ENTRY_SAME:'same',
-			ENTRY_ERR:'error'}
-		self.feed_trans = {
-			FEED_OK:'ok',
-			FEED_SAME:'unchanged',
-			FEED_ERRPARSE:'cant_parse',
-			FEED_ERRHTTP:'http_error',
-			FEED_ERREXC:'exception'}
-		self.entry_keys = sorted(self.entry_trans.keys())
-		self.feed_keys = sorted(self.feed_trans.keys())
-
-		if threadpool: self.tpool = threadpool.ThreadPool(num_threads)
-		else: self.tpool = None
-
-		self.time_start = datetime.now()
-
-
-	def add_job(self, feed):
-		""" adds a feed processing job to the pool
-		"""
-		if self.tpool:
-			req = threadpool.WorkRequest(self.process_feed_wrapper, (feed,))
-			self.tpool.putRequest(req)
-		else:
-			# no threadpool module, just run the job
-			self.process_feed_wrapper(feed)
-
-
-	def process_feed_wrapper(self, feed):
-		start_time = datetime.now()
-
-		tsp = transaction.savepoint()
-		try:
-			# TODO: get rid of this pseudo-oop as well
-			pfeed = ProcessFeed(feed, self.options)
-			ret_feed, ret_entries = pfeed.process()
-			del pfeed
-		except:
-			print_exc(feed.id)
-			ret_feed = FEED_ERREXC
-			ret_entries = dict()
-			transaction.savepoint_rollback(tsp)
-		else:
-			transaction.savepoint_commit(tsp)
-
-		delta = datetime.now() - start_time
-		log.info(u'[{0}] Processed {1} in {2} [{3}] [{4}]{5}'.format(
-			feed.id, feed.feed_url, unicode(delta), self.feed_trans[ret_feed],
-			u' '.join(u'{0}={1}'.format( self.entry_trans[key],
-				ret_entries.get(key) ) for key in self.entry_keys),
-			u' (SLOW FEED!)' if delta.seconds > SLOWFEED_WARNING else u'' ))
-
-		self.feed_stats[ret_feed] += 1
-		for key, val in ret_entries.items(): self.entry_stats[key] += val
-
-		return ret_feed, ret_entries
-
-
-	def poll(self):
-		""" polls the active threads
-		"""
-		if not self.tpool:
-			# no thread pool, nothing to poll
-			return
-		while True:
-			try:
-				# TODO: py sleep/poll loop is obviously wrong, there should be blocking alternative
-				#  like select or join, otherwise what's the point of this "threadpool" module?
-				# TODO: are django transactions threadsafe, anyway? I strongly suspect they are not
-				sleep(0.2)
-				self.tpool.poll()
-			except KeyboardInterrupt:
-				log.error(u'Cancelled by user')
-				break
-			except threadpool.NoResultsPending:
-				log.info(u'* DONE in {0}\n* Feeds: {1}\n* Entries: {2}'.format(
-					unicode(datetime.now() - self.time_start),
-					u' '.join(u'{0}={1}'.format( self.feed_trans[key],
-						self.feed_stats[key] ) for key in self.feed_keys),
-					u' '.join(u'{0}={1}'.format( self.entry_trans[key],
-							self.entry_stats[key] ) for key in self.entry_keys) ))
-				break
-
-
-
 @transaction_wrapper(logging)
 def bulk_update(optz):
 	import socket
 	socket.setdefaulttimeout(optz.timeout)
 
-	disp = Dispatcher(optz, optz.workerthreads)
-	log.info(u'* BEGIN: {0}'.format(unicode(datetime.now())))
 
 	from feedjack.models import Feed, Site
-
 	affected_sites = set() # to drop cache
 
 	if optz.feed:
-		feeds = Feed.objects.filter(pk__in=optz.feed)
-		for feed in feeds: disp.add_job(feed)
-		for feed_id in set(optz.feed).difference(feeds.values_list('id', flat=True)):
-			log.warn(u'Unknown feed id: {0}'.format(feed_id))
-		affected_sites.update(Site.objects.filter(subscriber__feed__in=feeds))
+		feeds = list(Feed.objects.filter(pk__in=optz.feed)) # no is_active check
+		for feed_id in set(optz.feed).difference(it.imap(op.attrgetter('id'), feeds)):
+			log.warn('Unknown feed id: {0}'.format(feed_id))
+		affected_sites.update(Site.objects.filter(
+			subscriber__feed__in=feeds ).values_list('id', flat=True))
 
 	if optz.site:
-		feeds = Feed.objects.filter(subscriber__site__pk__in=optz.site)
-		for feed in feeds: disp.add_job(feed)
-		for site_id in set(optz.site).difference(Site.objects.filter(
-				subscriber__feed__in=feeds ).values_list('id', flat=True).distinct()):
-			log.warn(u'Unknown site id: {0}'.format(site_id))
-		affected_sites.update(Site.objects.filter(pk__in=optz.site))
+		feeds = Feed.objects.filter( is_active=True,
+			subscriber__site__pk__in=optz.site )
+		sites = Site.objects.filter(pk__in=optz.site).values_list('id', flat=True)
+		for site_id in set(optz.site).difference(sites):
+			log.warn('Unknown site id: {0}'.format(site_id))
+		affected_sites.update(sites)
 
 	if not optz.feed and not optz.site: # fetches even unbound feeds
-		for feed in Feed.objects.filter(is_active=True): disp.add_job(feed)
-		affected_sites = Site.objects.all()
+		feeds = Feed.objects.filter(is_active=True)
+		affected_sites = Site.objects.all().values_list('id', flat=True)
 
-	disp.poll()
+
+	feeds, time_delta_global = list(feeds), datetime.now()
+	log.info( '* BEGIN: {0}, feeds to process: {1}'\
+		.format(time_delta_global, len(feeds)) )
+
+	feed_stats, entry_stats = defaultdict(int), defaultdict(int)
+	for feed in feeds:
+		time_delta = datetime.now()
+		ret_feed, ret_entries = FeedProcessor(feed, optz).process()
+		time_delta = datetime.now() - time_delta
+
+		log.info('[{0}] Processed {1} in {2}s [{3}] [{4}]{5}'.format(
+			feed.id, feed.feed_url, time_delta, feed_keys_dict[ret_feed],
+			' '.join('{0}={1}'.format( label,
+				ret_entries.get(key, 0) ) for key,label in entry_keys),
+			' (SLOW FEED!)' if time_delta.seconds > SLOWFEED_WARNING else '' ))
+
+		feed_stats[ret_feed] += 1
+		for k,v in ret_entries.iteritems(): entry_stats[k] += v
+
 	transaction.commit()
 
-	log.info(u'* END: {0} ({1})'.format( unicode(datetime.now()),
-		u'{0} threads'.format(optz.workerthreads) if threadpool
-			else u'no threadpool module available, no parallel fetching' ))
+	time_delta_global = datetime.now() - time_delta_global
+	log.info('* END: {0} (delta: {1}s), entries: {2}, feeds: {3}'.format(
+		datetime.now(), time_delta_global,
+		' '.join('{0}={1}'.format(label, entry_stats[key]) for key,label in entry_keys),
+		' '.join('{0}={1}'.format(label, feed_stats[key]) for key,label in feed_keys) ))
 
 	# Removing the cached data in all sites,
 	#  this will only work with the memcached, db and file backends
 	# TODO: make it work by "magic" through model signals
 	from feedjack import fjcache
-	for site_id in it.imap(op.attrgetter('id'), affected_sites): fjcache.cache_delsite(site_id)
+	for site_id in affected_sites: fjcache.cache_delsite(site_id)
 
 
 
@@ -388,6 +345,10 @@ if __name__ == '__main__':
 	parser.add_option('--force', action='store_true',
 		help='Do not use stored modification time or etag when fetching feed updates.')
 
+	parser.add_option('--max-feed-difference', action='store', dest='max_diff', type='int',
+		help='Maximum percent of new posts to consider feed valid.'
+			' Intended for broken feeds, which sometimes return seemingly-random content.')
+
 	parser.add_option('-f', '--feed', action='append', type='int',
 		help='A feed id to be updated. This option can be given multiple '
 			'times to update several feeds at the same time (-f 1 -f 4 -f 7).')
@@ -396,8 +357,6 @@ if __name__ == '__main__':
 
 	parser.add_option('-t', '--timeout', type='int', default=20,
 		help='Wait timeout in seconds when connecting to feeds.')
-	parser.add_option('-w', '--workerthreads', type='int', default=10,
-		help='Worker threads that will fetch feeds in parallel.')
 
 	parser.add_option('-q', '--quiet', action='store_true',
 		help='Report only severe errors, no info or warnings.')
