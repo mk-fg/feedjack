@@ -235,15 +235,21 @@ class FeedProcessor(object):
 			'  {0}: {1}'.format(key, getattr(self.feed, key))
 			for key in ['title', 'tagline', 'link', 'last_checked'] )))
 
-		self.feed.save() # rollback here should be handled on a higher level
-
 		guids = filter(None, it.imap(self._get_guid, self.fpf.entries))
 		if guids:
 			from feedjack.models import Post
 			self.postdict = dict( (post.guid, post)
 				for post in Post.objects.filter(
 					feed=self.feed.id ).filter(guid__in=guids) )
+			if self.options.max_diff:
+				diff = op.truediv(len(guids) - len(self.postdict), len(guids)) * 100
+				if diff > self.options.max_diff:
+					log.warn( '[{0}] Feed validation failed: {1} (diff: {2}% > {3}%)'\
+						.format(self.feed.id, self.feed.feed_url, round(diff, 1), self.options.max_diff) )
+					return FEED_INVALID, ret_values
 		else: self.postdict = dict()
+
+		self.feed.save() # etag/mtime aren't updated yet
 
 		for entry in self.fpf.entries:
 			tsp = transaction.savepoint()
@@ -255,13 +261,6 @@ class FeedProcessor(object):
 			else:
 				transaction.savepoint_commit(tsp)
 			ret_values[ret_entry] += 1
-
-		if optz.max_diff:
-			diff = op.truediv(ret_values[ENTRY_NEW], sum(ret_values.itervalues())) * 100
-			if diff > optz.max_diff:
-				log.warn( '[{0}] Feed validation failed: {1} (diff: {2}% > {3}%)'\
-					.format(self.feed.id, self.feed.feed_url, round(diff, 1), optz.max_diff) )
-				return FEED_INVALID, ret_values
 
 		if not ret_values[ENTRY_ERR]: # etag/mtime updated only if there's no errors
 			self.feed.etag = self.fpf.get('etag') or ''
