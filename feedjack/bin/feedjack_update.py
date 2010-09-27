@@ -158,10 +158,11 @@ class FeedProcessor(object):
 					post.date_modified = mtime(self.fpf.feed.modified_parsed)
 				elif self.fpf.get('modified'): post.date_modified = mtime(self.fpf.modified)
 			if not post.date_modified: post.date_modified = datetime.now()
+			if self.options.hidden: post.hidden = True
 			try: post.save()
 			except IntegrityError:
-				print 'IntegrityError while saving (supposedly) new'\
-					' post with guid: {0.guid}, link: {0.link}, title: {0.title}'.format(post)
+				log.error( 'IntegrityError while saving (supposedly) new'\
+					' post with guid: {0.guid}, link: {0.link}, title: {0.title}'.format(post) )
 				raise
 			for tcat in fcat: post.tags.add(tcat)
 			self.postdict[post.guid] = post
@@ -343,6 +344,9 @@ if __name__ == '__main__':
 
 	parser.add_option('--force', action='store_true',
 		help='Do not use stored modification time or etag when fetching feed updates.')
+	parser.add_option('--hidden', action='store_true',
+		help='Mark all fetched (new) posts as "hidden". Intended'
+			' usage is initial fetching of large (number of) feeds.')
 
 	parser.add_option('--max-feed-difference', action='store', dest='max_diff', type='int',
 		help='Maximum percent of new posts to consider feed valid.'
