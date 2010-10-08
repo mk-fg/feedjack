@@ -620,14 +620,15 @@ class Subscriber(models.Model):
 		try: pre_instance = Subscriber.objects.get(id=instance.id)
 		except ObjectDoesNotExist: pass # just created
 		else:
-			self._relation_update = ( instance.site != pre_instance.site
-				or instance.feed != pre_instance.feed )
+			instance._relation_update = (
+				instance.site != pre_instance.site
+					or instance.feed != pre_instance.feed )
 	_relation_update = None
 
 	@staticmethod
 	def _update_handler(sender, instance, created, **kwz):
 		if created: return
-		if self._relation_update: Feed.update_handler(instance.feed)
+		if instance._relation_update: Feed.update_handler(instance.feed)
 
 signals.pre_save.connect(Subscriber._update_handler_check, sender=Subscriber)
 signals.post_save.connect(Subscriber._update_handler, sender=Subscriber)
