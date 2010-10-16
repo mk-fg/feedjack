@@ -220,11 +220,15 @@ class FeedProcessor(object):
 					self.feed.id, self.fpf.status, self.feed.feed_url ))
 				return FEED_ERRFETCH, ret_values
 
-		if hasattr(self.fpf, 'bozo') and self.fpf.bozo:
-			log.warn( '[{0}] Failed to fetch feed: {1} ({2})'\
-				.format( self.feed.id, self.feed.feed_url,
-					getattr(self.fpf, 'bozo_exception', 'unknown error') ) )
-			return FEED_ERRFETCH, ret_values
+		if self.fpf.bozo:
+			bozo = getattr(self.fpf, 'bozo_exception', 'unknown error')
+			if not self.feed.skip_errors:
+				log.warn( '[{0}] Failed to fetch feed: {1} ({2})'\
+					.format(self.feed.id, self.feed.feed_url, bozo) )
+				return FEED_ERRFETCH, ret_values
+			else:
+				log.info( '[{0}] Skipped feed error: {1} ({2})'\
+					.format(self.feed.id, self.feed.feed_url, bozo) )
 
 		self.feed.title = self.fpf.feed.get('title', '')[0:254]
 		self.feed.tagline = self.fpf.feed.get('tagline', '')

@@ -243,8 +243,11 @@ class Feed(models.Model):
 
 	name = models.CharField(_('name'), max_length=100)
 	shortname = models.CharField(_('shortname'), max_length=50)
+
 	immutable = models.BooleanField( _('immutable'), default=False,
 		help_text=_('Do not update posts that were already fetched.') )
+	skip_errors = models.BooleanField( _('skip non-critical errors'),
+		default=False, help_text=_('Try to be as tolerant as possible during update.') )
 	is_active = models.BooleanField( _('is active'), default=True,
 		help_text=_('If disabled, this feed will not be further updated.') )
 

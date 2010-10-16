@@ -18,7 +18,8 @@ class FeedAdmin(admin.ModelAdmin):
 	filter_horizontal = 'filters',
 	fieldsets = (
 		(None,
-			{'fields': ('feed_url', 'name', 'shortname', 'immutable', 'is_active')}),
+			{'fields': ('feed_url', 'name', 'shortname',
+				'immutable', 'skip_errors', 'is_active')}),
 		('Filtering',
 			{'classes':('collapse',), 'fields': ('filters_logic', 'filters')}),
 		(_('Fields updated automatically by Feedjack'),
