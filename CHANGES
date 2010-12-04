@@ -1,5 +1,14 @@
 CHANGES:
 
+Feedjack 0.9.16-fg4
+* Added "skip_errors" flag to rely on feedparser resilence when processing broken
+   feeds.
+* Added "hidden" flag to mark posts that shouldn't be shown, particulary useful
+   for first fetch of a new feeds.
+* Major optimizations of cross-referincing filters' operation, added a flag to
+   validate new posts against older ones only, not both ways.
+* Fixes in db transaction logic, completely isolated db logic in models module.
+
 Feedjack 0.9.16-fg3
 * Actually working feed filtering.
 * Added a few default filter bases, with descriptions to these.
