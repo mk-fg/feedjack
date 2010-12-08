@@ -3,10 +3,11 @@
 
 from django.utils import feedgenerator
 from django.shortcuts import render_to_response
-from django.http import HttpResponse
+from django.http import HttpResponse, Http404
 from django.utils.cache import patch_vary_headers
 from django.template import Context, RequestContext, loader
 from django.views.generic.simple import redirect_to
+from django.core.exceptions import ObjectDoesNotExist
 
 from feedjack import models
 from feedjack import fjlib
@@ -80,7 +81,8 @@ def buildfeed(request, feedclass, tag=None, feed_id=None):
 
 	feed_title = site.title
 	if feed_id:
-		feed_title = u'{0} - {1}'.format(models.Feed.objects.get(id=feed_id).title, feed_title)
+		try: feed_title = u'{0} - {1}'.format(models.Feed.objects.get(id=feed_id).title, feed_title)
+		except ObjectDoesNotExist: raise Http404 # no such feed
 	object_list = fjlib.get_page(site, page=1, tag=tag, feed=feed_id).object_list
 
 	feed = feedclass( title=feed_title, link=site.url,
