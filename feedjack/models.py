@@ -484,7 +484,9 @@ class Posts(models.Manager):
 		#  feeds with no filters (also provided there never was any filters).
 		# TODO: make this field pure-bool?
 		posts = self.get_query_set().exclude(filtering_result=False)
-		if for_display: posts = posts.exclude(hidden=True)
+		if for_display:
+			posts = posts.exclude(hidden=True)
+			posts = posts.filter(feed__subscriber__is_active=True)
 		return posts.with_criterias(site, feed, tag) if site else posts
 
 
