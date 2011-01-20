@@ -11,7 +11,9 @@ from feedjack import models
 from feedjack import fjcache
 
 import itertools as it, operator as op, functools as ft
+from collections import defaultdict
 from urllib import quote
+from urlparse import urlparse
 
 
 
@@ -82,32 +84,41 @@ def get_posts_tags(subscribers, object_list, feed_id, tag_name):
 def getcurrentsite(http_post, path_info, query_string):
 	'Returns the site id and the page cache key based on the request.'
 
-	url = u'http://{0}/{1}'.format(*it.imap( smart_unicode,
-		(http_post.rstrip('/'), path_info.lstrip('/')) ))
-	pagecachekey = u'{0}?{1}'.format(*it.imap(smart_unicode, (path_info, query_string)))
+	http_post, path_info = (smart_unicode(part.strip('/')) for part in (http_post, path_info))
+	url = '{}/{}'.format(http_post, path_info)
+	pagecachekey = u'{}?{}'.format(*it.imap(smart_unicode, (path_info, query_string)))
 	hostdict = fjcache.hostcache_get() or dict()
 
 	if url not in hostdict:
-		default, ret = None, None
-		for site in models.Site.objects.all():
-			if url.startswith(site.url):
-				ret = site
-				break
-			if not default or site.default_site: default = site
+		sites = list(models.Site.objects.all())
 
-		if not ret:
-			if default: ret = default
-			else:
-				# Somebody is requesting something, but the user didn't create
-				# a site yet. Creating a default one...
-				ret = models.Site( name='Default Feedjack Site/Planet',
-				  url='www.feedjack.org',
-				  title='Feedjack Site Title',
-				  description='Feedjack Site Description. '
-					'Please change this in the admin interface.' )
-				ret.save()
+		if not sites:
+			# Somebody is requesting something, but the user
+			#  didn't create a site yet. Creating a default one...
+			site = models.Site( name='Default Feedjack Site/Planet',
+				url='www.feedjack.org',
+				title='Feedjack Site Title',
+				description='Feedjack Site Description. '
+				'Please change this in the admin interface.' )
+			site.save()
+			site_id = site.id
 
-		hostdict[url] = ret.id
+		else:
+			# Select the most matching site possible,
+			#  preferring "default" when everything else is equal
+			results = defaultdict(list)
+			for site in sites:
+				relevance, site_url = 0, urlparse(site.url)
+				if site_url.netloc == http_post: relevance += 10 # host matches
+				if path_info.startswith(site_url.path.strip('/')): relevance += 10 # path matches
+				if site.default_site: relevance += 5 # marked as "default"
+				results[relevance].append(site.id)
+			for relevance in sorted(results, reverse=True):
+				try: site_id = results[relevance][0]
+				except IndexError: pass
+				else: break
+
+		hostdict[url] = site_id
 		fjcache.hostcache_set(hostdict)
 
 	return hostdict[url], pagecachekey
