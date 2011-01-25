@@ -91,7 +91,7 @@ def buildfeed(request, feedclass, tag=None, feed_id=None):
 		feed.add_item(
 			title = u'{0}: {1}'.format(post.feed.name, post.title),
 			link = post.link,
-			description = post.content,
+			description = fjlib.c0ctl_escape(post.content),
 			author_email = post.author_email,
 			author_name = post.author,
 			pubdate = post.date_modified,

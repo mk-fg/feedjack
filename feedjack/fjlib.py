@@ -5,7 +5,7 @@ from django.conf import settings
 from django.db import connection
 from django.core.paginator import Paginator, InvalidPage
 from django.http import Http404
-from django.utils.encoding import smart_unicode
+from django.utils.encoding import smart_unicode, force_unicode
 
 from feedjack import models
 from feedjack import fjcache
@@ -14,6 +14,18 @@ import itertools as it, operator as op, functools as ft
 from collections import defaultdict
 from urllib import quote
 from urlparse import urlparse
+
+
+
+_xml_c0ctl_chars = bytearray(
+	set(it.imap(chr, xrange(32)))\
+		.difference('\x09\x0a\x0d').union('\x7f'))
+_xml_c0ctl_trans = dict(it.izip(
+	_xml_c0ctl_chars, u'_'*len(_xml_c0ctl_chars) ))
+
+def c0ctl_escape(string):
+	'Produces template-safe valid xml-escaped string.'
+	return force_unicode(string).translate(_xml_c0ctl_trans)
 
 
 
