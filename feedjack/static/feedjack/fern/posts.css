@@ -18,19 +18,19 @@ acronym, abbr, span.caps {
 
 blockquote {
 	margin-left: 2em;
-	border: 1px solid #00B;
+	border: 1px solid #83a07e;
 	border-left-width: 3px;
 	font-style: italic;
 	padding: 10px;
 	clear: both;
-	background: #FFFFE0;
+	background: #fff;
 }
 
 cite {
 	font-style: normal;
 }
 
-#center h1 {
+#center h1.feed {
 	text-align: center;
 	border: 2px solid #507e5e;
 	border-width: 2px 0;
@@ -40,36 +40,36 @@ cite {
 	width: 100%;
 }
 
-#center h2 {
+#center h2.feed {
 	padding: 0 1em 0 .5em;
 	border-bottom: 2px solid #666;
 	margin-top: 1em;
 	float: left;
 }
 
-#center h2 a {
+#center h2.feed a {
 	display: block;
 	color: #666;
 	text-decoration: none;
 }
-#center h2 a:hover {
+#center h2.feed a:hover {
 	text-decoration: none;
 	background: none;
 }
 
-#center h3 {
+#center h3.feed {
 	text-align: left;
 	border-bottom: 1px solid #CCC;
 }
 
-#center h3 a {
+#center h3.feed a {
 	text-decoration: none;
 	color: #000;
 	font-size: 120%;
 	margin-left: 1em;
 }
 
-#center h3 a:hover {
+#center h3.feed a:hover {
 	background: none;
 	color: #644;
 	text-decoration: underline;
@@ -81,6 +81,11 @@ cite {
 	padding: 10px;
 	float: right;
 }
+
+.entry h1, .entry h2, .entry h3 { color: #000; }
+.entry h1 { font-size: 115%; }
+.entry h2 { font-size: 110%; }
+.entry h3 { font-size: 105%; }
 
 .entry {
 	text-align: justify;
@@ -95,7 +100,6 @@ cite {
 	max-width: 95%;
 	height: auto;
 	padding: 2px;
-	border: 2px solid #224;
 	margin: 5px;
 }
 
