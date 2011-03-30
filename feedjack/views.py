@@ -3,18 +3,25 @@
 
 from django.utils import feedgenerator
 from django.shortcuts import render_to_response
-from django.http import HttpResponse, Http404
+from django.http import HttpResponse, HttpResponsePermanentRedirect, Http404
 from django.utils.cache import patch_vary_headers
 from django.template import Context, RequestContext, loader
 from django.views.generic.simple import redirect_to
 from django.core.exceptions import ObjectDoesNotExist
+from django.utils import simplejson as json
+from django.utils.encoding import smart_unicode
+from django.conf import settings
 
 from feedjack import models
 from feedjack import fjlib
 from feedjack import fjcache
 
+import itertools as it, operator as op, functools as ft
+from collections import defaultdict
+from urlparse import urlparse
 
-def initview(request):
+
+def initview(request, response_cache=True):
 	'''Retrieves the basic data needed by all feeds (host, feeds, etc)
 		Returns a tuple of:
 			1. A valid cached response or None
@@ -22,12 +29,62 @@ def initview(request):
 			3. The cache key
 			4. The subscribers for the site (objects)
 			5. The feeds for the site (ids)'''
-	site_id, cachekey = fjlib.getcurrentsite( request.META['HTTP_HOST'],
-	  request.META.get('REQUEST_URI', request.META.get('PATH_INFO', '/')),
-	  request.META['QUERY_STRING'] )
-	response = fjcache.cache_get(site_id, cachekey)
-	if response: return response, None, cachekey
-	site = models.Site.objects.get(pk=site_id)
+
+	http_host, path_info = ( smart_unicode(part.strip('/')) for part in
+		[ request.META['HTTP_HOST'],
+			request.META.get('REQUEST_URI', request.META.get('PATH_INFO', '/')) ] )
+	query_string = request.META['QUERY_STRING']
+
+	url = '{}/{}'.format(http_host, path_info)
+	cachekey = u'{}?{}'.format(*it.imap(smart_unicode, (path_info, query_string)))
+	hostdict = fjcache.hostcache_get() or dict()
+
+	if url in hostdict:
+		site = models.Site.objects.get(pk=hostdict[url])
+
+	else:
+		sites = list(models.Site.objects.all())
+
+		if not sites:
+			# Somebody is requesting something, but the user
+			#  didn't create a site yet. Creating a default one...
+			site = models.Site(
+				name='Default Feedjack Site/Planet',
+				url='www.feedjack.org',
+				title='Feedjack Site Title',
+				description='Feedjack Site Description.'
+					' Please change this in the admin interface.' )
+			site.save()
+
+		else:
+			# Select the most matching site possible,
+			#  preferring "default" when everything else is equal
+			results = defaultdict(list)
+			for site in sites:
+				relevance, site_url = 0, urlparse(site.url)
+				if site_url.netloc == http_host: relevance += 10 # host matches
+				if path_info.startswith(site_url.path.strip('/')): relevance += 10 # path matches
+				if site.default_site: relevance += 5 # marked as "default"
+				results[relevance].append((site_url, site))
+			for relevance in sorted(results, reverse=True):
+				try: site_url, site = results[relevance][0]
+				except IndexError: pass
+				else: break
+			if site_url.netloc != http_host: # redirect to proper site hostname
+				# TODO: SERVER_PORT doesn't seem very useful here, but just "http://{}/" is just wrong
+				#  ...in a way that it doesn't respect port and protocol
+				response = HttpResponsePermanentRedirect(
+					'http://{}/{}{}'.format( site_url.netloc, path_info,
+						'?{}'.format(query_string) if query_string.strip() else '') )
+				return response, None, cachekey
+
+		hostdict[url] = site.id
+		fjcache.hostcache_set(hostdict)
+
+	if response_cache:
+		response = fjcache.cache_get(site.id, cachekey)
+		if response: return response, None, cachekey
+
 	return None, site, cachekey
 
 
@@ -75,7 +132,7 @@ def opml(request):
 
 def buildfeed(request, feedclass, tag=None, feed_id=None):
 	'View that handles the feeds.'
-	# TODO: quote a mess, can't it be handled with a default feed-vews?
+	# TODO: quite a mess, can't it be handled with a default feed-vews?
 	response, site, cachekey = initview(request)
 	if response: return response
 
@@ -115,6 +172,29 @@ def rssfeed(request, tag=None, feed_id=None):
 def atomfeed(request, tag=None, feed_id=None):
 	'Generates the Atom 1.0 feed.'
 	return buildfeed(request, feedgenerator.Atom1Feed, tag, feed_id)
+
+
+def ajax_fold(request):
+	'Handler for JS requests.'
+	# TODO: record folded ts_day and ts_entry_max in session
+	# TODO: when showing results, fold ts_day if there are no new entries and entries with ts < ts_entry_max
+	response = True
+	ts_entry_max = request.GET.get('ts_entry_max', None)
+	if ts_entry_max is not None:
+		try: ts_entry_max = float(ts_entry_max)
+		except ValueError: ts_entry_max = 0 # should unfold stuff
+	if 'ts_day' in request.GET: # fold day
+		try: datetime.strptime(request.GET['ts_day'], '%Y-%m-%d') # just to check whether it's valid
+		except ValueError: response = False
+		else:
+			ts_day = request.GET['ts_day']
+			response, site, cache_key = initview(request, response_cache=False)
+			folds = request.session.get('feedjack.folds', defaultdict(dict))
+			folds[site.id][ts_day] = max(folds[site.id].get(ts_day, 0), ts_entry_max)
+			request.session.modified = True
+	else: # fold everything until ts_entry_max
+		folds[site.id][None] = max(folds[site.id].get(None, 0), ts_entry_max)
+	return HttpResponse(json.dumps(response), content_type='application/json')
 
 
 def mainview(request, tag=None, feed_id=None):

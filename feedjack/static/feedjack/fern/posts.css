@@ -40,6 +40,13 @@ cite {
 	width: 100%;
 }
 
+#center h1.feed img {
+	float: right;
+	width: 1em;
+	margin: .2em;
+	cursor: pointer;
+}
+
 #center h2.feed {
 	padding: 0 1em 0 .5em;
 	border-bottom: 2px solid #666;

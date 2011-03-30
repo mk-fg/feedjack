@@ -11,10 +11,7 @@ from feedjack import models
 from feedjack import fjcache
 
 import itertools as it, operator as op, functools as ft
-from collections import defaultdict
 from urllib import quote
-from urlparse import urlparse
-
 
 
 _xml_c0ctl_chars = bytearray(
@@ -28,7 +25,6 @@ def c0ctl_escape(string):
 	return force_unicode(string).translate(_xml_c0ctl_trans)
 
 
-
 def getquery(query):
 	'Performs a query and get the results.'
 	try:
@@ -38,7 +34,6 @@ def getquery(query):
 		conn.close()
 	except: data = list()
 	return data
-
 
 
 def get_extra_content(site, ctx):
@@ -55,10 +50,9 @@ def get_extra_content(site, ctx):
 	ctx['media_url'] = '{0}feedjack/{1}'.format(settings.MEDIA_URL, site.template)
 
 
-
 def get_posts_tags(subscribers, object_list, feed_id, tag_name):
 	'''Adds a qtags property in every post object in a page.
-		Use "qtags" instead of "tags" in templates to avoid innecesary DB hits.'''
+		Use "qtags" instead of "tags" in templates to avoid unnecesary DB hits.'''
 
 	tagd = dict()
 	user_obj = None
@@ -92,51 +86,6 @@ def get_posts_tags(subscribers, object_list, feed_id, tag_name):
 	return user_obj, tag_obj
 
 
-
-def getcurrentsite(http_post, path_info, query_string):
-	'Returns the site id and the page cache key based on the request.'
-
-	http_post, path_info = (smart_unicode(part.strip('/')) for part in (http_post, path_info))
-	url = '{}/{}'.format(http_post, path_info)
-	pagecachekey = u'{}?{}'.format(*it.imap(smart_unicode, (path_info, query_string)))
-	hostdict = fjcache.hostcache_get() or dict()
-
-	if url not in hostdict:
-		sites = list(models.Site.objects.all())
-
-		if not sites:
-			# Somebody is requesting something, but the user
-			#  didn't create a site yet. Creating a default one...
-			site = models.Site( name='Default Feedjack Site/Planet',
-				url='www.feedjack.org',
-				title='Feedjack Site Title',
-				description='Feedjack Site Description. '
-				'Please change this in the admin interface.' )
-			site.save()
-			site_id = site.id
-
-		else:
-			# Select the most matching site possible,
-			#  preferring "default" when everything else is equal
-			results = defaultdict(list)
-			for site in sites:
-				relevance, site_url = 0, urlparse(site.url)
-				if site_url.netloc == http_post: relevance += 10 # host matches
-				if path_info.startswith(site_url.path.strip('/')): relevance += 10 # path matches
-				if site.default_site: relevance += 5 # marked as "default"
-				results[relevance].append(site.id)
-			for relevance in sorted(results, reverse=True):
-				try: site_id = results[relevance][0]
-				except IndexError: pass
-				else: break
-
-		hostdict[url] = site_id
-		fjcache.hostcache_set(hostdict)
-
-	return hostdict[url], pagecachekey
-
-
-
 def get_page(site, page=1, tag=None, feed=None):
 	'Returns a paginator object and a requested page from it.'
 
@@ -145,8 +94,7 @@ def get_page(site, page=1, tag=None, feed=None):
 
 	paginator = Paginator(posts, site.posts_per_page)
 	try: return paginator.page(page)
-	except InvalidPage: raise Http404()
-
+	except InvalidPage: raise Http404
 
 
 def page_context(request, site, tag=None, feed_id=None):
@@ -171,7 +119,7 @@ def page_context(request, site, tag=None, feed_id=None):
 		try:
 			user_obj = models.Subscriber.objects\
 				.get(site=site, feed=feed_id) if feed_id else None
-		except ObjectDoesNotExist: raise Http404()
+		except ObjectDoesNotExist: raise Http404
 
 	ctx = dict(
 		object_list = page.object_list,
@@ -201,4 +149,3 @@ def page_context(request, site, tag=None, feed_id=None):
 	ctx['user'] = user_obj
 
 	return ctx
-

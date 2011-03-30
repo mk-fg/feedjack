@@ -65,6 +65,8 @@ urlpatterns.extend( (url, views.mainview)
 # Deprecated pages, can overlap with new-style ones
 urlpatterns.extend( (url, views.mainview)
 	for url in specs_sets('^{0}/?$', specs_deprecated) )
+# Ajax handlers
+urlpatterns.append((r'^ajax/fold\.json$', views.ajax_fold))
 # Index page
 urlpatterns.append((r'^$', views.mainview))
 
