@@ -66,7 +66,7 @@ urlpatterns.extend( (url, views.mainview)
 urlpatterns.extend( (url, views.mainview)
 	for url in specs_sets('^{0}/?$', specs_deprecated) )
 # Ajax handlers
-urlpatterns.append((r'^ajax/fold\.json$', views.ajax_fold))
+urlpatterns.append((r'^ajax/data/(?P<id>[^/]+)\.json$', views.ajax_store))
 # Index page
 urlpatterns.append((r'^$', views.mainview))
 

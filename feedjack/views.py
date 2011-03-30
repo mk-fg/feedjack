@@ -10,7 +10,6 @@ from django.views.generic.simple import redirect_to
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import simplejson as json
 from django.utils.encoding import smart_unicode
-from django.conf import settings
 
 from feedjack import models
 from feedjack import fjlib
@@ -174,26 +173,9 @@ def atomfeed(request, tag=None, feed_id=None):
 	return buildfeed(request, feedgenerator.Atom1Feed, tag, feed_id)
 
 
-def ajax_fold(request):
+def ajax_store(request, id):
 	'Handler for JS requests.'
-	# TODO: record folded ts_day and ts_entry_max in session
-	# TODO: when showing results, fold ts_day if there are no new entries and entries with ts < ts_entry_max
-	response = True
-	ts_entry_max = request.GET.get('ts_entry_max', None)
-	if ts_entry_max is not None:
-		try: ts_entry_max = float(ts_entry_max)
-		except ValueError: ts_entry_max = 0 # should unfold stuff
-	if 'ts_day' in request.GET: # fold day
-		try: datetime.strptime(request.GET['ts_day'], '%Y-%m-%d') # just to check whether it's valid
-		except ValueError: response = False
-		else:
-			ts_day = request.GET['ts_day']
-			response, site, cache_key = initview(request, response_cache=False)
-			folds = request.session.get('feedjack.folds', defaultdict(dict))
-			folds[site.id][ts_day] = max(folds[site.id].get(ts_day, 0), ts_entry_max)
-			request.session.modified = True
-	else: # fold everything until ts_entry_max
-		folds[site.id][None] = max(folds[site.id].get(None, 0), ts_entry_max)
+	raise NotImplementedError
 	return HttpResponse(json.dumps(response), content_type='application/json')
 
 

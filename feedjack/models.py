@@ -78,10 +78,6 @@ class Site(models.Model):
 	use_internal_cache = models.BooleanField(_('use internal cache'), default=True)
 	cache_duration = models.PositiveIntegerField(_('cache duration'), default=60*60*24,
 		help_text=_('Duration in seconds of the cached pages and data.') )
-	# TODO: cleanup of session data, based on this parameter
-	session_duration = models.PositiveIntegerField(_('session data durability'), default=30*24*60*60,
-		help_text=_('Duration in seconds for various user'
-			' session data parts (not the session itself though) to expire.') )
 
 	links = models.ManyToManyField(Link, verbose_name=_('links'),
 	  null=True, blank=True)

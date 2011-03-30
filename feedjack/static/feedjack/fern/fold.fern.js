@@ -16,12 +16,13 @@ $(document).ready(function() {
 				var ts = $(el).data('timestamp')
 				if (ts > ts_entry_max) ts_entry_max = ts })
 
-		$.getJSON( url_fold,
-			{ts_day: ts_day, ts_entry_max: ts_entry_max},
-			function(data) {
-				// TODO: actually fold the thing
-				// TODO: jquery.ui animation
-				// TODO: fix style for links (bg crap on hover)
-				// alert(data)
-				} ) })
+		// TODO: client-side storage
+		// $.getJSON( url_fold,
+		// 	{ts_day: ts_day, ts_entry_max: ts_entry_max},
+		// 	function(data) {
+		// 		// TODO: actually fold the thing
+		// 		// TODO: jquery.ui animation
+		// 		// TODO: fix style for links (bg crap on hover)
+		// 		// alert(data)
+		// 		} ) })
 })
