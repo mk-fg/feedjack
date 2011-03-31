@@ -1,8 +1,3 @@
-###
-// TODO: localStorage cleanup, check it's space limits
-// TODO: jquery.ui animation
-###
-
 $(document).ready ->
 	/* IE6? Fuck off */
 	return unless localStorage?

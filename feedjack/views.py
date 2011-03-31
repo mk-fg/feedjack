@@ -182,16 +182,16 @@ def ajax_store(request, id):
 def mainview(request, tag=None, feed_id=None):
 	'View that handles all page requests.'
 	response, site, cachekey = initview(request)
-	if response: return response
-
-	ctx = fjlib.page_context(request, site, tag, feed_id)
-	response = render_to_response(
-		u'feedjack/{0}/post_list.html'.format(site.template),
-		ctx, context_instance=RequestContext(request) )
-
-	# per host caching, in case the cache middleware is enabled
-	patch_vary_headers(response, ['Host'])
-
-	if site.use_internal_cache: fjcache.cache_set(site, cachekey, response)
+	if not response:
+		ctx = fjlib.page_context(request, site, tag, feed_id)
+		response = render_to_response(
+			u'feedjack/{0}/post_list.html'.format(site.template),
+			ctx, context_instance=RequestContext(request) )
+		# per host caching, in case the cache middleware is enabled
+		patch_vary_headers(response, ['Host'])
+		if site.use_internal_cache:
+			fjcache.cache_set(site, cachekey, response)
+	fj_track_header = request.META.get('HTTP_X_FEEDJACK_TRACKING')
+	if fj_track_header: response['X-Feedjack-Tracking'] = fj_track_header
 	return response
 

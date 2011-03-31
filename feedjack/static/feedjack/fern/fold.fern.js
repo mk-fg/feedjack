@@ -1,8 +1,5 @@
 (function() {
-  /*
-  // TODO: localStorage cleanup, check it's space limits
-  // TODO: jquery.ui animation
-  */  $(document).ready(function() {
+  $(document).ready(function() {
     /* IE6? Fuck off */;    var fold_entries, folds, folds_commit, folds_lru, folds_update, limit, limit_lru, limit_lru_gc, storage_key, url_media, url_site, _ref, _ref2, _ref3;
     if (typeof localStorage == "undefined" || localStorage === null) {
       return;
