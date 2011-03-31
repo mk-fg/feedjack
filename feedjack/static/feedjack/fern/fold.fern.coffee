@@ -1,18 +1,56 @@
 ###
 // TODO: localStorage cleanup, check it's space limits
 // TODO: jquery.ui animation
-// TODO: fix style for links (bg crap on hover)
 ###
 
 $(document).ready ->
 	/* IE6? Fuck off */
 	return unless localStorage?
 
+	/* size of lru journal to trigger gc */
+	limit_lru_gc = 300
+	/* size of lru journal after cleanup */
+	limit_lru = 200
+	/* minimum number of folds to keep */
+	limit = 100
+
+	Object::get_length = () ->
+		len = 0
+		for k,v of this
+			len += 1 if this.hasOwnProperty(k)
+		len
+
 	[url_site, url_media] = [$('html').data('url_site'), $('html').data('url_media')]
 	storage_key = "feedjack.fold.#{url_site}"
-	folds = localStorage.getItem(storage_key)
-	folds = if folds then JSON.parse(folds) else {}
-	folds_commit = -> localStorage.setItem(storage_key, JSON.stringify(folds))
+	[folds, folds_lru] = [
+		localStorage["#{storage_key}.folds"],
+		localStorage["#{storage_key}.folds_lru"] ]
+	[folds, folds_lru] = [
+		if folds then JSON.parse(folds) else {},
+		if folds_lru then JSON.parse(folds_lru) else [] ]
+
+	folds_update = (key, value) ->
+		if value?
+			folds[key] = value
+			folds_lru.push([key, value])
+		else
+			delete folds[key]
+	folds_commit = ->
+		/* gc */
+		len_lru = folds_lru.length
+		if len_lru > limit_lru_gc
+			[folds_lru, folds_lru_gc] = [
+				folds_lru[(len_lru - limit_lru)..len_lru],
+				folds_lru[0...(len_lru - limit_lru)] ]
+			len_folds = folds.get_length() - limit
+			for [key,val] in folds_lru_gc
+				break if len_folds <= 0
+				if folds[key] == val
+					folds_update(key)
+					len_folds -= 1
+		/* actual storage */
+		localStorage["#{storage_key}.folds"] = JSON.stringify(folds)
+		localStorage["#{storage_key}.folds_lru"] = JSON.stringify(folds_lru)
 
 	/* (un)fold everything under the specified day-header */
 	fold_entries = (h1, fold=null, unfold=false) ->
@@ -51,10 +89,10 @@ $(document).ready ->
 		[ts_day, ts_entry_max] = fold_entries(h1, false)
 		if ts_entry_max > 0
 			fold_entries(h1, true)
-			folds[ts_day] = Math.max(ts_entry_max, folds[ts_day] or 0)
+			folds_update(ts_day, Math.max(ts_entry_max, folds[ts_day] or 0))
 		else
 			fold_entries(h1, false, true)
-			delete folds[ts_day]
+			folds_update(ts_day)
 		folds_commit()
 
 	/* Fold all button */
@@ -66,9 +104,9 @@ $(document).ready ->
 		if ts_page_max > 0
 			h1s.each (idx, el) ->
 				[ts_day, ts_entry_max] = fold_entries(el, true)
-				folds[ts_day] = Math.max(ts_entry_max, folds[ts_day] or 0)
+				folds_update(ts_day, Math.max(ts_entry_max, folds[ts_day] or 0))
 		else
 			h1s.each (idx, el) ->
 				[ts_day, ts_entry_max] = fold_entries(el, false, true)
-				delete folds[ts_day]
+				folds_update(ts_day)
 		folds_commit()

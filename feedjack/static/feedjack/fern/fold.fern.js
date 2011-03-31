@@ -2,18 +2,60 @@
   /*
   // TODO: localStorage cleanup, check it's space limits
   // TODO: jquery.ui animation
-  // TODO: fix style for links (bg crap on hover)
   */  $(document).ready(function() {
-    /* IE6? Fuck off */;    var fold_entries, folds, folds_commit, storage_key, url_media, url_site, _ref;
+    /* IE6? Fuck off */;    var fold_entries, folds, folds_commit, folds_lru, folds_update, limit, limit_lru, limit_lru_gc, storage_key, url_media, url_site, _ref, _ref2, _ref3;
     if (typeof localStorage == "undefined" || localStorage === null) {
       return;
     }
+    /* size of lru journal to trigger gc */;
+    limit_lru_gc = 300;
+    /* size of lru journal after cleanup */;
+    limit_lru = 200;
+    /* minimum number of folds to keep */;
+    limit = 100;
+    Object.prototype.get_length = function() {
+      var k, len, v;
+      len = 0;
+      for (k in this) {
+        v = this[k];
+        if (this.hasOwnProperty(k)) {
+          len += 1;
+        }
+      }
+      return len;
+    };
     _ref = [$('html').data('url_site'), $('html').data('url_media')], url_site = _ref[0], url_media = _ref[1];
     storage_key = "feedjack.fold." + url_site;
-    folds = localStorage.getItem(storage_key);
-    folds = folds ? JSON.parse(folds) : {};
+    _ref2 = [localStorage["" + storage_key + ".folds"], localStorage["" + storage_key + ".folds_lru"]], folds = _ref2[0], folds_lru = _ref2[1];
+    _ref3 = [folds ? JSON.parse(folds) : {}, folds_lru ? JSON.parse(folds_lru) : []], folds = _ref3[0], folds_lru = _ref3[1];
+    folds_update = function(key, value) {
+      if (value != null) {
+        folds[key] = value;
+        return folds_lru.push([key, value]);
+      } else {
+        return delete folds[key];
+      }
+    };
     folds_commit = function() {
-      return localStorage.setItem(storage_key, JSON.stringify(folds));
+      /* gc */;      var folds_lru_gc, key, len_folds, len_lru, val, _i, _len, _ref, _ref2;
+      len_lru = folds_lru.length;
+      if (len_lru > limit_lru_gc) {
+        _ref = [folds_lru.slice(len_lru - limit_lru, (len_lru + 1) || 9e9), folds_lru.slice(0, len_lru - limit_lru)], folds_lru = _ref[0], folds_lru_gc = _ref[1];
+        len_folds = folds.get_length() - limit;
+        for (_i = 0, _len = folds_lru_gc.length; _i < _len; _i++) {
+          _ref2 = folds_lru_gc[_i], key = _ref2[0], val = _ref2[1];
+          if (len_folds <= 0) {
+            break;
+          }
+          if (folds[key] === val) {
+            folds_update(key);
+            len_folds -= 1;
+          }
+        }
+      }
+      /* actual storage */;
+      localStorage["" + storage_key + ".folds"] = JSON.stringify(folds);
+      return localStorage["" + storage_key + ".folds_lru"] = JSON.stringify(folds_lru);
     };
     /* (un)fold everything under the specified day-header */;
     fold_entries = function(h1, fold, unfold) {
@@ -60,10 +102,10 @@
       _ref = fold_entries(h1, false), ts_day = _ref[0], ts_entry_max = _ref[1];
       if (ts_entry_max > 0) {
         fold_entries(h1, true);
-        folds[ts_day] = Math.max(ts_entry_max, folds[ts_day] || 0);
+        folds_update(ts_day, Math.max(ts_entry_max, folds[ts_day] || 0));
       } else {
         fold_entries(h1, false, true);
-        delete folds[ts_day];
+        folds_update(ts_day);
       }
       return folds_commit();
     });
@@ -79,13 +121,13 @@
         h1s.each(function(idx, el) {
           var ts_day, ts_entry_max, _ref;
           _ref = fold_entries(el, true), ts_day = _ref[0], ts_entry_max = _ref[1];
-          return folds[ts_day] = Math.max(ts_entry_max, folds[ts_day] || 0);
+          return folds_update(ts_day, Math.max(ts_entry_max, folds[ts_day] || 0));
         });
       } else {
         h1s.each(function(idx, el) {
           var ts_day, ts_entry_max, _ref;
           _ref = fold_entries(el, false, true), ts_day = _ref[0], ts_entry_max = _ref[1];
-          return delete folds[ts_day];
+          return folds_update(ts_day);
         });
       }
       return folds_commit();
