@@ -1,6 +1,7 @@
 (function() {
+  var __hasProp = Object.prototype.hasOwnProperty;
   $(document).ready(function() {
-    /* IE6? Fuck off */;    var fold_entries, folds, folds_commit, folds_lru, folds_update, limit, limit_lru, limit_lru_gc, storage_key, url_media, url_site, _ref, _ref2, _ref3;
+    /* IE6? Fuck off */;    var fold_entries, folds, folds_commit, folds_lru, folds_sync, folds_ts, folds_update, get_ts, img_sync, limit, limit_lru, limit_lru_gc, storage_key, url_media, url_site, url_store, _ref, _ref2, _ref3;
     if (typeof localStorage == "undefined" || localStorage === null) {
       return;
     }
@@ -14,24 +15,26 @@
       var k, len, v;
       len = 0;
       for (k in this) {
+        if (!__hasProp.call(this, k)) continue;
         v = this[k];
-        if (this.hasOwnProperty(k)) {
-          len += 1;
-        }
+        len += 1;
       }
       return len;
     };
-    _ref = [$('html').data('url_site'), $('html').data('url_media')], url_site = _ref[0], url_media = _ref[1];
+    get_ts = function() {
+      return Math.round((new Date()).getTime() / 1000);
+    };
+    _ref = [$('html').data('url_site'), $('html').data('url_media'), $('html').data('url_store')], url_site = _ref[0], url_media = _ref[1], url_store = _ref[2];
     storage_key = "feedjack.fold." + url_site;
-    _ref2 = [localStorage["" + storage_key + ".folds"], localStorage["" + storage_key + ".folds_lru"]], folds = _ref2[0], folds_lru = _ref2[1];
-    _ref3 = [folds ? JSON.parse(folds) : {}, folds_lru ? JSON.parse(folds_lru) : []], folds = _ref3[0], folds_lru = _ref3[1];
+    _ref2 = [localStorage["" + storage_key + ".folds"], localStorage["" + storage_key + ".folds_lru"], localStorage["" + storage_key + ".folds_ts"]], folds = _ref2[0], folds_lru = _ref2[1], folds_ts = _ref2[2];
+    _ref3 = [folds ? JSON.parse(folds) : {}, folds_lru ? JSON.parse(folds_lru) : [], folds_ts ? JSON.parse(folds_ts) : {}], folds = _ref3[0], folds_lru = _ref3[1], folds_ts = _ref3[2];
     folds_update = function(key, value) {
-      if (value != null) {
-        folds[key] = value;
-        return folds_lru.push([key, value]);
-      } else {
-        return delete folds[key];
+      if (value == null) {
+        value = 0;
       }
+      folds[key] = value;
+      folds_lru.push([key, value]);
+      return folds_ts[key] = get_ts();
     };
     folds_commit = function() {
       /* gc */;      var folds_lru_gc, key, len_folds, len_lru, val, _i, _len, _ref, _ref2;
@@ -52,7 +55,43 @@
       }
       /* actual storage */;
       localStorage["" + storage_key + ".folds"] = JSON.stringify(folds);
-      return localStorage["" + storage_key + ".folds_lru"] = JSON.stringify(folds_lru);
+      localStorage["" + storage_key + ".folds_lru"] = JSON.stringify(folds_lru);
+      return localStorage["" + storage_key + ".folds_ts"] = JSON.stringify(folds_ts);
+    };
+    folds_sync = function() {
+      if (!$.cookie('feedjack.tracking')) {
+        return;
+      }
+      return $.get(url_store, function(raw, status) {
+        var data, k, v, _ref;
+        data = raw || {
+          folds: {},
+          folds_ts: {}
+        };
+        if (status !== 'success' || !data) {
+          alert("Failed to fetch data (" + status + "): " + raw);
+        }
+        _ref = data.folds;
+        for (k in _ref) {
+          if (!__hasProp.call(_ref, k)) continue;
+          v = _ref[k];
+          if (!(folds_ts[k] != null) || data.folds_ts[k] > folds_ts[k]) {
+            folds_update(k, v);
+          }
+        }
+        folds_commit();
+        $('h1.feed').each(function(idx, el) {
+          return fold_entries(el);
+        });
+        return $.post(url_store, JSON.stringify({
+          folds: folds,
+          folds_ts: folds_ts
+        }), function(raw, status) {
+          if (status !== 'success' || !JSON.parse(raw)) {
+            return alert("Failed to send data (" + status + "): " + raw);
+          }
+        });
+      });
     };
     /* (un)fold everything under the specified day-header */;
     fold_entries = function(h1, fold, unfold) {
@@ -89,9 +128,12 @@
       return [ts_day, ts_entry_max];
     };
     /* Buttons, initial fold */;
-    $('h1.feed').append("<img title=\"fold page\" class=\"button_fold_all\" src=\"" + url_media + "/fold_all.png\" />\n<img title=\"fold day\" class=\"button_fold\" src=\"" + url_media + "/fold.png\" />").each(function(idx, el) {
+    img_sync = $.cookie('feedjack.tracking') ? "<img title=\"fold sync\" class=\"button_fold_sync\" src=\"" + url_media + "/fold_sync.png\" />" : '';
+    $('h1.feed').append(("<img title=\"fold page\" class=\"button_fold_all\" src=\"" + url_media + "/fold_all.png\" />\n<img title=\"fold day\" class=\"button_fold\" src=\"" + url_media + "/fold.png\" />") + img_sync).each(function(idx, el) {
       return fold_entries(el);
     });
+    /* Fold sync button */;
+    $('.button_fold_sync').click(folds_sync);
     /* Fold day button */;
     $('.button_fold').click(function(ev) {
       var h1, ts_day, ts_entry_max, _ref;

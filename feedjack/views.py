@@ -3,7 +3,10 @@
 
 from django.utils import feedgenerator
 from django.shortcuts import render_to_response
-from django.http import HttpResponse, HttpResponsePermanentRedirect, Http404
+from django.http import HttpResponse, Http404,\
+	HttpResponsePermanentRedirect, HttpResponseBadRequest,\
+	HttpResponseNotModified
+from django.core.cache import get_cache
 from django.utils.cache import patch_vary_headers
 from django.template import Context, RequestContext, loader
 from django.views.generic.simple import redirect_to
@@ -173,15 +176,48 @@ def atomfeed(request, tag=None, feed_id=None):
 	return buildfeed(request, feedgenerator.Atom1Feed, tag, feed_id)
 
 
-def ajax_store(request, id):
-	'Handler for JS requests.'
-	raise NotImplementedError
-	return HttpResponse(json.dumps(response), content_type='application/json')
+def _ajax_headers(response):
+	response['Cache-Control'] = ', '.join([ 'no-cache', 'private',
+		'no-store', 'must-revalidate', 'max-stale=0', 'max-age=0', 'post-check=0', 'pre-check=0' ])
+	response['Pragma'] = 'no-cache'
+	response['Expires'] = 'Wed, 09 Jun 1993 00:00:00 GMT'
+	return response
+
+def ajax_store(request):
+	'Handler for JS requests from tracked users.'
+	fj_track_header = request.META.get('HTTP_X_FEEDJACK_TRACKING')\
+		or request.COOKIES.get('feedjack.tracking')
+	build_response = lambda content=None, type=HttpResponse,\
+		content_type='application/json': _ajax_headers(type(
+			'true' if content is None else content, content_type=content_type ))
+
+	if not request.is_ajax()\
+			or request.method not in ('GET', 'POST', 'HEAD'):
+		return HttpResponseBadRequest(
+			'Ajax/json-only backend for tracked get/post reqz' )
+
+	if request.method == 'HEAD': # just echo request tracking header
+		response = build_response('')
+		response['X-Feedjack-Tracking'] = fj_track_header
+		return response
+
+	response = None
+	if not fj_track_header:
+		return HttpResponseBadRequest('Untracked request')
+	elif request.method == 'POST':
+		get_cache('persistent').set(fj_track_header, request.raw_post_data)
+	elif request.method == 'GET':
+		response = get_cache('persistent').get(fj_track_header)
+		if response and request.GET.get('folds_ts')\
+				>= json.loads(response).get('folds_ts', 0):
+			response = None
+	return build_response(response)
 
 
 def mainview(request, tag=None, feed_id=None):
 	'View that handles all page requests.'
 	response, site, cachekey = initview(request)
+
 	if not response:
 		ctx = fjlib.page_context(request, site, tag, feed_id)
 		response = render_to_response(
@@ -191,7 +227,12 @@ def mainview(request, tag=None, feed_id=None):
 		patch_vary_headers(response, ['Host'])
 		if site.use_internal_cache:
 			fjcache.cache_set(site, cachekey, response)
-	fj_track_header = request.META.get('HTTP_X_FEEDJACK_TRACKING')
-	if fj_track_header: response['X-Feedjack-Tracking'] = fj_track_header
+
+	fj_track_header = request.META.get('HTTP_X_FEEDJACK_TRACKING')\
+		or request.COOKIES.get('feedjack.tracking')
+	if fj_track_header:
+		response['X-Feedjack-Tracking'] = fj_track_header
+		response.set_cookie('feedjack.tracking', fj_track_header)
+
 	return response
 

@@ -2,13 +2,15 @@
 <!DOCTYPE html>
 <html
 	data-url_site="{{ site.url }}"
-	data-url_media="{{ media_url }}">
+	data-url_media="{{ media_url }}"
+	data-url_store="{{ site.url }}/ajax/store.json">
 
 <head>
 	<title>{% if feed %}{{ feed.title }} - {% endif %}{{ site.title }}</title>
 	<link rel="stylesheet" href="{{ media_url }}/default.css" type="text/css"/>
 	<link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="{{ site.url }}/feed/rss/" />
 	<script type="text/javascript" src="{{ media_url }}/jquery.js"></script>
+	<script type="text/javascript" src="{{ media_url }}/jquery.cookie.js"></script>
 	<script type="text/javascript" src="{{ media_url }}/json2.js"></script>
 	<script type="text/javascript" src="{{ media_url }}/fold.fern.js"></script>
 	{% block extrastyle %}{% endblock %}

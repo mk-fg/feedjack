@@ -9,27 +9,32 @@ $(document).ready ->
 	/* minimum number of folds to keep */
 	limit = 100
 
-	Object::get_length = () ->
+	Object::get_length = ->
 		len = 0
-		for k,v of this
-			len += 1 if this.hasOwnProperty(k)
+		len += 1 for own k,v of this
 		len
 
-	[url_site, url_media] = [$('html').data('url_site'), $('html').data('url_media')]
-	storage_key = "feedjack.fold.#{url_site}"
-	[folds, folds_lru] = [
-		localStorage["#{storage_key}.folds"],
-		localStorage["#{storage_key}.folds_lru"] ]
-	[folds, folds_lru] = [
-		if folds then JSON.parse(folds) else {},
-		if folds_lru then JSON.parse(folds_lru) else [] ]
+	get_ts = -> Math.round((new Date()).getTime() / 1000)
 
-	folds_update = (key, value) ->
-		if value?
-			folds[key] = value
-			folds_lru.push([key, value])
-		else
-			delete folds[key]
+	[url_site, url_media, url_store] = [
+		$('html').data('url_site'),
+		$('html').data('url_media'),
+		$('html').data('url_store') ]
+	storage_key = "feedjack.fold.#{url_site}"
+	[folds, folds_lru, folds_ts] = [
+		localStorage["#{storage_key}.folds"],
+		localStorage["#{storage_key}.folds_lru"],
+		localStorage["#{storage_key}.folds_ts"] ]
+	[folds, folds_lru, folds_ts] = [
+		if folds then JSON.parse(folds) else {},
+		if folds_lru then JSON.parse(folds_lru) else [],
+		if folds_ts then JSON.parse(folds_ts) else {} ]
+
+	folds_update = (key, value=0) ->
+		folds[key] = value
+		folds_lru.push([key, value])
+		folds_ts[key] = get_ts()
+
 	folds_commit = ->
 		/* gc */
 		len_lru = folds_lru.length
@@ -46,6 +51,24 @@ $(document).ready ->
 		/* actual storage */
 		localStorage["#{storage_key}.folds"] = JSON.stringify(folds)
 		localStorage["#{storage_key}.folds_lru"] = JSON.stringify(folds_lru)
+		localStorage["#{storage_key}.folds_ts"] = JSON.stringify(folds_ts)
+
+	folds_sync = ->
+		return unless $.cookie('feedjack.tracking')
+		$.get url_store,
+			(raw, status) ->
+				data = raw or {folds: {}, folds_ts: {}}
+				if status != 'success' or not data
+					alert("Failed to fetch data (#{status}): #{raw}")
+				for own k,v of data.folds
+					folds_update(k, v) if not folds_ts[k]? or data.folds_ts[k] > folds_ts[k]
+				folds_commit()
+				$('h1.feed').each (idx, el) -> fold_entries(el)
+				$.post url_store, JSON.stringify({folds, folds_ts}),
+					(raw, status) ->
+						if status != 'success' or not JSON.parse(raw)
+							alert("Failed to send data (#{status}): #{raw}")
+
 
 	/* (un)fold everything under the specified day-header */
 	fold_entries = (h1, fold=null, unfold=false) ->
@@ -72,11 +95,17 @@ $(document).ready ->
 		[ts_day, ts_entry_max]
 
 	/* Buttons, initial fold */
+	img_sync = if $.cookie('feedjack.tracking')
+	then """<img title="fold sync" class="button_fold_sync" src="#{url_media}/fold_sync.png" />"""
+	else ''
 	$('h1.feed')
 		.append(
 			"""<img title="fold page" class="button_fold_all" src="#{url_media}/fold_all.png" />
-			<img title="fold day" class="button_fold" src="#{url_media}/fold.png" />""" )
+			<img title="fold day" class="button_fold" src="#{url_media}/fold.png" />""" + img_sync )
 		.each (idx, el) -> fold_entries(el)
+
+	/* Fold sync button */
+	$('.button_fold_sync').click(folds_sync)
 
 	/* Fold day button */
 	$('.button_fold').click (ev) ->
