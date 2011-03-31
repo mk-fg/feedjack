@@ -61,7 +61,6 @@ body {
 .buttons, .buttons a { float: right; }
 
 a { color: #00F; }
-a:hover { color: #FFF; background: #00F; }
 a:visited { color: #A0C; }
 a:active { color: #F00; }
 
@@ -101,7 +100,6 @@ a img {
 #center .content a { color: #0000CD; }
 #center .content a:visited { color: #6A5ACD; }
 #center .content a:active { color: #CD5C5C; }
-#center .content a:hover { color: #FFF; background: #0000CD; }
 
 .entry p.date {
 	color: #AAA;
@@ -113,11 +111,6 @@ a img {
 .entry p.date a {
 	margin-left: 1em;
 	color: #7C7CB8;
-}
-
-.entry p.date a:hover {
-	color: #FFF;
-	background: #7C7CB8;
 }
 
 #footer {
