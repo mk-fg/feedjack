@@ -6,7 +6,6 @@ from django.shortcuts import render_to_response
 from django.http import HttpResponse, Http404,\
 	HttpResponsePermanentRedirect, HttpResponseBadRequest,\
 	HttpResponseNotModified
-from django.core.cache import get_cache
 from django.utils.cache import patch_vary_headers
 from django.template import Context, RequestContext, loader
 from django.views.generic.simple import redirect_to
@@ -176,6 +175,7 @@ def atomfeed(request, tag=None, feed_id=None):
 	return buildfeed(request, feedgenerator.Atom1Feed, tag, feed_id)
 
 
+
 def _ajax_headers(response):
 	response['Cache-Control'] = ', '.join([ 'no-cache', 'private',
 		'no-store', 'must-revalidate', 'max-stale=0', 'max-age=0', 'post-check=0', 'pre-check=0' ])
@@ -193,8 +193,8 @@ def ajax_store(request):
 
 	if not request.is_ajax()\
 			or request.method not in ('GET', 'POST', 'HEAD'):
-		return HttpResponseBadRequest(
-			'Ajax/json-only backend for tracked get/post reqz' )
+		return _ajax_headers(HttpResponseBadRequest(
+			'Ajax/json-only backend for tracked get/post reqz' ))
 
 	if request.method == 'HEAD': # just echo request tracking header
 		response = build_response('')
@@ -205,12 +205,9 @@ def ajax_store(request):
 	if not fj_track_header:
 		return HttpResponseBadRequest('Untracked request')
 	elif request.method == 'POST':
-		get_cache('persistent').set(fj_track_header, request.raw_post_data)
+		fjcache.ajax_cache.set(fj_track_header, request.raw_post_data)
 	elif request.method == 'GET':
-		response = get_cache('persistent').get(fj_track_header)
-		if response and request.GET.get('folds_ts')\
-				>= json.loads(response).get('folds_ts', 0):
-			response = None
+		response = fjcache.ajax_cache.get(fj_track_header)
 	return build_response(response)
 
 

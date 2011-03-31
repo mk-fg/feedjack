@@ -1,8 +1,18 @@
 # -*- coding: utf-8 -*-
 
 from hashlib import md5
-from django.core.cache import cache
+from django.core.cache import cache, get_cache
 from django.conf import settings
+
+
+try:
+	ajax_cache = settings.FEEDJACK_CACHE
+	settings.CACHES # django 1.3
+except AttributeError:
+	try: ajax_cache = 'persistent' if 'persistent' in settings.CACHES else 'default'
+	except AttributeError: ajax_cache = cache
+	else: ajax_cache = get_cache(ajax_cache)
+else: ajax_cache = get_cache(ajax_cache)
 
 
 T_HOST = 1
