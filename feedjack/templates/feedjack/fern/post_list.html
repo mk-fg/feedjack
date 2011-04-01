@@ -54,7 +54,7 @@
 {% endifchanged %}
 
 {% ifchanged date_key %}
-<h1 class="feed" data-timestamp="{{ date_key }}">{{ item.date_modified|date:"D, F j, Y" }}</h1>
+<h1 class="feed" data-timestamp="{{ date_key }}">{{ item.date_modified|date:"l, F j, Y" }}</h1>
 {% endifchanged %}
 
 {% ifchanged item.feed.id date_key %}
