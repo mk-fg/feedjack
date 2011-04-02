@@ -64,8 +64,8 @@
 {% endwith %}
 
 	<div class="entry" data-timestamp="{{ item.date_modified|date:"U" }}">
-		<h3 class="feed"><a href="{{ item.link }}">{% if item.title %}{{ item.title }}
-					{% else %}{{ item.subscriber.name }}{% endif %}</a></h3>
+		<h3 class="feed"><a href="{{ item.link }}">{% if item.title %}{{ item.title|safe }}
+					{% else %}{{ item.subscriber.name|safe }}{% endif %}</a></h3>
 		<div class="content">
 		{{ item.content|safe }}
 		</div> {# /.content #}
