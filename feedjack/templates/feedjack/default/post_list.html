@@ -1,12 +1,12 @@
 {% load i18n %}
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" 
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
     "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html>
 <!--
   Feedjack LostWoods theme
   Simple and green (where's the brown? -brown doesn't count)
- 
+
   Copyright Diego Escalante Urrelo <diegoe@gnome.org>
  -->
 <head>
@@ -52,11 +52,11 @@
 </div>
 
     <div id="buttons">
-      <a href="{{ site.url }}/feed/rss/" title="RSS 2.0 feed"><img src="{{ media_url }}/img/button-rss.png"/></a> &bull;   
+      <a href="{{ site.url }}/feed/rss/" title="RSS 2.0 feed"><img src="{{ media_url }}/img/button-rss.png"/></a> &bull;
       <a href="http://www.djangoproject.com/"><img src="http://media.djangoproject.com/img/badges/djangosite80x15.gif" border="0" alt="A Django site." title="A Django site."></a> &bull;
       <img src="{{ media_url }}/img/button-hacker.png"/><br/>
-      <a href="{{ site.url }}/feed/atom/" title="Atom 1.0 feed"><img src="{{ media_url }}/img/button-atom.png"/></a> &bull; 
-      <a href="{{ site.url }}/opml/" title="OPML"><img src="{{ media_url }}/img/button-opml.png"/></a> &bull; 
+      <a href="{{ site.url }}/feed/atom/" title="Atom 1.0 feed"><img src="{{ media_url }}/img/button-atom.png"/></a> &bull;
+      <a href="{{ site.url }}/opml/" title="OPML"><img src="{{ media_url }}/img/button-opml.png"/></a> &bull;
       <a href="{{ site.url }}/foaf/" title="FOAF"><img src="{{ media_url }}/img/button-foaf.png"/></a>
     </div>
 
@@ -75,7 +75,7 @@
     {% endfor %}
     </ul>
 </div>
-{% endif %}    
+{% endif %}
 
 <div id="content">
 
@@ -89,7 +89,7 @@
   {% ifchanged %}
   <!-- {{ item.date_modified|date:"F j, Y" }} -->
   <div class="avatar">
-    <img 
+    <img
      src="{{ media_url }}/img/faces/{{ item.subscriber.shortname}}.png" alt="">
     <br/>
     <span class="name">{{ item.subscriber.name }}</span><br/>
@@ -173,7 +173,7 @@
 <h4>{% trans "Meta" %}</h4>
 <p>
 {% trans "Last update" %}:<br/>
-<b>{{ last_modified }}</b>
+<b>{{ last_modified.ctime }}</b>
 <br/>
 </p>
 

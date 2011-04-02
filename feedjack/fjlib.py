@@ -11,6 +11,7 @@ from feedjack import models
 from feedjack import fjcache
 
 import itertools as it, operator as op, functools as ft
+from datetime import datetime
 from urllib import quote
 
 
@@ -42,10 +43,9 @@ def get_extra_content(site, ctx):
 	feeds = site.active_feeds
 	ctx['feeds'] = feeds.order_by('name')
 	# get the last_modified/checked time
-	mod,chk = op.itemgetter('modified', 'checked')(feeds.timestamps)
-	chk = chk.ctime() if chk else '??'
-	mod = mod.ctime() if mod else chk
-	ctx['last_modified'], ctx['last_checked'] = mod, chk
+	mod, chk = op.itemgetter('modified', 'checked')(feeds.timestamps)
+	chk = chk or datetime(1970, 1, 1)
+	ctx['last_modified'], ctx['last_checked'] = mod or chk, chk
 	ctx['site'] = site
 	ctx['media_url'] = '{0}feedjack/{1}'.format(settings.MEDIA_URL, site.template)
 
@@ -131,7 +131,9 @@ def page_context(request, site, tag=None, feed_id=None):
 		next = page.number + 1,
 		previous = page.number - 1,
 		pages = page.paginator.num_pages,
-		hits = page.paginator.count )
+		hits = page.paginator.count,
+		last_modified = max(it.imap(
+			op.attrgetter('date_updated'), page.object_list )) )
 
 	get_extra_content(site, ctx)
 	ctx['tagcloud'] = tag_cloud

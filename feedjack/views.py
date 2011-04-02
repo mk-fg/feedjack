@@ -12,6 +12,7 @@ from django.views.generic.simple import redirect_to
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import simplejson as json
 from django.utils.encoding import smart_unicode
+from django.views.decorators.http import condition
 
 from feedjack import models
 from feedjack import fjlib
@@ -20,6 +21,22 @@ from feedjack import fjcache
 import itertools as it, operator as op, functools as ft
 from collections import defaultdict
 from urlparse import urlparse
+
+
+def cache_etag(request, *argz, **kwz):
+	'''Produce etag value for a cached page.
+		Intended for usage in conditional views (@condition decorator).'''
+	response, site, cachekey = initview(request)
+	if not response: return None
+	return '{}--{}--{}'.format( site.id if site else 'x', cachekey,
+		response[1].strftime('%Y-%m-%d %H:%M:%S%z') )
+
+def cache_last_modified(request, *argz, **kwz):
+	'''Last modification date for a cached page.
+		Intended for usage in conditional views (@condition decorator).'''
+	response, site, cachekey = initview(request)
+	if not response: return None
+	return response[1]
 
 
 def initview(request, response_cache=True):
@@ -93,31 +110,25 @@ def redirect(request, url, **kwz):
 	'''Simple redirect, taking site prefix into account,
 		otherwise similar to redirect_to generic view.'''
 	response, site, cachekey = initview(request)
-	if response: return response
+	if response: return response[0]
 	return redirect_to(request, url=site.url + url, **kwz)
 
 
 def blogroll(request, btype):
 	'View that handles the generation of blogrolls.'
 	response, site, cachekey = initview(request)
-	if response: return response
-
-	# for some reason this isn't working:
-	#
-	#response = render_to_response('feedjack/%s.xml' % btype, \
-	#  fjlib.get_extra_content(site, sfeeds_ids))
-	#response.mimetype = 'text/xml; charset=utf-8'
-	#
-	# so we must use this:
+	if response: return response[0]
 
 	template = loader.get_template('feedjack/{0}.xml'.format(btype))
 	ctx = dict()
 	fjlib.get_extra_content(site, ctx)
 	ctx = Context(ctx)
-	response = HttpResponse(template.render(ctx), mimetype='text/xml; charset=utf-8')
+	response = HttpResponse(
+		template.render(ctx), mimetype='text/xml; charset=utf-8' )
 
 	patch_vary_headers(response, ['Host'])
-	fjcache.cache_set(site, cachekey, response)
+	fjcache.cache_set(
+		site, cachekey, (response, ctx['last_modified']) )
 	return response
 
 
@@ -145,6 +156,7 @@ def buildfeed(request, feedclass, tag=None, feed_id=None):
 
 	feed = feedclass( title=feed_title, link=site.url,
 		description=site.description, feed_url=u'{0}/{1}'.format(site.url, '/feed/rss/') )
+	last_modified = 0
 	for post in object_list:
 		feed.add_item(
 			title = u'{0}: {1}'.format(post.feed.name, post.title),
@@ -155,13 +167,17 @@ def buildfeed(request, feedclass, tag=None, feed_id=None):
 			pubdate = post.date_modified,
 			unique_id = post.link,
 			categories = [tag.name for tag in post.tags.all()] )
+		if post.date_updated > last_modified: last_modified = post.date_updated
+
 	response = HttpResponse(mimetype=feed.mime_type)
 
 	# per host caching
 	patch_vary_headers(response, ['Host'])
 
 	feed.write(response, 'utf-8')
-	if site.use_internal_cache: fjcache.cache_set(site, cachekey, response)
+	if site.use_internal_cache:
+		fjcache.cache_set(
+			site, cachekey, (response, last_modified) )
 	return response
 
 
@@ -211,6 +227,8 @@ def ajax_store(request):
 	return build_response(response)
 
 
+@condition( etag_func=cache_etag,
+	last_modified_func=cache_last_modified )
 def mainview(request, tag=None, feed_id=None):
 	'View that handles all page requests.'
 	response, site, cachekey = initview(request)
@@ -223,7 +241,9 @@ def mainview(request, tag=None, feed_id=None):
 		# per host caching, in case the cache middleware is enabled
 		patch_vary_headers(response, ['Host'])
 		if site.use_internal_cache:
-			fjcache.cache_set(site, cachekey, response)
+			fjcache.cache_set(
+				site, cachekey, (response, ctx['last_modified']) )
+	else: response = response[0]
 
 	fj_track_header = request.META.get('HTTP_X_FEEDJACK_TRACKING')\
 		or request.COOKIES.get('feedjack.tracking')

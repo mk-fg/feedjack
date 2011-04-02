@@ -39,9 +39,9 @@ Insert here your google ad code ;)
 {% endifchanged %}
     <div class="entry">
         {% if item.title %}
-        <h3><a href="{{ item.link }}">{{ item.title }}</a></h3> 
+        <h3><a href="{{ item.link }}">{{ item.title }}</a></h3>
         {% else %}
-        <h3><a href="{{ item.link }}">{{ item.subscriber.name }}</a></h3> 
+        <h3><a href="{{ item.link }}">{{ item.subscriber.name }}</a></h3>
         {% endif %}
         <div class="content">
         {{ item.content|safe }}
@@ -110,7 +110,7 @@ Insert here your google ad code ;)
 {% endfor %}
 </ul>
 {% endif %}
-<!--p>Last modification:<br/><strong>{{ last_modified }}</strong></p-->
+<!--p>Last modification:<br/><strong>{{ last_modified.ctime }}</strong></p-->
 
 <!-- End #right -->
 </div>
@@ -128,7 +128,7 @@ Insert here your google ad code ;)
 {% endif %}
 {% if site.greets %}
 <div class="credits">
-<h2>{% trans "Credits" %}</h2> 
+<h2>{% trans "Credits" %}</h2>
 {{ site.greets|safe }}
 </div>
 {% endif %}
