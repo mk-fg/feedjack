@@ -65,7 +65,7 @@ $(document).ready ->
 				'-moz-transform': "rotate(#{tilt}deg)"
 				'-o-transform': "rotate(#{tilt}deg)"
 				'-webkit-transform': "rotate(#{tilt}deg)" )
-			img.data('tilt', tilt) ), 40)
+			img.data('tilt', tilt - 10) ), 80)
 
 		$.get url_store,
 			(raw, status) ->

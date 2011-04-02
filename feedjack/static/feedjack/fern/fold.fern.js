@@ -74,8 +74,8 @@
           '-o-transform': "rotate(" + tilt + "deg)",
           '-webkit-transform': "rotate(" + tilt + "deg)"
         });
-        return img.data('tilt', tilt);
-      }), 40);
+        return img.data('tilt', tilt - 10);
+      }), 80);
       return $.get(url_store, function(raw, status) {
         var data, k, v, _ref;
         data = raw || {
