@@ -121,6 +121,7 @@ def page_context(request, site, tag=None, feed_id=None):
 				.get(site=site, feed=feed_id) if feed_id else None
 		except ObjectDoesNotExist: raise Http404
 
+
 	ctx = dict(
 		object_list = page.object_list,
 		is_paginated = page.paginator.num_pages > 1,
@@ -133,7 +134,8 @@ def page_context(request, site, tag=None, feed_id=None):
 		pages = page.paginator.num_pages,
 		hits = page.paginator.count,
 		last_modified = max(it.imap(
-			op.attrgetter('date_updated'), page.object_list )) )
+				op.attrgetter('date_updated'), page.object_list ))\
+			if len(page.object_list) else datetime(1970, 1, 1) )
 
 	get_extra_content(site, ctx)
 	ctx['tagcloud'] = tag_cloud

@@ -143,11 +143,13 @@ def opml(request):
 	return blogroll(request, 'opml')
 
 
+@condition( etag_func=cache_etag,
+	last_modified_func=cache_last_modified )
 def buildfeed(request, feedclass, tag=None, feed_id=None):
 	'View that handles the feeds.'
 	# TODO: quite a mess, can't it be handled with a default feed-vews?
 	response, site, cachekey = initview(request)
-	if response: return response
+	if response: return response[0]
 
 	feed_title = site.title
 	if feed_id:
