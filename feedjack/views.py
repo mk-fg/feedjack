@@ -19,6 +19,7 @@ from feedjack import fjlib
 from feedjack import fjcache
 
 import itertools as it, operator as op, functools as ft
+from datetime import datetime
 from collections import defaultdict
 from urlparse import urlparse
 
@@ -94,7 +95,7 @@ def initview(request, response_cache=True):
 				response = HttpResponsePermanentRedirect(
 					'http://{}/{}{}'.format( site_url.netloc, path_info,
 						'?{}'.format(query_string) if query_string.strip() else '') )
-				return response, None, cachekey
+				return (response, datetime.now()), None, cachekey
 
 		hostdict[url] = site.id
 		fjcache.hostcache_set(hostdict)
@@ -156,7 +157,7 @@ def buildfeed(request, feedclass, tag=None, feed_id=None):
 
 	feed = feedclass( title=feed_title, link=site.url,
 		description=site.description, feed_url=u'{0}/{1}'.format(site.url, '/feed/rss/') )
-	last_modified = 0
+	last_modified = datetime(1970, 1, 1)
 	for post in object_list:
 		feed.add_item(
 			title = u'{0}: {1}'.format(post.feed.name, post.title),
