@@ -53,8 +53,20 @@ $(document).ready ->
 		localStorage["#{storage_key}.folds_lru"] = JSON.stringify(folds_lru)
 		localStorage["#{storage_key}.folds_ts"] = JSON.stringify(folds_ts)
 
-	folds_sync = ->
+	folds_sync = (ev) ->
 		return unless $.cookie('feedjack.tracking')
+
+		/* rotation effect for image while data ping-pong goes on */
+		img = $(ev.target)
+		timer = setInterval(( ->
+			tilt = img.data('tilt') or 0
+			img.css(
+				'transform': "rotate(#{tilt}deg)"
+				'-moz-transform': "rotate(#{tilt}deg)"
+				'-o-transform': "rotate(#{tilt}deg)"
+				'-webkit-transform': "rotate(#{tilt}deg)" )
+			img.data('tilt', tilt) ), 40)
+
 		$.get url_store,
 			(raw, status) ->
 				data = raw or {folds: {}, folds_ts: {}}
@@ -68,6 +80,7 @@ $(document).ready ->
 					(raw, status) ->
 						if status != 'success' or not JSON.parse(raw)
 							alert("Failed to send data (#{status}): #{raw}")
+						clearInterval(timer)
 
 
 	/* (un)fold everything under the specified day-header */

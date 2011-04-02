@@ -58,10 +58,24 @@
       localStorage["" + storage_key + ".folds_lru"] = JSON.stringify(folds_lru);
       return localStorage["" + storage_key + ".folds_ts"] = JSON.stringify(folds_ts);
     };
-    folds_sync = function() {
+    folds_sync = function(ev) {
+      var img, timer;
       if (!$.cookie('feedjack.tracking')) {
         return;
       }
+      /* rotation effect for image while data ping-pong goes on */;
+      img = $(ev.target);
+      timer = setInterval((function() {
+        var tilt;
+        tilt = img.data('tilt') || 0;
+        img.css({
+          'transform': "rotate(" + tilt + "deg)",
+          '-moz-transform': "rotate(" + tilt + "deg)",
+          '-o-transform': "rotate(" + tilt + "deg)",
+          '-webkit-transform': "rotate(" + tilt + "deg)"
+        });
+        return img.data('tilt', tilt);
+      }), 40);
       return $.get(url_store, function(raw, status) {
         var data, k, v, _ref;
         data = raw || {
@@ -88,8 +102,9 @@
           folds_ts: folds_ts
         }), function(raw, status) {
           if (status !== 'success' || !JSON.parse(raw)) {
-            return alert("Failed to send data (" + status + "): " + raw);
+            alert("Failed to send data (" + status + "): " + raw);
           }
+          return clearInterval(timer);
         });
       });
     };
