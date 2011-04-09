@@ -1,7 +1,7 @@
 (function() {
   var __hasProp = Object.prototype.hasOwnProperty;
   $(document).ready(function() {
-    /* IE6? Fuck off */;    var fold_entries, folds, folds_commit, folds_lru, folds_sync, folds_ts, folds_update, get_ts, img_sync, limit, limit_lru, limit_lru_gc, storage_key, url_media, url_site, url_store, _ref, _ref2, _ref3;
+    /* IE6? Fuck off */;    var fold_entries, folds, folds_commit, folds_lru, folds_sync, folds_ts, folds_update, get_ts, img_sync, limit, limit_lru, limit_lru_gc, site_key, storage_key, url_media, url_site, url_store, _ref, _ref2, _ref3;
     if (typeof localStorage == "undefined" || localStorage === null) {
       return;
     }
@@ -25,7 +25,8 @@
       return Math.round((new Date()).getTime() / 1000);
     };
     _ref = [$('html').data('url_site'), $('html').data('url_media'), $('html').data('url_store')], url_site = _ref[0], url_media = _ref[1], url_store = _ref[2];
-    storage_key = "feedjack.fold." + url_site;
+    site_key = url_site;
+    storage_key = "feedjack.fold." + site_key;
     _ref2 = [localStorage["" + storage_key + ".folds"], localStorage["" + storage_key + ".folds_lru"], localStorage["" + storage_key + ".folds_ts"]], folds = _ref2[0], folds_lru = _ref2[1], folds_ts = _ref2[2];
     _ref3 = [folds ? JSON.parse(folds) : {}, folds_lru ? JSON.parse(folds_lru) : [], folds_ts ? JSON.parse(folds_ts) : {}], folds = _ref3[0], folds_lru = _ref3[1], folds_ts = _ref3[2];
     folds_update = function(key, value) {
@@ -76,7 +77,9 @@
         });
         return img.data('tilt', tilt - 10);
       }), 80);
-      return $.get(url_store, function(raw, status) {
+      return $.get(url_store, {
+        site_key: site_key
+      }, function(raw, status) {
         var data, k, v, _ref;
         data = raw || {
           folds: {},
@@ -98,6 +101,7 @@
           return fold_entries(el);
         });
         return $.post(url_store, JSON.stringify({
+          site_key: site_key,
           folds: folds,
           folds_ts: folds_ts
         }), function(raw, status) {

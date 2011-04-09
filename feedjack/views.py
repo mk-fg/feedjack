@@ -221,12 +221,24 @@ def ajax_store(request):
 		return response
 
 	response = None
+	storage_key = '{site_key}__{track_header}'
 	if not fj_track_header:
 		return HttpResponseBadRequest('Untracked request')
-	elif request.method == 'POST':
-		fjcache.ajax_cache.set(fj_track_header, request.raw_post_data)
 	elif request.method == 'GET':
-		response = fjcache.ajax_cache.get(fj_track_header)
+		try: sk = request.GET['site_key']
+		except KeyError:
+			return HttpResponseBadRequest('No site key passed')
+		response = fjcache.ajax_cache.get(
+			storage_key.format(site_key=sk, track_header=fj_track_header) )
+	elif request.method == 'POST':
+		try: sk = json.loads(request.raw_post_data)['site_key']
+		except KeyError:
+			return HttpResponseBadRequest('No site key passed')
+		except ValueError:
+			return HttpResponseBadRequest('Unable to process json data')
+		fjcache.ajax_cache.set(
+			storage_key.format(site_key=sk, track_header=fj_track_header),
+			request.raw_post_data )
 	return build_response(response)
 
 

@@ -20,7 +20,8 @@ $(document).ready ->
 		$('html').data('url_site'),
 		$('html').data('url_media'),
 		$('html').data('url_store') ]
-	storage_key = "feedjack.fold.#{url_site}"
+	site_key = url_site
+	storage_key = "feedjack.fold.#{site_key}"
 	[folds, folds_lru, folds_ts] = [
 		localStorage["#{storage_key}.folds"],
 		localStorage["#{storage_key}.folds_lru"],
@@ -67,7 +68,7 @@ $(document).ready ->
 				'-webkit-transform': "rotate(#{tilt}deg)" )
 			img.data('tilt', tilt - 10) ), 80)
 
-		$.get url_store,
+		$.get url_store, {site_key},
 			(raw, status) ->
 				data = raw or {folds: {}, folds_ts: {}}
 				if status != 'success' or not data
@@ -76,7 +77,7 @@ $(document).ready ->
 					folds_update(k, v) if not folds_ts[k]? or data.folds_ts[k] > folds_ts[k]
 				folds_commit()
 				$('h1.feed').each (idx, el) -> fold_entries(el)
-				$.post url_store, JSON.stringify({folds, folds_ts}),
+				$.post url_store, JSON.stringify({site_key, folds, folds_ts}),
 					(raw, status) ->
 						if status != 'success' or not JSON.parse(raw)
 							alert("Failed to send data (#{status}): #{raw}")
