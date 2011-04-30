@@ -494,8 +494,8 @@ class Post(models.Model):
 	objects = Posts()
 
 	feed = models.ForeignKey(Feed, verbose_name=_('feed'), related_name='posts')
-	title = models.CharField(_('title'), max_length=511)
-	link = models.URLField(_('link'), max_length=511)
+	title = models.CharField(_('title'), max_length=2047)
+	link = models.URLField(_('link'), max_length=2047) # look at hashify.me for reasoning behind 2k+ length
 	content = models.TextField(_('content'), blank=True)
 	date_modified = models.DateTimeField(_('date modified'), null=True, blank=True)
 	guid = models.CharField(_('guid'), max_length=511, db_index=True)
