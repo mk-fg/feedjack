@@ -1,0 +1,43 @@
+Changes to a database schema are documented here.
+All SQL here is for PostgreSQL dbms, but should be easily adaptable for sqlite
+or mysql. See respective db docs for precise syntax.
+New models (tables) and MtM (Many-to-Many) relationships (also tables) can be
+created by running "./manage.py syncdb".
+
+0.9.16 - 0.9.16-fg5:
+
+	- "filter" and "filter_base" tables, can be created by syncdb
+
+	- "feed.immutable" (BooleanField) and "feed.skip_errors" fields (BooleanField)
+		ALTER TABLE feedjack_feed ADD COLUMN immutable boolean NOT NULL;
+		ALTER TABLE feedjack_feed ADD COLUMN skip_errors boolean NOT NULL;
+
+	- Feed.filters MtM relationship, can be created by syncdb
+	- "feed.filters_logic" field (PositiveSmallIntegerField)
+		ALTER TABLE feedjack_feed ADD COLUMN filters_logic smallint NOT NULL;
+
+	- extended "feed.etag" field length constraint 50->127
+		ALTER TABLE feedjack_feed ALTER COLUMN etag TYPE varchar(127);
+
+	- extended "tag.name" field length constraint 50->127
+		ALTER TABLE feedjack_tag ALTER COLUMN name TYPE varchar(127);
+
+	- extended "post.title" and "post.link" fields' length constraint 128/255->2047
+		ALTER TABLE feedjack_post ALTER COLUMN title TYPE varchar(2047);
+		ALTER TABLE feedjack_post ALTER COLUMN link TYPE varchar(2047);
+	- extended "post.guid" field length constraint 200->511
+		ALTER TABLE feedjack_post ALTER COLUMN guid TYPE varchar(511);
+	- extended "post.author" field length constraint 50->255
+		ALTER TABLE feedjack_post ALTER COLUMN author TYPE varchar(255);
+	- extended "post.comments" field length constraint 255->511
+		ALTER TABLE feedjack_post ALTER COLUMN comments TYPE varchar(511);
+
+	- "post.hidden" field (BooleanField)
+		ALTER TABLE feedjack_post ADD COLUMN hidden boolean NOT NULL;
+
+	- "post.date_created" and "post.date_updated" auto-fields (DateTimeField)
+		ALTER TABLE feedjack_post ADD COLUMN date_created timestamp with time zone NOT NULL;
+		ALTER TABLE feedjack_post ADD COLUMN date_updated timestamp with time zone NOT NULL;
+
+	- "post.filtering_result" (NullBooleanField)
+		ALTER TABLE feedjack_post ADD COLUMN filtering_result boolean;
