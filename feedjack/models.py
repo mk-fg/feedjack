@@ -13,25 +13,6 @@ from collections import namedtuple, defaultdict, Iterable, Iterator
 from datetime import datetime, timedelta
 
 
-import logging
-log = logging.getLogger()
-
-
-
-# from weakref import WeakKeyDictionary
-
-# class PyCache(WeakKeyDictionary):
-# 	def get(self, k, v=None):
-# 		if isinstance(k, tuple):
-# 			return self[k[0]].get(k[1]) if k[0] in self else None
-# 		else: super(WeakKeyDictionary, self).get(k, v)
-# 	def set(self, k, v):
-# 		if isinstance(k, tuple):
-# 			if k[0] in self: self[k[0]][k[1]] = v
-# 			else: self[k[0]] = WeakKeyDictionary(k[1]=v)
-# 		else: return self[k] = v
-# _pycache = PyCache()
-
 
 class Link(models.Model):
 	name = models.CharField(_('name'), max_length=100, unique=True)
