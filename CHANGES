@@ -1,5 +1,25 @@
 CHANGES:
 
+Feedjack 0.9.16-fg5
+* Simple client-side "read items" tracking and folding, using html5
+  localStorage, only used in "fern" theme atm.
+* Server-side storage for "read items" is also implemented, but only accessible
+  for agents that pass special X-Feedjack-Tracking header, and uses django cache
+  backend, preferring the one, labelled "persistent" in CACHES. This will
+  probably be changed in the future.
+* Improved "requested site" detection mechanism - now it's not just static
+  matching, but a scoring, based on domain name match, url path match and some
+  other parameters. Result is that hosting several feedjack sites on a single
+  domain will no longer fallback to "default" site when request doesn't fully
+  match entered site url, but choose the most appropriate site.
+* Etag / last-modified http headers for feed views and re-exported feeds.
+* XML-violating C0 control characters are no longer passed through to the feeds
+  unescaped.
+* Lots of misc style improvements for "fern" theme. html5 doctype.
+* Missing feed requests should now result in 404 error instead of 500.
+* Bumped feed title/link length limits further to 2047 chars.
+* Documented database changes in CHANGES_DATABASE file.
+
 Feedjack 0.9.16-fg4
 * Added "skip_errors" flag to rely on feedparser resilence when processing broken
    feeds.
@@ -95,7 +115,6 @@ Feedjack 0.9.8
 * Added Serbian (Latin) translation (petar)
 * Updated the feedparser calls in feedjack_update.py (petar)
 * Added Spanish translation (predius)
-
 
 Feedjack 0.9.7
 * The request handler uses PATH_INFO when REQUEST_URI is not available (like
