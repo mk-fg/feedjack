@@ -7,9 +7,9 @@ register = template.Library()
 
 from django.utils.encoding import smart_unicode
 from django.utils.safestring import SafeData, mark_safe
-from BeautifulSoup import BeautifulSoup, Tag
 
 def soupify(soup):
+	from BeautifulSoup import BeautifulSoup, Tag
 	return soup if isinstance(soup, (BeautifulSoup, Tag))\
 		else BeautifulSoup(soup)
 
