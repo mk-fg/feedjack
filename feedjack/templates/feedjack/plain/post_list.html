@@ -1,0 +1,133 @@
+{% load i18n %}
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" 
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<!--
+  Feedjack LostWoods theme
+  Simple and green (where's the brown? -brown doesn't count)
+ 
+  Copyright Diego Escalante Urrelo <diegoe@gnome.org>
+ -->
+<head>
+	<meta name="description" content="Feedjack" />
+	<meta name="generator" content="Feedjack">
+	<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=UTF-8">
+	<link rel="stylesheet" type="text/css" href="{{ media_url }}/style.css" />
+        <link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="{{ site.url }}/feed/rss/" />
+        {% block extrastyle %}{% endblock %}
+        {% block extrahead %}{% endblock %}
+        <title>{{ site.title }}</title>
+
+</head>
+
+<body>
+<div id="head">
+    <div id="logo">
+        <h1><a href="{{ site.url }}/">{{ site.name }}</a></h1>
+	{% trans "Last update" %}: <b>{{ last_modified }}</b>
+    </div>
+</div>
+
+<div id="paginate">
+{% if has_previous %}
+<div class="pageitem"><a href="?page={{ previous }}">&lt;&lt;</a></div>
+{% endif %}
+<div class="pageitem">
+  Page {{ page }} of {{ pages }} ({% blocktrans count hits as posts %}{{ posts }} post{% plural %}{{ posts }} posts{% endblocktrans %})
+</div>
+{% if user %}
+<div class="pageitem username"><a href="{{ user.feed.link }}">{{ user.name }}</a></div>
+{% endif %}
+{% if tag %}
+<div class="pageitem tagname">{{ tag.name }}</div>
+{% endif %}
+{% if has_next %}
+<div class="pageitem"><a href="?page={{ next }}">&gt;&gt;</a></div>
+{% endif %}
+</div>
+
+<div id="content">
+
+{% for item in object_list %}
+
+  {% ifchanged %}
+  <div class="date">{{ item.date_modified|date:"F j, Y" }}</div>
+  {% endifchanged %}
+
+  {% ifchanged %}
+  <div class="avatar"> <a href="{{ item.feed.link }}">{{ item.feed.title }}</a></div>
+  <!-- {{ item.date_modified|date:"F j, Y" }} -->
+  {% else %}
+  <div class="sep"></div>
+  {% endifchanged %}
+
+
+  <div class="post">
+  {% if item.title %}
+  <div class="post-title">» {{ item.title }}</div>
+  {% else %}
+  <div class="post-title">» {{ item.subscriber.name }}</div>
+  {% endif %}
+  <div class="post-content">
+    <p>{{ item.content|safe }}</p>
+    <div class="post-meta">
+      <a href="{{ item.link }}">
+      {% if item.author %}{% blocktrans with item.author as author %}by {{ author }} at{% endblocktrans %}{% endif %}
+      {{ item.date_modified|date:"g:i A" }}</a>
+      {% for tag in item.qtags %}
+          {% if forloop.first %}{% trans "under" %}{% endif %}
+          <a href="{{ site.url }}/tag/{{ tag.name }}">{{ tag.name }}</a>
+          {% if not forloop.last %}, {% endif %}
+      {% endfor %}
+      {% if item.comments %}
+        <a href="{{ item.comments }}">({% trans "Comments" %})</a>
+      {% endif %}
+    </div>
+  </div>
+  </div>
+{% endfor %}
+</div>
+
+
+<div id="paginate">
+{% if has_previous %}
+<div class="pageitem"><a href="?page={{ previous }}">&lt;&lt;</a></div>
+{% endif %}
+<div class="pageitem">
+  Page {{ page }} of {{ pages }} ({% blocktrans count hits as posts %}{{ posts }} post{% plural %}{{ posts }} posts{% endblocktrans %})
+</div>
+{% if user %}
+<div class="pageitem username"><a href="{{ user.feed.link }}">{{ user.name }}</a></div>
+{% endif %}
+{% if tag %}
+<div class="pageitem tagname">{{ tag.name }}</div>
+{% endif %}
+{% if has_next %}
+<div class="pageitem"><a href="?page={{ next }}">&gt;&gt;</a></div>
+{% endif %}
+</div>
+
+
+<div class="post subscriber">
+<div class="post-title">{% trans "People" %}</div>
+<div class="post-content">
+{% for feed in subscribers %}
+<span class="{% cycle 'subs1' 'subs2' %}">
+<a href="{{ feed.feed.feed_url }}"
+{% if feed.feed.last_modified %}
+title="{% blocktrans with feed.feed.last_modified as last_modified %}feed (last modified: {{ last_modified }}){% endblocktrans %}"
+{% else %}
+title="{% trans "feed" %}"
+{% endif %}
+>{% trans "feed" %}</a>
+<a class="nombre" href="{{ site.url }}/user/{{ feed.feed.id }}"
+title="{{ feed.feed.title }}">{{ feed.name }}</a> <a href="{{ feed.feed.link }}">{% trans "website" %}</a>
+</span> | 
+{% endfor %}
+</div>
+</div>
+</body>
+
+</html>
+

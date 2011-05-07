@@ -1,0 +1,263 @@
+/*
+ * Feedjack LostWoods theme
+ **************************
+ * Simple and green (where's the brown? -brown doesn't count)
+ *
+ * Copyright Diego Escalante Urrelo <diegoe@gnome.org>
+ *
+ */
+body {
+    font-size: 0.8em;
+    font-family: verdana;
+    margin: 0;
+    background-color: #e9f2e6;
+}
+div {
+    /*border: 1px solid blue;
+    padding: 5px;
+    margin: 5px;*/
+}
+/*
+ * Structure
+ */
+#head {
+    border-bottom: 10px outset #6E9C60;
+    padding: 0.5em;
+    color: white;
+    background-color: #6E9C60;
+}
+#logo {
+    padding-top: 3px;
+    padding-left: 1em;
+    max-width: 65em;
+    margin: 0 auto;
+}
+#logo h1 {
+    display: inline;
+    padding-right: 1em;
+}
+#tags {
+    overflow: auto;
+    padding: 5px;
+    text-align: right;
+}
+#paginate {
+    padding: 2em 0;
+    text-align: center;
+    vertical-align: middle;
+    color: black;
+}
+#buttons {
+    text-align: right;
+    float: right;
+    vertical-align: middle;
+    color: #aaa;
+    width: 40%;
+    line-height: 1.7em;
+    padding:0;
+    padding-bottom: 10px;
+}
+#usertags {
+    clear: both;
+    margin: 5px;
+    padding: 5px;
+    width: 75%;
+    text-align: center;
+}
+#content {  
+    clear : both;
+    /*width: 75%;*/
+}
+
+#content, #paginate, div.subscriber {
+	max-width: 60em;
+	margin: 0 auto;
+	border-left: 0.5px dashed #555;
+	border-right: 0.5px dashed #555;
+	padding-left: 10px;
+	padding-right: 10px;
+	background-color: white;
+}
+div.date {
+    font-size: x-large;
+    text-align: center;
+    font-style: italic;
+    padding: 5px;
+    color: black;
+    border: 2px solid #6E9C60; 
+    border-right: 0;
+    border-left: 0;
+    margin-bottom: 10px;    
+}
+div.avatar {
+    text-align: left;
+    background-color: #6E9C60;
+    color: #FFFFFF;
+    padding: 0.5em;
+    font-size: large;
+}
+
+
+div.sep {
+    border-bottom: 12px solid #6E9C60;
+}
+div.avatar a {
+	color: white;
+}
+
+/*
+ * Post structure
+ */
+div.post {
+    overflow: auto;
+    padding-bottom: 2em;
+    padding-top: 1em;
+}
+div.post-title {
+    text-align: left;
+    
+    font-size: 180%;
+    font-family: trebuchet ms;
+    font-weight: bold;
+    padding: 0.2em;
+}
+div.post-content {
+    overflow: auto;
+    text-align: justify;
+    font-size: 90%;
+    line-height: 1.8em;
+    padding-left: 4em;
+    padding-right: 4em;
+}
+div.post-content li {
+    margin: 0;
+    padding: 0;
+    line-height: 130%;
+}
+div.post-content table{
+    border: 0;
+    margin-left: 50px;
+
+}
+div.post-content td {
+    border: 2px solid #ccc;
+}
+div.post-meta {
+    color: #666;
+    margin-top: 20px;
+    border-top: 1px solid #ccc;
+    width: 100%;
+    text-align: right;
+}
+div.tags {
+    margin-top: 10px;
+}
+
+/* 
+ * Elements
+ */
+blockquote {
+	color: 				#777;
+	margin:				15px	30px 0px	10px;
+	padding: 20px;
+	border: 1px solid #ddd;
+	border-left:		7px	solid	#ddd;
+	
+}
+a:link {
+    color: #4C6B46;
+}
+a:hover {
+    color: #33408A;
+}
+h1 a:link {
+    text-decoration: none;
+    color: inherit;
+}
+#buttons img {
+    vertical-align: middle;
+}
+#head h1 {
+    font-style: italic;
+    font-size: xx-large;
+    border-bottom: 3px solid #6E9C60;
+    margin-bottom: 5px;
+    margin-top: 10px;
+}
+#head a:link, a:visited, #head a:active { 
+    color: inherit;
+}
+.love_feedjack {
+    font-size: 145%;
+    font-weight: bold;
+    font-style: italic;
+}
+.cloud_1 {
+    font-size: 50%;
+}
+.cloud_2 {
+    font-size: 100%;
+}
+.cloud_3 {
+    font-size: 120%;
+    font-weight: bold;
+}
+.cloud_4 {
+    font-size: 140%;
+    font-weight: bold;
+}
+.cloud_5 {
+    font-size: 160%;
+    font-weight: bold;
+}
+#paginate div.pageitem { 
+    display: inline;
+    margin: 2px;
+    padding: 10px;
+    background-color: #fbfbfb;
+    border: 2px solid #ddd;
+    line-height: 1.7em;
+    margin-left: 3px;
+    margin-right: 3px;
+    text-align: center;
+    vertical-align: middle;
+}
+#paginate div.tagname {
+    font-weight: bold;
+}
+#paginate a:link {
+    color: #4C6B46;
+}
+img {
+    border: 0;
+}
+
+ul.suscriptores li {
+	display: inline;
+}
+
+ul.suscriptores {
+	margin: 0;
+	padding: 1em;
+}
+
+span.name {
+    color: #333;
+}
+span.nick {
+    color: #555;
+}
+span.url a {
+    color: #bbb;
+}
+span.url a:hover {
+    color: #777;
+}
+
+.subscriber .subs1, .subscriber .subs2 {
+	padding: 0.3em;
+	margin: 0.2em;
+}
+.subs1 {
+	background-color: #ddd;
+}
