@@ -1,0 +1,341 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Feedjack English translation v1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2010-08-15 18:06+0200\n"
+"PO-Revision-Date: 2006-11-20 18:14+0100\n"
+"Last-Translator: Petar Marić <petar.maric@gmail.com>\n"
+"Language-Team: Petar Marić <petar.maric@gmail.com>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Poedit-Country: YUGOSLAVIA\n"
+"X-Poedit-SourceCharset: utf-8\n"
+"X-Poedit-Basepath: ../../../\n"
+
+#: admin.py:31
+msgid "Fields updated automatically by Feedjack"
+msgstr "Von Feedjack automatische aktualisierte Felder"
+
+#: models.py:17
+msgid "Date published."
+msgstr "Veröffentlichungsdatum"
+
+#: models.py:18
+msgid "Date the post was first obtained."
+msgstr "Abrufdatum"
+
+#: models.py:22 models.py:38 models.py:98 models.py:126 models.py:173
+msgid "name"
+msgstr "Name"
+
+#: models.py:23 models.py:26 models.py:105 models.py:142
+msgid "link"
+msgstr "Link"
+
+#: models.py:27 models.py:61
+msgid "links"
+msgstr "Links"
+
+#: models.py:39
+msgid "url"
+msgstr "URL"
+
+#: models.py:42
+msgid "Example"
+msgstr "Beispiel"
+
+#: models.py:45 models.py:103 models.py:141
+msgid "title"
+msgstr "Titel"
+
+#: models.py:46
+msgid "description"
+msgstr "Beschreibung"
+
+#: models.py:47
+msgid "welcome"
+msgstr "Willkommen"
+
+#: models.py:48
+msgid "greets"
+msgstr "Grüße"
+
+#: models.py:50
+msgid "default site"
+msgstr "Standard Seite"
+
+#: models.py:51
+msgid "posts per page"
+msgstr "Beiträge pro Seite"
+
+#: models.py:52
+msgid "order posts by"
+msgstr "Beiträge ordnen nach"
+
+#: models.py:54
+msgid "tagcloud level"
+msgstr "Tagcloud Level"
+
+#: models.py:55
+msgid "show tagcloud"
+msgstr "Tagcloud anzeigen"
+
+#: models.py:57
+msgid "use internal cache"
+msgstr "Internen Cache nutzen"
+
+#: models.py:58
+msgid "cache duration"
+msgstr "Cache Dauer"
+
+#: models.py:59
+msgid "Duration in seconds of the cached pages and data."
+msgstr "Haltbarkeit der gecachten Seiten und Daten in Sekunden"
+
+#: models.py:63
+msgid "template"
+msgstr "Template"
+
+#: models.py:65
+msgid ""
+"This template must be a directory in your feedjack templates directory. "
+"Leave blank to use the default template."
+msgstr ""
+"Dieses Template muss ein Verzeichnis im Feedjack Template Verzeichnis sein. "
+"Dieses Feld leer lassen, um das Standard Template zu nutzen."
+
+#: models.py:69 models.py:170
+msgid "site"
+msgstr "Seite"
+
+#: models.py:70
+msgid "sites"
+msgstr "Seiten"
+
+#: models.py:96
+msgid "feed url"
+msgstr "Feed URL"
+
+#: models.py:99 models.py:175
+msgid "shortname"
+msgstr "Kurzname"
+
+#: models.py:100 models.py:178
+msgid "is active"
+msgstr "ist aktiv"
+
+#: models.py:101
+msgid "If disabled, this feed will not be further updated."
+msgstr "Wenn abgeschaltet, wird dieser Feed nicht weiter aktualisiert."
+
+#: models.py:104
+msgid "tagline"
+msgstr ""
+
+#: models.py:108
+msgid "etag"
+msgstr ""
+
+#: models.py:109
+msgid "last modified"
+msgstr "Zuletzt geändert"
+
+#: models.py:110
+msgid "last checked"
+msgstr "Zuletzt überprüft"
+
+#: models.py:113 models.py:140 models.py:171
+#: templates/feedjack/default/post_list.html:189
+#: templates/feedjack/plain/post_list.html:121
+#: templates/feedjack/plain/post_list.html:123
+msgid "feed"
+msgstr "Feed"
+
+#: models.py:114
+msgid "feeds"
+msgstr "Feeds"
+
+#: models.py:129
+msgid "tag"
+msgstr "Tag"
+
+#: models.py:130 models.py:149
+msgid "tags"
+msgstr "Tags"
+
+#: models.py:143
+msgid "content"
+msgstr "Inhalt"
+
+#: models.py:144
+msgid "date modified"
+msgstr "Änderungsdatum"
+
+#: models.py:145
+msgid "guid"
+msgstr ""
+
+#: models.py:146
+msgid "author"
+msgstr "Verfasser"
+
+#: models.py:147
+msgid "author email"
+msgstr "E-Mail des Verfassers"
+
+#: models.py:148
+msgid "comments"
+msgstr "Kommentare"
+
+#: models.py:150
+msgid "date created"
+msgstr "Erstellungsdatum"
+
+#: models.py:153
+msgid "post"
+msgstr "Beitrag"
+
+#: models.py:154
+msgid "posts"
+msgstr "Beiträge"
+
+#: models.py:174
+msgid "Keep blank to use the Feed's original name."
+msgstr "Leer lassen, um den Namen des Feeds zu nutzen."
+
+#: models.py:177
+msgid "Keep blank to use the Feed's original shortname."
+msgstr "Leer lassen, um den Kurznamen des Feeds zu nutzen."
+
+#: models.py:179
+msgid ""
+"If disabled, this subscriber will not appear in the site or in the site's "
+"feed."
+msgstr ""
+
+#: models.py:183
+msgid "subscriber"
+msgstr ""
+
+#: models.py:184
+msgid "subscribers"
+msgstr ""
+
+#: templates/feedjack/default/post_list.html:28
+#: templates/feedjack/sinx/post_list.html:18
+msgid ""
+"A <a href=\"http://www.feedjack.org/\" class=\"love_feedjack\" title="
+"\"Feedjack Powered\">Feedjack</a> powered Planet"
+msgstr ""
+
+#: templates/feedjack/default/post_list.html:39
+#: templates/feedjack/default/post_list.html:73
+#: templates/feedjack/default/post_list.html:108
+#: templates/feedjack/default/post_list.html:167
+#: templates/feedjack/default/post_list.html:212
+#: templates/feedjack/plain/post_list.html:37
+#: templates/feedjack/plain/post_list.html:98
+#: templates/feedjack/sinx/post_list.html:90
+#: templates/feedjack/sinx/post_list.html:138
+#, python-format
+msgid "%(posts)s post"
+msgid_plural "%(posts)s posts"
+msgstr[0] ""
+msgstr[1] ""
+
+#: templates/feedjack/default/post_list.html:46
+msgid "talks about"
+msgstr ""
+
+#: templates/feedjack/default/post_list.html:101
+msgid "is about"
+msgstr ""
+
+#: templates/feedjack/default/post_list.html:130
+#: templates/feedjack/plain/post_list.html:76
+#: templates/feedjack/sinx/post_list.html:50
+#, python-format
+msgid "by %(author)s at"
+msgstr "von %(author)s um"
+
+#: templates/feedjack/default/post_list.html:133
+#: templates/feedjack/plain/post_list.html:79
+#: templates/feedjack/sinx/post_list.html:50
+msgid "under"
+msgstr "unter"
+
+#: templates/feedjack/default/post_list.html:138
+#: templates/feedjack/plain/post_list.html:84
+#: templates/feedjack/sinx/post_list.html:51
+msgid "Comments"
+msgstr "Kommentare"
+
+#: templates/feedjack/default/post_list.html:152
+#, python-format
+msgid "What %(person)s talks about"
+msgstr ""
+
+#: templates/feedjack/default/post_list.html:154
+msgid "What people talk about"
+msgstr ""
+
+#: templates/feedjack/default/post_list.html:173
+msgid "Meta"
+msgstr ""
+
+#: templates/feedjack/default/post_list.html:175
+#: templates/feedjack/plain/post_list.html:28
+msgid "Last update"
+msgstr "Letzte Aktualisierung"
+
+#: templates/feedjack/default/post_list.html:180
+#: templates/feedjack/plain/post_list.html:113
+msgid "People"
+msgstr "Leute"
+
+#: templates/feedjack/default/post_list.html:187
+#: templates/feedjack/plain/post_list.html:119
+#, python-format
+msgid "feed (last modified: %(last_modified)s)"
+msgstr ""
+
+#: templates/feedjack/default/post_list.html:199
+msgid "Greetings"
+msgstr ""
+
+#: templates/feedjack/plain/post_list.html:125
+msgid "website"
+msgstr "Webseite"
+
+#: templates/feedjack/sinx/post_list.html:50
+msgid "Author link"
+msgstr ""
+
+#: templates/feedjack/sinx/post_list.html:81
+msgid "Tag soup"
+msgstr ""
+
+#: templates/feedjack/sinx/post_list.html:95
+msgid "Friends"
+msgstr ""
+
+#: templates/feedjack/sinx/post_list.html:107
+msgid "Links"
+msgstr ""
+
+#: templates/feedjack/sinx/post_list.html:125
+msgid "Welcome"
+msgstr ""
+
+#: templates/feedjack/sinx/post_list.html:131
+msgid "Credits"
+msgstr ""
+
+#: templates/feedjack/sinx/post_list.html:140
+msgid "Back"
+msgstr "Zurück"
+
+#: templates/feedjack/sinx/post_list.html:140
+msgid "Forward"
+msgstr "Weiter"

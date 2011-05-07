@@ -145,17 +145,19 @@ def opml(request):
 
 @condition( etag_func=cache_etag,
 	last_modified_func=cache_last_modified )
-def buildfeed(request, feedclass, tag=None, feed_id=None):
+def buildfeed(request, feedclass, **criterias):
 	'View that handles the feeds.'
 	# TODO: quite a mess, can't it be handled with a default feed-vews?
 	response, site, cachekey = initview(request)
 	if response: return response[0]
 
 	feed_title = site.title
-	if feed_id:
-		try: feed_title = u'{0} - {1}'.format(models.Feed.objects.get(id=feed_id).title, feed_title)
+	if criterias.get('feed_id'):
+		try:
+			feed_title = u'{0} - {1}'.format(
+				models.Feed.objects.get(id=criterias['feed_id']).title, feed_title )
 		except ObjectDoesNotExist: raise Http404 # no such feed
-	object_list = fjlib.get_page(site, page=1, tag=tag, feed=feed_id).object_list
+	object_list = fjlib.get_page(site, page=1, **criterias).object_list
 
 	feed = feedclass( title=feed_title, link=site.url,
 		description=site.description, feed_url=u'{0}/{1}'.format(site.url, '/feed/rss/') )
@@ -174,7 +176,7 @@ def buildfeed(request, feedclass, tag=None, feed_id=None):
 
 	response = HttpResponse(mimetype=feed.mime_type)
 
-	# per host caching
+	# Per-host caching
 	patch_vary_headers(response, ['Host'])
 
 	feed.write(response, 'utf-8')
@@ -184,14 +186,13 @@ def buildfeed(request, feedclass, tag=None, feed_id=None):
 	return response
 
 
-def rssfeed(request, tag=None, feed_id=None):
+def rssfeed(request, **criterias):
 	'Generates the RSS2 feed.'
-	return buildfeed(request, feedgenerator.Rss201rev2Feed, tag, feed_id)
+	return buildfeed(request, feedgenerator.Rss201rev2Feed, **criterias)
 
-
-def atomfeed(request, tag=None, feed_id=None):
+def atomfeed(request, **criterias):
 	'Generates the Atom 1.0 feed.'
-	return buildfeed(request, feedgenerator.Atom1Feed, tag, feed_id)
+	return buildfeed(request, feedgenerator.Atom1Feed, **criterias)
 
 
 
@@ -244,12 +245,12 @@ def ajax_store(request):
 
 @condition( etag_func=cache_etag,
 	last_modified_func=cache_last_modified )
-def mainview(request, tag=None, feed_id=None):
+def mainview(request, **criterias):
 	'View that handles all page requests.'
 	response, site, cachekey = initview(request)
 
 	if not response:
-		ctx = fjlib.page_context(request, site, tag, feed_id)
+		ctx = fjlib.page_context(request, site, **criterias)
 		response = render_to_response(
 			u'feedjack/{0}/post_list.html'.format(site.template),
 			ctx, context_instance=RequestContext(request) )

@@ -437,19 +437,24 @@ class PostQuerySet(models.query.QuerySet):
 			params.extend((val, val, float(1 - threshold)))
 		return self.extra(where=funcs, params=params)
 
-	def with_criterias(self, site, feed=None, tag=None):
+	def with_criterias(self, site, feed=None, tag=None, since=None):
 		self = self.filter(feed__subscriber__site=site)
 		if feed is not None: self = self.filter(feed=feed)
 		if tag: self = self.filter(tags__name=tag)
+		if since: self = self.filter(date_modified__gt=since)
 		return self
 
-	def sorted(self, site_ordering_id):
+	def sorted(self, site_ordering_id, force=None):
 		if site_ordering_id == SITE_ORDERING.modified: prime = '-date_modified'
 		elif site_ordering_id == SITE_ORDERING.created: prime = '-date_created'
 		elif site_ordering_id == SITE_ORDERING.created_day:
 			self = self.extra(dict(date_created_day="date_trunc('day', date_created)"))
 			prime = '-date_created_day'
 		else: raise ValueError('Unknown ordering method id: {0}'.format(site_ordering_id))
+
+		if force == 'asc': prime = prime.lstrip('-')
+		elif force == 'desc' and prime[0] != '-': prime = '-{}'.format(prime)
+
 		return self.order_by(prime, 'feed', '-date_created')
 
 
@@ -460,7 +465,7 @@ class Posts(models.Manager):
 	def similar(self, *argz, **kwz):
 		return self.get_query_set().similar(*argz, **kwz)
 
-	def filtered(self, site=None, feed=None, tag=None, for_display=True):
+	def filtered(self, site=None, for_display=True, **criterias):
 		# Check is "not False" because there can be NULLs for
 		#  feeds with no filters (also provided there never was any filters).
 		# TODO: make this field pure-bool?
@@ -468,7 +473,7 @@ class Posts(models.Manager):
 		if for_display:
 			posts = posts.exclude(hidden=True)
 			posts = posts.filter(feed__subscriber__is_active=True)
-		return posts.with_criterias(site, feed, tag) if site else posts
+		return posts.with_criterias(site, **criterias) if site else posts
 
 
 class Post(models.Model):

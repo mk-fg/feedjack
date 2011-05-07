@@ -1,12 +1,12 @@
 {% load i18n %}
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" 
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
     "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html>
 <!--
   Feedjack LostWoods theme
   Simple and green (where's the brown? -brown doesn't count)
- 
+
   Copyright Diego Escalante Urrelo <diegoe@gnome.org>
  -->
 <head>
@@ -25,7 +25,7 @@
 <div id="head">
     <div id="logo">
         <h1><a href="{{ site.url }}/">{{ site.name }}</a></h1>
-	{% trans "Last update" %}: <b>{{ last_modified }}</b>
+	{% trans "Last update" %}: <b>{{ last_modified|date:"l, d. F Y, G:i:s" }}</b>
     </div>
 </div>
 
@@ -49,32 +49,29 @@
 
 <div id="content">
 
+{% load html %}
 {% for item in object_list %}
 
   {% ifchanged %}
-  <div class="date">{{ item.date_modified|date:"F j, Y" }}</div>
+  <div class="date">{{ item.date_modified|date:"j. F Y" }}</div>
   {% endifchanged %}
 
   {% ifchanged %}
   <div class="avatar"> <a href="{{ item.feed.link }}">{{ item.feed.title }}</a></div>
-  <!-- {{ item.date_modified|date:"F j, Y" }} -->
+  <!-- {{ item.date_modified|date:"j. F Y" }} -->
   {% else %}
   <div class="sep"></div>
   {% endifchanged %}
 
 
   <div class="post">
-  {% if item.title %}
-  <div class="post-title">» {{ item.title }}</div>
-  {% else %}
-  <div class="post-title">» {{ item.subscriber.name }}</div>
-  {% endif %}
+  <div class="post-title">» <a href="{{ item.link }}">{% if item.title %}{{ item.title|safe }}{% else %}{{ item.subscriber.name }}{% endif %}</a></div>
   <div class="post-content">
-    <p>{{ item.content|safe }}</p>
+    <p>{{ item.content|prettyhtml|safe }}</p>
     <div class="post-meta">
       <a href="{{ item.link }}">
       {% if item.author %}{% blocktrans with item.author as author %}by {{ author }} at{% endblocktrans %}{% endif %}
-      {{ item.date_modified|date:"g:i A" }}</a>
+      {{ item.date_modified|date:"H:i" }}</a>
       {% for tag in item.qtags %}
           {% if forloop.first %}{% trans "under" %}{% endif %}
           <a href="{{ site.url }}/tag/{{ tag.name }}">{{ tag.name }}</a>
@@ -109,23 +106,37 @@
 </div>
 
 
-<div class="post subscriber">
+<div id="footer">
 <div class="post-title">{% trans "People" %}</div>
 <div class="post-content">
 {% for feed in subscribers %}
-<span class="{% cycle 'subs1' 'subs2' %}">
-<a href="{{ feed.feed.feed_url }}"
-{% if feed.feed.last_modified %}
-title="{% blocktrans with feed.feed.last_modified as last_modified %}feed (last modified: {{ last_modified }}){% endblocktrans %}"
-{% else %}
-title="{% trans "feed" %}"
-{% endif %}
->{% trans "feed" %}</a>
-<a class="nombre" href="{{ site.url }}/user/{{ feed.feed.id }}"
-title="{{ feed.feed.title }}">{{ feed.name }}</a> <a href="{{ feed.feed.link }}">{% trans "website" %}</a>
-</span> | 
+<span><a class="nombre" href="{{ site.url }}/user/{{ feed.feed.id }}" title="{{ feed.feed.title }}">{{ feed.name }}</a> (<a href="{{ feed.feed.link }}">{% trans "website" %}</a>, <a href="{{ feed.feed.feed_url }}" {% if feed.feed.last_modified %}title="{% blocktrans with feed.feed.last_modified as last_modified %}feed (last modified: {{ last_modified }}){% endblocktrans %}"{% else %}title="{% trans "feed" %}"{% endif %}>{% trans "feed" %}</a>)</span>
 {% endfor %}
 </div>
+<div class="groupname">new posts</div>
+<div class="group">
+<a href="/since/yesterday/">since yesterday</a>
+<a href="/since/yesterday/asc/">(older posts first)</a>
+&nbsp;&nbsp;
+<a href="/since/week/">since last week</a>
+<a href="/since/week/asc/">(older posts first)</a>
+&nbsp;&nbsp;
+<a href="/since/10_days/">since 10 days ago</a>
+<a href="/since/10_days/asc/">(older posts first)</a>
+&nbsp;&nbsp;
+<a href="/since/30_days/">since 30 days ago</a>
+<a href="/since/30_days/asc/">(older posts first)</a>
+&nbsp;&nbsp;
+<a href="/since/{% now Y-m-d H:i %}/" title="open this now and refresh it later to see which posts are new">since NOW</a>
+<a href="/since/{% now Y-m-d H:i %}/">(older posts first)</a>
+</div>
+</div>
+{% if request.user.is_authenticated %}
+<div class="groupname">Admin</div>
+<div class="group">
+<a href="/admin/feedjack/subscriber/add/">add Subscriber</a>
+</div>
+{%endif%}
 </div>
 </body>
 

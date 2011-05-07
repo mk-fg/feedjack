@@ -6,14 +6,15 @@ register = template.Library()
 
 
 from django.utils.encoding import smart_unicode
-from django.utils.safestring import mark_safe
+from django.utils.safestring import SafeData, mark_safe
 from BeautifulSoup import BeautifulSoup, Tag
 
 def soupify(soup):
 	return soup if isinstance(soup, (BeautifulSoup, Tag))\
 		else BeautifulSoup(soup)
 
-def desoupify(soup): return mark_safe(smart_unicode(soup))
+def desoupify(soup):
+	return mark_safe(smart_unicode(soup))
 
 
 @register.filter
@@ -32,3 +33,14 @@ def tag_attr_add(soup, attrspec):
 		var, val = attr.split('=', 1)
 		soup[var] = val
 	return mark_safe(soup)
+
+
+from django.template.defaultfilters import stringfilter
+from django.utils.html import escape
+
+@register.filter
+@stringfilter
+def prettyhtml(value, autoescape=None):
+	value = smart_unicode(soupify(value))
+	return escape(value) if autoescape\
+		and not isinstance(value, SafeData) else mark_safe(value)

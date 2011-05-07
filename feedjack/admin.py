@@ -26,6 +26,9 @@ class FeedAdmin(admin.ModelAdmin):
 			{'classes':('collapse',), 'fields':
 				('title', 'tagline', 'link', 'etag', 'last_modified', 'last_checked') }) )
 	search_fields = 'feed_url', 'name', 'title'
+	list_filter= 'last_modified',
+	date_hierarchy = 'last_modified'
+	prepopulated_fields = {"shortname": ("name",)}
 admin.site.register(models.Feed, FeedAdmin)
 
 
@@ -41,6 +44,7 @@ admin.site.register(models.Post, PostAdmin)
 class SubscriberAdmin(admin.ModelAdmin):
 	list_display = 'name', 'site', 'feed'
 	list_filter = 'site',
+	search_fields = 'name', 'feed'
 admin.site.register(models.Subscriber, SubscriberAdmin)
 
 

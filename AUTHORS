@@ -1,5 +1,12 @@
-Feedjack was developed to power ChichaPlanet (www.chichaplanet.org) by Gustavo
-Picón, using the Django Web Development framework.
+fg-fork is a code fork of a [feedjack project](feedjack.org).
+
+Developers of this fork:
+ * Mike Kazantsev
+ * Alexander Schier (allo branch)
+
+
+Feedjack was originally developed to power ChichaPlanet (www.chichaplanet.org)
+by Gustavo Picón, using the Django Web Development framework.
 
 Colaborators:
  * Petar Marić  (internationalization and lots more)

@@ -11,7 +11,7 @@ from feedjack import models
 from feedjack import fjcache
 
 import itertools as it, operator as op, functools as ft
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib import quote
 
 
@@ -50,7 +50,7 @@ def get_extra_content(site, ctx):
 	ctx['media_url'] = '{0}feedjack/{1}'.format(settings.MEDIA_URL, site.template)
 
 
-def get_posts_tags(subscribers, object_list, feed_id, tag_name):
+def get_posts_tags(subscribers, object_list, feed, tag_name):
 	'''Adds a qtags property in every post object in a page.
 		Use "qtags" instead of "tags" in templates to avoid unnecesary DB hits.'''
 
@@ -81,28 +81,47 @@ def get_posts_tags(subscribers, object_list, feed_id, tag_name):
 		if post.id in tagd: post.qtags = tagd[post.id]
 		else: post.qtags = list()
 		post.subscriber = subd[post.feed.id]
-		if feed_id and feed_id == post.feed.id: user_obj = post.subscriber
+		if feed == post.feed: user_obj = post.subscriber
 
 	return user_obj, tag_obj
 
 
-def get_page(site, page=1, tag=None, feed=None):
+def get_page(site, page=1, **criterias):
 	'Returns a paginator object and a requested page from it.'
 
-	posts = models.Post.objects.filtered(site, feed=feed, tag=tag)\
-		.sorted(site.order_posts_by).select_related()
+	if 'since' in criterias:
+		since = criterias['since']
+		since_formats = '%Y-%m-%d', '%Y-%m-%d %H:%M', '%d.%m.%Y'
+		since_days = {
+			'yesterday': 1, 'week': 7,
+			'10_days': 10, '30_days': 30 }.get(since)
+		if since_days:
+			since = (datetime.today() - timedelta(since_days)).strftime(since_formats[0])
+		for since_format in since_formats:
+			try: since = datetime.strptime(since, since_format)
+			except ValueError: pass
+			else: break
+		else: raise Http404 # invalid format
+		criterias['since'] = since
+	order_force = criterias.pop('asc', None)
+
+	posts = models.Post.objects.filtered(site, **criterias)\
+		.sorted(site.order_posts_by, force=order_force).select_related()
 
 	paginator = Paginator(posts, site.posts_per_page)
 	try: return paginator.page(page)
 	except InvalidPage: raise Http404
 
 
-def page_context(request, site, tag=None, feed_id=None):
+def page_context(request, site, **criterias):
 	'Returns the context dictionary for a page view.'
 	try: page = int(request.GET.get('page', 1))
 	except ValueError: page = 1
 
-	page = get_page(site, page=page, tag=tag, feed=feed_id)
+	feed, tag = criterias.get('feed'), criterias.get('tag')
+	if feed: feed = models.Feed.objects.get(id=feed)
+
+	page = get_page(site, page=page, **criterias)
 	subscribers = site.active_subscribers
 
 	if site.show_tagcloud and page.object_list:
@@ -111,16 +130,16 @@ def page_context(request, site, tag=None, feed_id=None):
 		# a page. To take advantage of this the template designer must call
 		# the qtags property in every item, instead of the default tags
 		# property.
-		user_obj, tag_obj = get_posts_tags(subscribers, page.object_list, feed_id, tag)
-		tag_cloud = fjcloud.getcloud(site, feed_id)
+		user_obj, tag_obj = get_posts_tags(
+			subscribers, page.object_list, feed, tag )
+		tag_cloud = fjcloud.getcloud(site, feed.id)
 	else:
 		from django.core.exceptions import ObjectDoesNotExist
 		tag_obj, tag_cloud = None, tuple()
 		try:
 			user_obj = models.Subscriber.objects\
-				.get(site=site, feed=feed_id) if feed_id else None
+				.get(site=site, feed=feed) if feed else None
 		except ObjectDoesNotExist: raise Http404
-
 
 	ctx = dict(
 		object_list = page.object_list,
@@ -143,13 +162,13 @@ def page_context(request, site, tag=None, feed_id=None):
 	ctx['subscribers'] = subscribers
 
 	# New
-	ctx['feed'] = models.Feed.objects.get(id=feed_id) if feed_id else None
+	ctx['feed'] = feed
 	ctx['url_suffix'] = ''.join((
-		'/feed/{0}'.format(feed_id) if feed_id else '',
+		'/feed/{0}'.format(feed.id) if feed else '',
 		'/tag/{0}'.format(quote(tag)) if tag else '' ))
 
 	# Deprecated
-	ctx['user_id'] = feed_id # totally misnamed and inconsistent with user_obj
+	ctx['user_id'] = feed and feed.id # totally misnamed and inconsistent with user_obj
 	ctx['user'] = user_obj
 
 	return ctx

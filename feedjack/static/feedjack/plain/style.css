@@ -69,7 +69,7 @@ div {
     /*width: 75%;*/
 }
 
-#content, #paginate, div.subscriber {
+#content, #paginate, #footer {
 	max-width: 60em;
 	margin: 0 auto;
 	border-left: 0.5px dashed #555;
@@ -89,19 +89,29 @@ div.date {
     border-left: 0;
     margin-bottom: 10px;    
 }
-div.avatar {
+div.avatar, div.groupname {
     text-align: left;
     background-color: #6E9C60;
     color: #FFFFFF;
     padding: 0.5em;
     font-size: large;
 }
+div.avatar a, div.groupname a {
+	text-decoration: none;
+}
+div.avatar a:hover, div.groupname a:hover {
+	text-decoration: underline;
+}
 
+div.groupname {
+	font-size: medium;
+	font-weight: bold;
+}
 
 div.sep {
     border-bottom: 12px solid #6E9C60;
 }
-div.avatar a {
+div.avatar a, div.groupname a {
 	color: white;
 }
 
@@ -121,6 +131,16 @@ div.post-title {
     font-weight: bold;
     padding: 0.2em;
 }
+
+div.post-title a {
+	color: black;
+	text-decoration: none;
+}
+
+div.post-title a:hover {
+	text-decoration: underline;
+}
+
 div.post-content {
     overflow: auto;
     text-align: justify;
@@ -132,7 +152,6 @@ div.post-content {
 div.post-content li {
     margin: 0;
     padding: 0;
-    line-height: 130%;
 }
 div.post-content table{
     border: 0;
@@ -143,6 +162,7 @@ div.post-content td {
     border: 2px solid #ccc;
 }
 div.post-meta {
+    clear: both;
     color: #666;
     margin-top: 20px;
     border-top: 1px solid #ccc;
@@ -163,6 +183,12 @@ blockquote {
 	border: 1px solid #ddd;
 	border-left:		7px	solid	#ddd;
 	
+}
+
+#content img {
+	float: left;
+	padding-right: 1em;
+	padding-bottom: 1em;
 }
 a:link {
     color: #4C6B46;
@@ -254,10 +280,26 @@ span.url a:hover {
     color: #777;
 }
 
-.subscriber .subs1, .subscriber .subs2 {
-	padding: 0.3em;
-	margin: 0.2em;
+#footer .post-content {
+	text-align: center;
+	line-height: 2.3em;
 }
-.subs1 {
-	background-color: #ddd;
+
+#footer span {
+	padding: 0.4em;
+	white-space: nowrap;
+	/*border: 1px solid black;*/
+	background-color: white;
+}
+
+#footer {
+	background-color: inherit;
+	border: none;
+	border-top: 1px dashed black;
+}
+div.group {
+    border: thin solid #6E9C60;
+    padding: 3px;
+    margin-bottom: 2ex;
+    margin-top: 1ex;
 }
