@@ -211,15 +211,15 @@ def ajax_store(request):
 		content_type='application/json': _ajax_headers(type(
 			'true' if content is None else content, content_type=content_type ))
 
-	if not request.is_ajax()\
-			or request.method not in ('GET', 'POST', 'HEAD'):
+	if request.method in ('HEAD', 'OPTIONS'):
+		response = build_response('')
+		if request.method == 'HEAD': response['X-Feedjack-Tracking'] = fj_track_header
+		if request.method == 'OPTIONS': response['Access-Control-Allow-Origin'] = '*'
+		return response
+
+	if not request.is_ajax() or request.method not in ('GET', 'POST'):
 		return _ajax_headers(HttpResponseBadRequest(
 			'Ajax/json-only backend for tracked get/post reqz' ))
-
-	if request.method == 'HEAD': # just echo request tracking header
-		response = build_response('')
-		response['X-Feedjack-Tracking'] = fj_track_header
-		return response
 
 	response = None
 	storage_key = '{site_key}__{track_header}'
