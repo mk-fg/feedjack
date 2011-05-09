@@ -43,8 +43,8 @@ admin.site.register(models.Post, PostAdmin)
 
 class SubscriberAdmin(admin.ModelAdmin):
 	list_display = 'name', 'site', 'feed'
+	search_fields = 'name',
 	list_filter = 'site',
-	search_fields = 'name', 'feed'
 admin.site.register(models.Subscriber, SubscriberAdmin)
 
 
