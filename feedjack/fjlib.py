@@ -3,6 +3,7 @@
 
 from django.conf import settings
 from django.db import connection
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator, InvalidPage
 from django.http import Http404
 from django.utils.encoding import smart_unicode, force_unicode
@@ -119,7 +120,9 @@ def page_context(request, site, **criterias):
 	except ValueError: page = 1
 
 	feed, tag = criterias.get('feed'), criterias.get('tag')
-	if feed: feed = models.Feed.objects.get(id=feed)
+	if feed:
+		try: feed = models.Feed.objects.get(id=feed)
+		except ObjectDoesNotExist: raise Http404
 
 	page = get_page(site, page=page, **criterias)
 	subscribers = site.active_subscribers
@@ -134,7 +137,6 @@ def page_context(request, site, **criterias):
 			subscribers, page.object_list, feed, tag )
 		tag_cloud = fjcloud.getcloud(site, feed.id)
 	else:
-		from django.core.exceptions import ObjectDoesNotExist
 		tag_obj, tag_cloud = None, tuple()
 		try:
 			user_obj = models.Subscriber.objects\
