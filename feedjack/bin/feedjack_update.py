@@ -325,6 +325,8 @@ def bulk_update(optz):
 		feed_stats[ret_feed] += 1
 		for k,v in ret_entries.iteritems(): entry_stats[k] += v
 
+		if optz.delay: sleep(optz.delay)
+
 	transaction.commit()
 
 	time_delta_global = datetime.now() - time_delta_global
@@ -363,7 +365,9 @@ if __name__ == '__main__':
 		help='A site id (or several of them) to update.')
 
 	parser.add_option('-t', '--timeout', type='int', default=20,
-		help='Wait timeout in seconds when connecting to feeds.')
+		help='Socket timeout (in seconds) for connections (default: %(default)s).')
+	parser.add_option('-d', '--delay', type='int', default=0,
+		help='Delay between fetching the feeds (default: none).')
 
 	parser.add_option('-q', '--quiet', action='store_true',
 		help='Report only severe errors, no info or warnings.')
