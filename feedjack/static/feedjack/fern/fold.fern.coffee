@@ -8,6 +8,8 @@ $(document).ready ->
 	limit_lru = 200
 	/* minimum number of folds to keep */
 	limit = 100
+	/* css class to mark folded entries with */
+	fold_css = 'folded'
 
 	Object::get_length = ->
 		len = 0
@@ -76,7 +78,7 @@ $(document).ready ->
 				for own k,v of data.folds
 					folds_update(k, v) if not folds_ts[k]? or data.folds_ts[k] > folds_ts[k]
 				folds_commit()
-				$('h1.feed').each (idx, el) -> fold_entries(el)
+				$('.day>h1').each (idx, el) -> fold_entries(el)
 				$.post url_store, JSON.stringify({site_key, folds, folds_ts}),
 					(raw, status) ->
 						if status != 'success' or not JSON.parse(raw)
@@ -90,21 +92,35 @@ $(document).ready ->
 		ts_day = h1.data('timestamp')
 		ts_entry_max = 0
 
-		/* (un)fold entries */
-		h1.nextUntil('h1').children('.entry').each (idx, el) ->
-			entry = $(el)
-			ts = entry.data('timestamp')
-			if unfold is true
-				entry.children('.content').css('display', '')
-			else if fold isnt false and folds[ts_day] >= ts
-				entry.children('.content').css('display', 'none')
-			ts_entry_max = ts if (not folds[ts_day]? or folds[ts_day] < ts) and ts > ts_entry_max
+		/* (un)fold channel */
+		h1.nextAll('.channel').each (idx, el) ->
+			channel = $(el)
+			fold_channel = true
+
+			/* (un)fold entries */
+			channel.children('.entry').each (idx, el) ->
+				entry = $(el)
+				ts = entry.data('timestamp')
+				fold_entry = false
+				if unfold is true or not folds[ts_day]?
+					entry.removeClass(fold_css)
+				else if fold isnt false and folds[ts_day] >= ts
+					entry.addClass(fold_css)
+					fold_entry = true
+				if not fold_entry
+					fold_channel = false
+					ts_entry_max = ts if ts > ts_entry_max
+
+			if fold_channel
+				channel.addClass(fold_css)
+			else
+				channel.removeClass(fold_css)
 
 		/* (un)fold whole day */
 		if unfold is true
-			h1.nextUntil('h1').css('display', '')
+			h1.parent().removeClass(fold_css)
 		else if fold isnt false and (fold or ts_entry_max == 0)
-			h1.nextUntil('h1').css('display', 'none')
+			h1.parent().addClass(fold_css)
 
 		[ts_day, ts_entry_max]
 
@@ -112,7 +128,7 @@ $(document).ready ->
 	img_sync = if $.cookie('feedjack.tracking')
 	then """<img title="fold sync" class="button_fold_sync" src="#{url_media}/fold_sync.png" />"""
 	else ''
-	$('h1.feed')
+	$('.day>h1')
 		.append(
 			"""<img title="fold page" class="button_fold_all" src="#{url_media}/fold_all.png" />
 			<img title="fold day" class="button_fold" src="#{url_media}/fold.png" />""" + img_sync )
@@ -136,7 +152,7 @@ $(document).ready ->
 	/* Fold all button */
 	$('.button_fold_all').click (ev) ->
 		ts_page_max = 0
-		h1s = $('h1.feed')
+		h1s = $('.day>h1')
 		h1s.each (idx, el) ->
 			ts_page_max = Math.max(ts_page_max, fold_entries(el, false)[1])
 		if ts_page_max > 0

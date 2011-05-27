@@ -30,7 +30,7 @@ cite {
 	font-style: normal;
 }
 
-#center h1.feed {
+#center .day>h1 {
 	text-align: center;
 	border: 2px solid #507e5e;
 	border-width: 2px 0;
@@ -39,44 +39,40 @@ cite {
 	float: left;
 	width: 100%;
 }
-
-#center h1.feed img {
+#center .day>h1 img {
 	float: right;
 	width: 1em;
 	margin: .2em;
 	cursor: pointer;
 }
 
-#center h2.feed {
+#center .day>.channel>h2 {
 	padding: 0 1em 0 .5em;
 	border-bottom: 2px solid #666;
 	margin-top: 1em;
 	float: left;
 }
-
-#center h2.feed a {
+#center .day>.channel>h2 a {
 	display: block;
 	color: #666;
 	text-decoration: none;
 }
-#center h2.feed a:hover {
+#center .day>.channel>h2 a:hover {
 	text-decoration: none;
 	background: none;
 }
 
-#center h3.feed {
+#center .day>.channel>.entry>h3 {
 	text-align: left;
 	border-bottom: 1px solid #CCC;
 }
-
-#center h3.feed a {
+#center .day>.channel>.entry>h3 a {
 	text-decoration: none;
 	color: #000;
 	font-size: 120%;
 	margin-left: 1em;
 }
-
-#center h3.feed a:hover {
+#center .day>.channel>.entry>h3 a:hover {
 	background: none;
 	color: #644;
 	text-decoration: underline;
@@ -137,8 +133,16 @@ cite {
 	color: #00A;
 }
 
-.content table {
-	max-width: 95;
+.day.folded .channel { display: none; }
+.channel.folded .entry { display: none; }
+.entry.folded .content { display: none; }
+#center .day>.channel.folded>h2,
+#center .day>.channel.folded>h2 a { color: silver; }
+#center .day>.channel>.entry.folded>h3,
+#center .day>.channel>.entry.folded>h3 a { color: gray; }
+
+.entry .content table {
+	max-width: 95%;
 }
 
 div.ttag {
