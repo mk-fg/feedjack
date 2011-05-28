@@ -106,6 +106,12 @@ $(document).ready ->
 					entry.removeClass(fold_css)
 				else if fold isnt false and folds[ts_day] >= ts
 					entry.addClass(fold_css)
+					links_entry = entry.find('a')
+					links_entry_unfold = ->
+						entry.removeClass(fold_css)
+						links_entry.unbind('click', links_entry_unfold)
+						false
+					links_entry.click(links_entry_unfold)
 					fold_entry = true
 				if not fold_entry
 					fold_channel = false
@@ -113,6 +119,12 @@ $(document).ready ->
 
 			if fold_channel
 				channel.addClass(fold_css)
+				links_channel = channel.find('a')
+				links_channel_unfold = ->
+					channel.removeClass(fold_css)
+					links_channel.unbind('click', links_channel_unfold)
+					false
+				links_channel.click(links_channel_unfold)
 			else
 				channel.removeClass(fold_css)
 

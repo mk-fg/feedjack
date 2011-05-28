@@ -130,12 +130,12 @@
       ts_entry_max = 0;
       /* (un)fold channel */;
       h1.nextAll('.channel').each(function(idx, el) {
-        var channel, fold_channel;
+        var channel, fold_channel, links_channel, links_channel_unfold;
         channel = $(el);
         fold_channel = true;
         /* (un)fold entries */;
         channel.children('.entry').each(function(idx, el) {
-          var entry, fold_entry, ts;
+          var entry, fold_entry, links_entry, links_entry_unfold, ts;
           entry = $(el);
           ts = entry.data('timestamp');
           fold_entry = false;
@@ -143,6 +143,13 @@
             entry.removeClass(fold_css);
           } else if (fold !== false && folds[ts_day] >= ts) {
             entry.addClass(fold_css);
+            links_entry = entry.find('a');
+            links_entry_unfold = function() {
+              entry.removeClass(fold_css);
+              links_entry.unbind('click', links_entry_unfold);
+              return false;
+            };
+            links_entry.click(links_entry_unfold);
             fold_entry = true;
           }
           if (!fold_entry) {
@@ -153,7 +160,14 @@
           }
         });
         if (fold_channel) {
-          return channel.addClass(fold_css);
+          channel.addClass(fold_css);
+          links_channel = channel.find('a');
+          links_channel_unfold = function() {
+            channel.removeClass(fold_css);
+            links_channel.unbind('click', links_channel_unfold);
+            return false;
+          };
+          return links_channel.click(links_channel_unfold);
         } else {
           return channel.removeClass(fold_css);
         }
