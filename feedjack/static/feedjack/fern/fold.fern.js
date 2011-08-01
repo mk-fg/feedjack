@@ -135,21 +135,24 @@
         fold_channel = true;
         /* (un)fold entries */;
         channel.children('.entry').each(function(idx, el) {
-          var entry, fold_entry, links_entry, links_entry_unfold, ts;
+          var entry, fold_entry, fold_ts_day, links_entry, links_entry_unfold, ts;
           entry = $(el);
           ts = entry.data('timestamp');
           fold_entry = false;
-          if (unfold === true || !(folds[ts_day] != null)) {
+          fold_ts_day = folds[ts_day];
+          if (unfold === true || !(fold_ts_day != null)) {
             entry.removeClass(fold_css);
-          } else if (fold !== false && folds[ts_day] >= ts) {
-            entry.addClass(fold_css);
-            links_entry = entry.find('a');
-            links_entry_unfold = function() {
-              entry.removeClass(fold_css);
-              links_entry.unbind('click', links_entry_unfold);
-              return false;
-            };
-            links_entry.click(links_entry_unfold);
+          } else if (fold_ts_day >= ts) {
+            if (fold !== false) {
+              entry.addClass(fold_css);
+              links_entry = entry.find('a');
+              links_entry_unfold = function() {
+                entry.removeClass(fold_css);
+                links_entry.unbind('click', links_entry_unfold);
+                return false;
+              };
+              links_entry.click(links_entry_unfold);
+            }
             fold_entry = true;
           }
           if (!fold_entry) {
@@ -191,11 +194,14 @@
     $('.button_fold').click(function(ev) {
       var h1, ts_day, ts_entry_max, _ref4;
       h1 = $(ev.target).parent('h1');
+      /* Check whether stuff needs to be folded or unfolded */;
       _ref4 = fold_entries(h1, false), ts_day = _ref4[0], ts_entry_max = _ref4[1];
       if (ts_entry_max > 0) {
+        /* Fold */;
         fold_entries(h1, true);
         folds_update(ts_day, Math.max(ts_entry_max, folds[ts_day] || 0));
       } else {
+        /* Unfold */;
         fold_entries(h1, false, true);
         folds_update(ts_day);
       }

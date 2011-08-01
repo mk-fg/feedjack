@@ -102,16 +102,18 @@ $(document).ready ->
 				entry = $(el)
 				ts = entry.data('timestamp')
 				fold_entry = false
-				if unfold is true or not folds[ts_day]?
+				fold_ts_day = folds[ts_day]
+				if unfold is true or not fold_ts_day?
 					entry.removeClass(fold_css)
-				else if fold isnt false and folds[ts_day] >= ts
-					entry.addClass(fold_css)
-					links_entry = entry.find('a')
-					links_entry_unfold = ->
-						entry.removeClass(fold_css)
-						links_entry.unbind('click', links_entry_unfold)
-						false
-					links_entry.click(links_entry_unfold)
+				else if fold_ts_day >= ts
+					if fold isnt false
+						entry.addClass(fold_css)
+						links_entry = entry.find('a')
+						links_entry_unfold = ->
+							entry.removeClass(fold_css)
+							links_entry.unbind('click', links_entry_unfold)
+							false
+						links_entry.click(links_entry_unfold)
 					fold_entry = true
 				if not fold_entry
 					fold_channel = false
@@ -152,11 +154,14 @@ $(document).ready ->
 	/* Fold day button */
 	$('.button_fold').click (ev) ->
 		h1 = $(ev.target).parent('h1')
+		/* Check whether stuff needs to be folded or unfolded */
 		[ts_day, ts_entry_max] = fold_entries(h1, false)
 		if ts_entry_max > 0
+			/* Fold */
 			fold_entries(h1, true)
 			folds_update(ts_day, Math.max(ts_entry_max, folds[ts_day] or 0))
 		else
+			/* Unfold */
 			fold_entries(h1, false, true)
 			folds_update(ts_day)
 		folds_commit()
