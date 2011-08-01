@@ -166,7 +166,7 @@ def buildfeed(request, feedclass, **criterias):
 		feed.add_item(
 			title = u'{0}: {1}'.format(post.feed.name, post.title),
 			link = post.link,
-			description = fjlib.c0ctl_escape(post.content),
+			description = fjlib.html_cleaner(post.content),
 			author_email = post.author_email,
 			author_name = post.author,
 			pubdate = post.date_modified,

@@ -16,15 +16,37 @@ from datetime import datetime, timedelta
 from urllib import quote
 
 
-_xml_c0ctl_chars = bytearray(
-	set(it.imap(chr, xrange(32)))\
-		.difference('\x09\x0a\x0d').union('\x7f'))
-_xml_c0ctl_trans = dict(it.izip(
-	_xml_c0ctl_chars, u'_'*len(_xml_c0ctl_chars) ))
+try:
+	from lxml.html import fromstring as lxml_fromstring, tostring as lxml_tostring
+	from lxml.html.clean import Cleaner as lxml_Cleaner
+	from lxml.etree import XMLSyntaxError as lxml_SyntaxError
 
-def c0ctl_escape(string):
-	'Produces template-safe valid xml-escaped string.'
-	return force_unicode(string).translate(_xml_c0ctl_trans)
+except ImportError:
+	# at least strip c0 control codes, which are quite common in broken html
+	_xml_c0ctl_chars = bytearray(
+		set(it.imap(chr, xrange(32)))\
+			.difference('\x09\x0a\x0d').union('\x7f'))
+	_xml_c0ctl_trans = dict(it.izip(
+		_xml_c0ctl_chars, u'_'*len(_xml_c0ctl_chars) ))
+
+	def html_cleaner(string):
+		'Produces template-safe valid xml-escaped string.'
+		return force_unicode(string).translate(_xml_c0ctl_trans)
+
+else:
+	def lxml_soup(string):
+		'Safe processing of any tag soup (which is a norm on the internets).'
+		try: doc = lxml_fromstring(force_unicode(string))
+		except lxml_SyntaxError: # last resort for "tag soup"
+			from lxml.html.soupparser import fromstring as soup
+			doc = soup(force_unicode(string))
+		return doc
+
+	def html_cleaner(string):
+		'str -> str, like lxml.html.clean.clean_html, but removing styles as well.'
+		doc = lxml_soup(string)
+		lxml_Cleaner(style=True)(doc)
+		return lxml_tostring(doc)
 
 
 def getquery(query):
