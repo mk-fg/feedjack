@@ -20,7 +20,7 @@ def prettyhtml(value, autoescape=None):
 
 
 # lxml is hard-dep in fern style only, at least initially
-try: from fjlib import lxml_soup, lxml_tostring
+try: from feedjack.fjlib import lxml_soup, lxml_tostring
 except ImportError: pass
 else:
 	@register.filter
