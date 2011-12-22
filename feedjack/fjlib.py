@@ -33,6 +33,11 @@ except ImportError:
 		'Produces template-safe valid xml-escaped string.'
 		return force_unicode(string).translate(_xml_c0ctl_trans)
 
+	def lxml_fail(string):
+		import lxml
+		raise NotImplementedError('Looks like some of lxml imports has failed')
+	lxml_tostring = lxml_soup = lxml_fail
+
 else:
 	def lxml_soup(string):
 		'Safe processing of any tag soup (which is a norm on the internets).'
