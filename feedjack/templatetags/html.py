@@ -30,8 +30,11 @@ else:
 
 	@register.filter
 	@stringfilter
-	def tag_pick(soup, tag):
-		return mark_safe(lxml_tostring(lxml_soup(soup).find('div')))
+	def tag_pick(soup, xpaths):
+		for xpath in xpaths.split(u'||'):
+			match = lxml_soup(soup).xpath(xpath)
+			if match: return lxml_tostring(match[0])
+		else: return soup
 
 	@register.filter
 	@stringfilter

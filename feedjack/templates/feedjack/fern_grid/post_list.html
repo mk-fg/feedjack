@@ -1,10 +1,9 @@
 {% load i18n html %}
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!DOCTYPE html>
+<html>
 
 <head>
-	<meta http-equiv="Content-Type" content="application/xhtml+xml" />
 	<title>{% if feed %}{{ feed.title }} - {% endif %}{{ site.title }}</title>
 	<link rel="stylesheet" href="{{ media_url }}/default.css" type="text/css"/>
 	<link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="{{ site.url }}/feed/rss/" />
@@ -63,7 +62,7 @@
 	{% if item.content %}
 	<a class="entry" href="{{ item.link }}"
 		title="&quot;{% firstof item.title item.subscriber.name %}&quot;: {{ item.content|tag_pick_text }}">
-		{{ item.content|tag_pick:"img"|tag_attr_add:"align=center" }}
+		{{ item.content|tag_pick:"//img[not(@alt='thumbnail')]||//img"|tag_attr_add:"align=center" }}
 	</a>
 	{% endif %}
 
