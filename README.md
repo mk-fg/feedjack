@@ -1,8 +1,5 @@
-Thank you for downloading Feedjack.
-
-
-Intro
-------
+Intro (original feedjack).
+--------------------
 
 Feedjack is a feed aggregator writen in Python using the Django web development
 framework.
@@ -30,14 +27,72 @@ Original FeedJack also has some advantages:
 * Extensive use of django’s internal cache engine. Most of the time you
   will have no database hits when serving pages.
 
-fg-fork adds even more features, which currently can be found in CHANGES
-document.
+[Original feedjack](http://www.feedjack.org/) project looks abandoned though -
+no real updates since 2008 (with quite a lively history before that).
 
-See the last section of this document for links.
+Feedparser itself isn't in much better shape, for that matter - releases weren't
+a frequent thing there up to 2011 (svn looked a bit more alive though), but then
+Mark Pilgrim pulled out from the internets (4 October 2011), so guess it will
+get worse unless someone picks up the development.
+It's purpose is fairly simple though and feed formats haven't really changed
+since 2005, so it's not so bad yet.
+Feel free to update this paragraph if there are now more-or-less mainstream
+forks.
+
+
+Fork
+--------------------
+
+* (fixed) Bugs:
+  * hashlib warning
+  * field lenghts
+  * non-unique date sort criteria
+  * Always-incorrect date_modified setting (by treating UTC as localtime)
+  * Misc unicode handling fixes.
+
+* Features:
+
+  * Proper transactional updates, so single feed failure is guaranteed not to
+    produce inconsistency or crash the parser.
+
+  * Simple individual Post filters, built in python (callable, accepting Post
+    object and optional parameters, returning True/False), attached (to individual
+    Feeds) and configured (additional parameters to pass) via database (or admin
+    interface).
+
+  * As complex as needed cross-referencing filters for tasks like site-wide
+    elimination of duplicate entries from a different feeds (by arbitrary
+    comparison functions as well), and automatic mechanism for invalidation of
+    their results.
+
+  * Sane, configurable logging in feedjack_update, without re-inventing the wheel
+    via encode, prints and a tons of if's.
+
+  * "immutable" flag for feeds, so their posts won't be re-fetched if their
+    content or date changes.
+
+  * It's not a nod to some mythical "preformance reasons", but a real pain in the
+    ass with feeds like reddit selection or some blog-aggregates, where
+    "[comments: X]" part is totally dynamic and RSS-reader I'm using (claws-mail +
+    RSSyl) to read feedjack-aggregate has a problem with it, flagging these posts
+    as "unread" endlessly.
+
+  * Not that it's really a feedjack problem, rather a reader's, but it certainly
+    is easier for me to fix on feedjack-level.
+
+  * Dropped a chunk of obsolete code (ripped from old django) - ObjectPaginator in
+    favor of native Paginator.
+
+  * Minimalistic "fern" and "plain" (merged from [another
+    fork](http://git.otfbot.org/feedjack.git/)) styles, image feed oriented
+    "fern_grid" style.
+
+  * Quite a few code optimizations.
+  * ...and there's usually more stuff in the CHANGES file.
 
 
 Dependencies
--------------
+--------------------
 
 Required dependencies:
 
@@ -53,7 +108,7 @@ Optional dependencies:
 
 
 Installation
--------------
+--------------------
 
 To install feedjack just run this command:
 
@@ -63,7 +118,8 @@ That will install feedjack to a python site-path, so it can be used as a django
 app.
 
 After that you must set up your Feedjack static directory inside your Django
-[MEDIA_URL](media_url var) directory.
+[MEDIA_URL](http://docs.djangoproject.com/en/dev/ref/settings/#media-url)
+directory.
 It must be set in a way that Feedjack’s static directory can be reached at
 "MEDIA_URL/feedjack/".
 
@@ -73,8 +129,10 @@ in /usr/lib/python2.7/site-packages/feedjack, just type this:
     ln -s /usr/lib/python2.7/site-packages/feedjack/static/feedjack /var/www/feedjack
 
 You must also add 'feedjack' in your settings.py under
-[INSTALLED_APPS][installed_apps var] and then [manage.py syncdb][syncdb] from
-the command line.
+[INSTALLED_APPS](http://docs.djangoproject.com/en/dev/ref/settings/#installed-apps)
+and then [manage.py
+syncdb](http://docs.djangoproject.com/en/dev/ref/django-admin/#syncdb) from the
+command line.
 
 Then you must add an entry in your Django "urls.py" file.
 Just include feedjack.urls like this:
@@ -86,13 +144,9 @@ Just include feedjack.urls like this:
 After that you might want to check out /admin section to create a feedjack site,
 otherwise sample default site will be created for you on the first entry.
 
-[media_url var]: http://docs.djangoproject.com/en/dev/ref/settings/#media-url
-[installed_apps var]: http://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
-[syncdb]: http://docs.djangoproject.com/en/dev/ref/django-admin/#syncdb
-
 
 Configuration
---------------
+--------------------
 
 The first thing you want to do is add a Site. To do this just open the admin
 site and create your first planet. You must use a valid address in the URL
@@ -113,16 +167,26 @@ Now that you have everything set up, just run the feedjack_update.py script to
 retrieve the data from the feeds and that’s all. Note that you must have a
 memcached, db or file CACHES in order to see the updated feeds immediately.
 
-[cache vars]: http://docs.djangoproject.com/en/dev/topics/cache/#setting-up-the-cache
+See [django project
+documentation](http://docs.djangoproject.com/en/dev/topics/cache/#setting-up-the-cache)
+for more info.
 
 
-Bugs, development, more info
------------------------------
+Bugs, development, support
+--------------------
 
-This fork (fg-fork) homepage (also a repository link):
-  http://fraggod.net/code/fossil/feedjack/
+All the issues with this fork should probably be reported to respective github
+project/fork, since code here can be quite different from the original project.
 
-Use the tickets or wiki there to report bugs and for any other feedback
-concerning this fork, since they can be unrelated to the original version.
+Until 2012, fork was kept in [fossil](http://www.fossil-scm.org/) repo
+[here](http://fraggod.net/code/fossil/feedjack/).
 
 Original version is available at [feedjack site](http://www.feedjack.org/).
+
+
+Links
+--------------------
+
+* Other known non-github forks
+  * http://git.otfbot.org/feedjack.git/
+  * http://code.google.com/p/feedjack-extension/
