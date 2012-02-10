@@ -13,7 +13,7 @@ def getsteps(levels, tagmax):
 		ntw = 2
 
 	steps = [(stp, 1 + (stp * int(math.ceil(tagmax * 1.0 / ntw - 1))))
-			  for stp in range(ntw)]
+				for stp in range(ntw)]
 	# just to be sure~
 	steps[-1] = (steps[-1][0], tagmax+1)
 	return steps
@@ -34,7 +34,7 @@ def build(site, tagdata):
 	tags = []
 	for tagname, tagcount in tagdata:
 		weight = [twt[0] \
-		  for twt in steps if twt[1] >= tagcount and twt[1] > 0][0]+1
+			for twt in steps if twt[1] >= tagcount and twt[1] > 0][0]+1
 		tags.append({'tagname':tagname, 'count':tagcount, 'weight':weight})
 	return tags
 
@@ -43,15 +43,15 @@ def cloudata(site):
 	"""
 
 	tagdata = fjlib.getquery("""
-		  SELECT feedjack_post.feed_id, feedjack_tag.name, COUNT(*)
-		  FROM feedjack_post, feedjack_subscriber, feedjack_tag,
-		  feedjack_post_tags
-		  WHERE feedjack_post.feed_id=feedjack_subscriber.feed_id AND
-		  feedjack_post_tags.tag_id=feedjack_tag.id AND
-		  feedjack_post_tags.post_id=feedjack_post.id AND
-		  feedjack_subscriber.site_id=%d
-		  GROUP BY feedjack_post.feed_id, feedjack_tag.name
-		  ORDER BY feedjack_post.feed_id, feedjack_tag.name""" % site.id)
+		SELECT feedjack_post.feed_id, feedjack_tag.name, COUNT(*)
+		FROM feedjack_post, feedjack_subscriber, feedjack_tag,
+		feedjack_post_tags
+		WHERE feedjack_post.feed_id=feedjack_subscriber.feed_id AND
+		feedjack_post_tags.tag_id=feedjack_tag.id AND
+		feedjack_post_tags.post_id=feedjack_post.id AND
+		feedjack_subscriber.site_id=%d
+		GROUP BY feedjack_post.feed_id, feedjack_tag.name
+		ORDER BY feedjack_post.feed_id, feedjack_tag.name""" % site.id)
 	tagdict = {}
 	globaldict = {}
 	cloudict = {}

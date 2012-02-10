@@ -35,11 +35,11 @@ SITE_ORDERING = namedtuple( 'SiteOrdering',
 class Site(models.Model):
 	name = models.CharField(_('name'), max_length=100)
 	url = models.CharField( _('url'),
-	  max_length=100, unique=True,
-	  help_text=u'{0}: {1}, {2}'.format(
-			smart_unicode(_('Example')),
-			u'http://www.planetexample.com',
-			u'http://www.planetexample.com:8000/foo' ) )
+		max_length=100, unique=True,
+		help_text=u'{0}: {1}, {2}'.format(
+		smart_unicode(_('Example')),
+		u'http://www.planetexample.com',
+		u'http://www.planetexample.com:8000/foo' ) )
 	title = models.CharField(_('title'), max_length=200)
 	description = models.TextField(_('description'))
 	welcome = models.TextField(_('welcome'), null=True, blank=True)
@@ -62,10 +62,10 @@ class Site(models.Model):
 		help_text=_('Duration in seconds of the cached pages and data.') )
 
 	links = models.ManyToManyField(Link, verbose_name=_('links'),
-	  null=True, blank=True)
+		null=True, blank=True)
 	template = models.CharField(_('template'), max_length=100, null=True,
-	  blank=True,
-	  help_text=_('This template must be a directory in your feedjack '
+		blank=True,
+		help_text=_('This template must be a directory in your feedjack '
 		'templates directory. Leave blank to use the default template.') )
 
 	class Meta:
@@ -585,7 +585,7 @@ class Subscriber(models.Model):
 	name = models.CharField(_('name'), max_length=100, null=True, blank=True,
 		help_text=_('Keep blank to use the Feed\'s original name.') )
 	shortname = models.CharField( _('shortname'), max_length=50, null=True,
-	  blank=True, help_text=_('Keep blank to use the Feed\'s original shortname.') )
+		blank=True, help_text=_('Keep blank to use the Feed\'s original shortname.') )
 	is_active = models.BooleanField( _('is active'), default=True,
 		help_text=_('If disabled, this subscriber will not appear in the site or in the site\'s feed.') )
 

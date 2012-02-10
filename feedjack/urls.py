@@ -36,7 +36,7 @@ urlpatterns.extend([
 	(r'^rss20.xml$', views.redirect, dict(url='/feed/rss/')),
 	(r'^feed/$', views.redirect, dict(url='/feed/atom/')) ])
 urlpatterns.extend( (src, views.redirect, dict(url='/feed/atom/{0}'.format(dst)))
-  for src,dst in specs_sets('^feed/{0}/?$', specs_deprecated, make_redirects=True) )
+	for src,dst in specs_sets('^feed/{0}/?$', specs_deprecated, make_redirects=True) )
 
 # New-style syndication links
 urlpatterns.extend( (url, views.atomfeed)

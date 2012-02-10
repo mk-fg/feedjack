@@ -86,17 +86,17 @@ def get_posts_tags(subscribers, object_list, feed, tag_name):
 	user_obj = None
 	tag_obj = None
 	tags = models.Tag.objects.extra(
-	  select=dict(post_id='{0}.{1}'.format(
+		select=dict(post_id='{0}.{1}'.format(
 			*it.imap( connection.ops.quote_name,
 				('feedjack_post_tags', 'post_id') ) )),
-	  tables=['feedjack_post_tags'],
-	  where=[
+		tables=['feedjack_post_tags'],
+		where=[
 		'{0}.{1}={2}.{3}'.format(*it.imap( connection.ops.quote_name,
 			('feedjack_tag', 'id', 'feedjack_post_tags', 'tag_id') )),
 		'{0}.{1} IN ({2})'.format(
-		  connection.ops.quote_name('feedjack_post_tags'),
-		  connection.ops.quote_name('post_id'),
-		  ', '.join([str(post.id) for post in object_list]) ) ] )
+			connection.ops.quote_name('feedjack_post_tags'),
+			connection.ops.quote_name('post_id'),
+			', '.join([str(post.id) for post in object_list]) ) ] )
 
 	for tag in tags:
 		if tag.post_id not in tagd: tagd[tag.post_id] = list()

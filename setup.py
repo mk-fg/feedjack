@@ -8,18 +8,18 @@ from setuptools import setup, find_packages
 from finddata import find_package_data
 
 setup(
-    name = 'Feedjack',
-    version = '0.9.16-fg5',
-    url = 'http://www.feedjack.org/',
-    author = 'Gustavo Picón, Mike Kazantsev',
-    author_email = 'gpicon@gmail.com, mk.fraggod@gmail.com',
-    license = 'BSD',
-    packages = find_packages(),
-    package_data = find_package_data(where='feedjack', package='feedjack'),
-    scripts = ['feedjack/bin/feedjack_update.py'],
-    zip_safe = False,
-    description = 'Multisite Feed Agregator (Planet)',
-    long_description = '''
+	name = 'Feedjack',
+	version = '0.9.16-fg5',
+	url = 'http://www.feedjack.org/',
+	author = 'Gustavo Picón, Mike Kazantsev',
+	author_email = 'gpicon@gmail.com, mk.fraggod@gmail.com',
+	license = 'BSD',
+	packages = find_packages(),
+	package_data = find_package_data(where='feedjack', package='feedjack'),
+	scripts = ['feedjack/bin/feedjack_update.py'],
+	zip_safe = False,
+	description = 'Multisite Feed Agregator (Planet)',
+	long_description = '''
 Feedjack is a feed aggregator writen in Python using the Django web development
 framework.
 
