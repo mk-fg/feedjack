@@ -14,9 +14,7 @@ from django.utils import simplejson as json
 from django.utils.encoding import smart_unicode
 from django.views.decorators.http import condition
 
-from feedjack import models
-from feedjack import fjlib
-from feedjack import fjcache
+from feedjack import models, fjlib, fjcache
 
 import itertools as it, operator as op, functools as ft
 from datetime import datetime
@@ -269,4 +267,3 @@ def mainview(request, **criterias):
 		response.set_cookie('feedjack.tracking', fj_track_header)
 
 	return response
-

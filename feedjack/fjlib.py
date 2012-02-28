@@ -8,8 +8,7 @@ from django.core.paginator import Paginator, InvalidPage
 from django.http import Http404
 from django.utils.encoding import smart_unicode, force_unicode
 
-from feedjack import models
-from feedjack import fjcache
+from feedjack import models, fjcache
 
 import itertools as it, operator as op, functools as ft
 from datetime import datetime, timedelta

@@ -2,8 +2,7 @@
 
 import math
 
-from feedjack import fjlib
-from feedjack import fjcache
+from feedjack import fjlib, fjcache
 
 def getsteps(levels, tagmax):
 	""" Returns a list with the max number of posts per "tagcloud level"
