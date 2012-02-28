@@ -29,8 +29,9 @@ def cache_etag(request, *argz, **kwz):
 		Intended for usage in conditional views (@condition decorator).'''
 	response, site, cachekey = initview(request)
 	if not response: return None
-	return '{}--{}--{}'.format( site.id if site else 'x', cachekey,
-		response[1].strftime('%Y-%m-%d %H:%M:%S%z') )
+	return fjcache.str2md5(
+		'{}--{}--{}'.format( site.id if site else 'x', cachekey,
+			response[1].strftime('%Y-%m-%d %H:%M:%S%z') ) )
 
 def cache_last_modified(request, *argz, **kwz):
 	'''Last modification date for a cached page.
