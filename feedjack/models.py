@@ -447,12 +447,13 @@ class PostQuerySet(models.query.QuerySet):
 		return self
 
 	def sorted(self, site_ordering_id, force=None):
-		if site_ordering_id == SITE_ORDERING.modified: prime = '-date_modified'
-		elif site_ordering_id == SITE_ORDERING.created: prime = '-date_created'
-		elif site_ordering_id == SITE_ORDERING.created_day:
-			self = self.extra(dict(date_created_day="date_trunc('day', date_created)"))
+		prime = Post._get_ordering_attribute(site_ordering_id)
+		if site_ordering_id == SITE_ORDERING.created_day:
+			# Requires more handling than just raw attribute name
+			self = self.extra(dict(
+				date_created_day="date_trunc('day', {})".format(prime) ))
 			prime = '-date_created_day'
-		else: raise ValueError('Unknown ordering method id: {0}'.format(site_ordering_id))
+		else: prime = '-{}'.format(prime)
 
 		if force == 'asc': prime = prime.lstrip('-')
 		elif force == 'desc' and prime[0] != '-': prime = '-{}'.format(prime)
@@ -509,6 +510,19 @@ class Post(models.Model):
 		verbose_name_plural = _('posts')
 		ordering = ('-date_modified',)
 		unique_together = (('feed', 'guid'),)
+
+
+	@staticmethod
+	def _get_ordering_attribute(site_ordering_id):
+		# Abstracts SITE_ORDERING/Post relationship somewhat,
+		#  but created_day requires special handling while sorting entries anyway
+		if site_ordering_id == SITE_ORDERING.modified: return 'date_modified'
+		elif site_ordering_id == SITE_ORDERING.created: return 'date_created'
+		elif site_ordering_id == SITE_ORDERING.created_day: return 'date_created'
+		else: raise ValueError('Unknown ordering method id: {0}'.format(site_ordering_id))
+
+	def date_on_site(self, site):
+		return getattr(self, self._get_ordering_attribute(site.order_posts_by))
 
 
 	def _filtering_result(self, by_or):
