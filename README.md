@@ -93,8 +93,7 @@ Required dependencies:
 
 Optional dependencies:
 
-* [BeautifulSoup](http://www.crummy.com/software/BeautifulSoup/)
-  Used for html mangling in some themes (fern, plain).
+* [lxml](http://lxml.de) - used for html mangling in some themes (fern, plain).
 
 
 Installation
