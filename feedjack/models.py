@@ -425,7 +425,8 @@ class PostQuerySet(models.query.QuerySet):
 		for name,val in criterias.iteritems():
 			name = meta.get_field(name, many_to_many=False).column
 			name = '.'.join(it.imap(connection.ops.quote_name, (meta.db_table, name)))
-			# Alas, pg_trgm is for containment tests, not fuzzy matches ;(
+			# Alas, pg_trgm is for containment tests, not fuzzy matches,
+			#  but it can potentially be used to find closest results as well
 			# funcs.append( 'similarity(CAST({0}.{1} as text), CAST(%s as text))'\
 			# Ok, these two are just to make sure levenshtein() won't crash
 			#  w/ "argument exceeds the maximum length of N bytes error"
@@ -494,7 +495,7 @@ class Post(models.Model):
 		help_text='Manual switch to completely hide the Post,'
 			' although it will be present for internal checks, like filters.' )
 
-	# These two will be quite different from date_modified, since the latter is
+	# These two will be quite different from date_modified, since date_modified is
 	#  parsed from the feed itself, and should always be earlier than either of two
 	date_created = models.DateTimeField(_('date created'), auto_now_add=True)
 	date_updated = models.DateTimeField(_('date updated'), auto_now=True)
