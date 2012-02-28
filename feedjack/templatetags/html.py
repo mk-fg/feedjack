@@ -3,12 +3,12 @@ import itertools as it, operator as op, functools as ft
 
 from django.template.defaultfilters import stringfilter
 from django.utils.safestring import SafeData, mark_safe
-from feedjack.fjlib import html_cleaner
 
 from django import template
 register = template.Library()
 
 
+from feedjack.fjlib import html_cleaner
 from django.utils.html import escape
 
 @register.filter
