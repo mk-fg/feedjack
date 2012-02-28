@@ -1,4 +1,4 @@
-{% load i18n html %}
+{% load i18n html extract %}
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html>
@@ -16,7 +16,10 @@
 
 <div id="header">
 
-<div class="tit"><h1><a href="{{ site.url }}" title="{% if feed %}{{ feed.title }} - {% endif %}{{ site.title }}">{% if feed %}{{ feed.shortname }} - {% endif %}{{ site.title }}</a></h1></div>
+<div class="tit"><h1>
+<a title="{% if feed %}{{ feed.title }} - {% endif %}{{ site.title }}"
+	href="{{ site.url }}">{% if feed %}{{ feed.shortname }} - {% endif %}{{ site.title }}</a>
+</h1></div>
 
 <div class="subfeeds"></div>
 
@@ -25,8 +28,10 @@
 		<img src="{{ media_url }}/button-atom.png"/></a>
 	<a href="{{ site.url }}/syndication/rss{{ url_suffix }}/" title="RSS 2.0 feed">
 		<img src="{{ media_url }}/button-rss.png"/></a>
-	<a href="{{ site.url }}/syndication/opml/" title="OPML"><img src="{{ media_url }}/button-opml.png"/></a>
-	<a href="{{ site.url }}/syndication/foaf/" title="FOAF"><img src="{{ media_url }}/button-foaf.png"/></a>
+	<a href="{{ site.url }}/syndication/opml/" title="OPML">
+		<img src="{{ media_url }}/button-opml.png"/></a>
+	<a href="{{ site.url }}/syndication/foaf/" title="FOAF">
+		<img src="{{ media_url }}/button-foaf.png"/></a>
 </div>
 
 </div>
@@ -39,7 +44,9 @@
 
 {% for item in object_list %}
 
-{% with item.date_created|date:"F j, Y" as date_key %}
+{% with item|site_ordering_date:site as date_site %}
+{% with date_site|date:"F j, Y" as date_key %}
+
 {% ifchanged item.feed.id date_key %}
 {% if not forloop.first %}
 	</div> {# /.grid #}
@@ -49,15 +56,15 @@
 {% endifchanged %}
 
 {% ifchanged date_key %}
-<h1>{{ item.date_created|date:"F j, Y" }}</h1>
+<h1>{{ date_site|date:"F j, Y" }}</h1>
 {% endifchanged %}
 
 {% ifchanged item.feed.id date_key %}
 <div class="channel">
-	<h2><a href="{{ item.feed.link }}" title="{{ item.feed.title }}">{{ item.feed.shortname }}</a></h2>
+	<h2><a href="{{ item.feed.link }}"
+		title="{{ item.feed.title }}">{{ item.feed.shortname }}</a></h2>
 	<div class="grid">
 {% endifchanged %}
-{% endwith %}
 
 	{% if item.content %}
 	<a class="entry" href="{{ item.link }}"
@@ -71,6 +78,9 @@
 	<br class="clear"/>
 </div> {# /.channel #}
 {% endif %}
+
+{% endwith %}
+{% endwith %}
 
 {% endfor %}
 

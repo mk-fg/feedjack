@@ -1,4 +1,4 @@
-{% load i18n html %}
+{% load i18n html extract %}
 <!DOCTYPE html>
 <html
 	data-url_site="{{ site.url }}"
@@ -45,7 +45,8 @@
 
 {% for item in object_list %}
 
-{% with item.date_modified|date:"Y-m-d" as date_key %}
+{% with item|site_ordering_date:site as date_site %}
+{% with date_site|date:"Y-m-d" as date_key %}
 
 {% ifchanged item.feed.id date_key %}
 {% if not forloop.first %}
@@ -59,7 +60,7 @@
 </div> {# /.day #}
 {% endif %}
 <div class="day">
-	<h1 data-timestamp="{{ date_key }}">{{ item.date_modified|date:"l, F j, Y" }}</h1>
+	<h1 data-timestamp="{{ date_key }}">{{ date_site|date:"l, F j, Y" }}</h1>
 {% endifchanged %}
 
 {% ifchanged item.feed.id date_key %}
@@ -67,9 +68,7 @@
 		<h2><a href="{{ item.feed.link }}" title="{{ item.feed.title }}">{{ item.feed.shortname }}</a></h2>
 {% endifchanged %}
 
-{% endwith %}
-
-		<div class="entry" data-timestamp="{{ item.date_modified|date:"U" }}">
+		<div class="entry" data-timestamp="{{ date_site|date:"U" }}">
 			<h3><a href="{{ item.link }}">{% if item.title %}{{ item.title|safe }}
 						{% else %}{{ item.subscriber.name|safe }}{% endif %}</a></h3>
 			<div class="content">
@@ -88,6 +87,9 @@
 {% if forloop.last %}
 </div> {# /.day #}
 {% endif %}
+
+{% endwith %}
+{% endwith %}
 
 {% endfor %}
 
