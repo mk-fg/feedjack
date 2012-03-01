@@ -56,9 +56,9 @@
 
 {% ifchanged item.feed.id date_key %}
 {% if not forloop.first %}
-	</div> {# /.grid #}
-	<br class="clear"/>
-</div> {# /.channel #}
+		</div> {# /.grid #}
+		<br class="clear"/>
+	</div> {# /.channel #}
 {% endif %}
 {% endifchanged %}
 
@@ -86,6 +86,7 @@
 {% endif %}
 
 {% if forloop.last %}
+		</div> {# /.grid #}
 		<br class="clear"/>
 	</div> {# /.channel #}
 {% endif %}
