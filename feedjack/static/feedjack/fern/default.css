@@ -4,6 +4,7 @@
  */
 
 @import url(posts.css);
+@import url(posts_ext.css);
 @import url(theme.css);
 
 body {

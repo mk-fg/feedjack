@@ -96,21 +96,6 @@
 </div> {# /#center #}
 
 
-{% if false %}
-<div id="left" class="column">
-<h2>{% trans "Tag soup" %}</h2>
-<p id="cloud">
-{% for tag in tagcloud %}
-	<a
-		href="{{ site.url }}/{{ url_suffix }}"
-		title="{% blocktrans count tag.count as posts %}{{ posts }} post{% plural %}{{ posts }} posts{% endblocktrans %}"
-		class="cloud_{{ tag.weight }}">{{ tag.tagname }}</a>
-{% endfor %}
-</p>
-</div> {# /#left #}
-{% endif %}
-
-
 </div> {# /#container #}
 
 

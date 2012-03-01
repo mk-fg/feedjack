@@ -63,27 +63,35 @@
 {% endifchanged %}
 
 {% ifchanged date_key %}
-<h1 data-timestamp="{{ date_key }}">{{ date_site|date:"F j, Y" }}</h1>
+{% if not forloop.first %}
+</div> {# /.day #}
+{% endif %}
+<div class="day">
+	<h1 data-timestamp="{{ date_key }}">{{ date_site|date:"F j, Y" }}</h1>
 {% endifchanged %}
 
 {% ifchanged item.feed.id date_key %}
-<div class="channel">
-	<h2><a href="{{ item.feed.link }}"
-		title="{{ item.feed.title }}">{{ item.feed.shortname }}</a></h2>
-	<div class="grid">
+	<div class="channel">
+		<h2><a href="{{ item.feed.link }}"
+			title="{{ item.feed.title }}">{{ item.feed.shortname }}</a></h2>
+		<div class="grid">
 {% endifchanged %}
 
-	{% if item.content %}
-	<a class="entry" href="{{ item.link }}"
-		title="&quot;{% firstof item.title item.subscriber.name %}&quot;: {{ item.content|tag_pick_text }}">
-		{{ item.content|tag_pick:"//img[not(@alt='thumbnail')]||//img"|tag_attr_add:"align=center" }}
-	</a>
-	{% endif %}
+{% if item.content %}
+		<a class="entry" href="{{ item.link }}"
+			data-timestamp="{{ date_site|date:"U" }}"
+			title="&quot;{% firstof item.title item.subscriber.name %}&quot;: {{ item.content|tag_pick_text }}">
+			{{ item.content|tag_pick:"//img[not(@alt='thumbnail')]||//img"|tag_attr_add:"align=center" }}
+		</a>
+{% endif %}
 
 {% if forloop.last %}
-	</div> {# /.grid #}
-	<br class="clear"/>
-</div> {# /.channel #}
+		<br class="clear"/>
+	</div> {# /.channel #}
+{% endif %}
+
+{% if forloop.last %}
+</div> {# /.day #}
 {% endif %}
 
 {% endwith %}

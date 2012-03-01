@@ -98,26 +98,34 @@ $(document).ready ->
 			fold_channel = true
 
 			# (un)fold entries
-			channel.children('.entry').each (idx, el) ->
-				entry = $(el)
-				ts = entry.data('timestamp')
-				fold_entry = false
-				fold_ts_day = folds[ts_day]
-				if unfold is true or not fold_ts_day?
-					entry.removeClass(fold_css)
-				else if fold_ts_day >= ts
-					if fold isnt false
-						entry.addClass(fold_css)
-						links_entry = entry.find('a')
-						links_entry_unfold = ->
-							entry.removeClass(fold_css)
-							links_entry.unbind('click', links_entry_unfold)
-							false
-						links_entry.click(links_entry_unfold)
-					fold_entry = true
-				if not fold_entry
-					fold_channel = false
-					ts_entry_max = ts if ts > ts_entry_max
+			entries = channel.find('.entry')
+			if not entries.length
+				fold_channel = false
+				ts_entry_max = 1 # make sure whole day won't be folded
+			else
+				entries.each (idx, el) ->
+					entry = $(el)
+					ts = entry.data('timestamp')
+					if not ts # make this item unfoldable
+						ts_entry_max = 1
+						return
+					fold_entry = false
+					fold_ts_day = folds[ts_day]
+					if unfold is true or not fold_ts_day?
+						entry.removeClass(fold_css)
+					else if fold_ts_day >= ts
+						if fold isnt false
+							entry.addClass(fold_css)
+							links_entry = entry.find('a')
+							links_entry_unfold = ->
+								entry.removeClass(fold_css)
+								links_entry.unbind('click', links_entry_unfold)
+								false
+							links_entry.click(links_entry_unfold)
+						fold_entry = true
+					if not fold_entry
+						fold_channel = false
+						ts_entry_max = ts if ts > ts_entry_max
 
 			if fold_channel
 				channel.addClass(fold_css)

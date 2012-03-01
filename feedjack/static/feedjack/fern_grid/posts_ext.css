@@ -1,0 +1,21 @@
+#center .grid {
+	float: left;
+	clear: both;
+}
+
+.grid a {
+	color: transparent;
+	background: transparent;
+}
+.grid a:hover {
+	color: transparent;
+	background: transparent;
+}
+
+.entry img {
+	max-height: 300px;
+	padding: 2px;
+	border: 2px groove #507E5E;
+	margin: 5px;
+	vertical-align: middle;
+}
