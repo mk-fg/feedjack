@@ -81,30 +81,28 @@ Fork
   * ...and there's usually more stuff in the CHANGES file.
 
 
-Dependencies
---------------------
-
-Required dependencies:
-
-* [Python 2.7](python.org)
-* [Feedparser 4.1+](feedparser.org)
-* [Django 1.1+](djangoproject.com)
-
-
-Optional dependencies:
-
-* [lxml](http://lxml.de) - used for html mangling in some themes (fern, plain).
-
-
 Installation
 --------------------
 
-To install feedjack just run this command:
+This feedjack fork is a regular package for Python 2.7 (not 3.X), but not in
+pypi, so can be installed from a checkout with something like that:
 
-    python setup.py install
+	python setup.py install
 
 That will install feedjack to a python site-path, so it can be used as a django
 app.
+
+Note that to install stuff in system-wide PATH and site-packages, elevated
+privileges are often required.
+Use
+[~/.pydistutils.cfg](http://docs.python.org/install/index.html#distutils-configuration-files)
+or [virtualenv](http://pypi.python.org/pypi/virtualenv) to do unprivileged
+installs into custom paths.
+
+Better way would be to use [pip](http://pip-installer.org/) to install all the
+necessary dependencies as well:
+
+	% pip install -e 'git://github.com/mk-fg/feedjack.git#egg=feedjack'
 
 After that you must set up your Feedjack static directory inside your Django
 [MEDIA_URL](http://docs.djangoproject.com/en/dev/ref/settings/#media-url)
@@ -132,6 +130,14 @@ Just include feedjack.urls like this:
 
 After that you might want to check out /admin section to create a feedjack site,
 otherwise sample default site will be created for you on the first entry.
+
+
+### Requirements
+
+* [Python 2.7](python.org)
+* [Feedparser 4.1+](feedparser.org)
+* [Django 1.1+](djangoproject.com)
+* (optional) [lxml](http://lxml.de) - used for html mangling in some themes (fern, plain)
 
 
 Configuration

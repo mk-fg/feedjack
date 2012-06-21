@@ -1,10 +1,21 @@
 Changes to a database schema are documented here.
+
 All SQL here is for PostgreSQL dbms, but should be easily adaptable for sqlite
 or mysql. See respective db docs for precise syntax.
+
 New models (tables) and MtM (Many-to-Many) relationships (also tables) can be
 created by running "./manage.py syncdb".
 
+
+0.9.16-fg5 - 12.06.0:
+--------------------
+
+	- extended "tag.name" field length constraint 127->2047
+		ALTER TABLE feedjack_tag ALTER COLUMN name TYPE varchar(2047);
+
+
 0.9.16 - 0.9.16-fg5:
+--------------------
 
 	- "filter" and "filter_base" tables, can be created by syncdb
 
