@@ -13,7 +13,7 @@ except IOError: readme = ''
 
 setup(
 	name = 'Feedjack',
-	version = '12.06.0',
+	version = '12.06.1',
 	author = 'Gustavo Picón, Mike Kazantsev',
 	author_email = 'gpicon@gmail.com, mk.fraggod@gmail.com',
 	license = 'BSD',

@@ -140,6 +140,15 @@ otherwise sample default site will be created for you on the first entry.
 * (optional) [lxml](http://lxml.de) - used for html mangling in some themes (fern, plain)
 
 
+### Update from older versions
+
+The only non-backwards-compatible changes should be in the database schema and
+are documented in
+[CHANGES_DATABASE](https://raw.github.com/mk-fg/feedjack/master/CHANGES_DATABASE)
+file.
+
+
+
 Configuration
 --------------------
 
