@@ -3,6 +3,7 @@
 
 from setuptools import setup, find_packages
 from finddata import find_package_data
+import feedjack
 import os, sys
 
 # Error-handling here is to allow package to be built w/o README included
@@ -16,13 +17,13 @@ package_data.setdefault('', list()).append('README.txt')
 
 setup(
 	name = 'Feedjack',
-	version = '12.06.1',
+	version = feedjack.__version__,
 	author = 'Gustavo Picón, Mike Kazantsev',
 	author_email = 'gpicon@gmail.com, mk.fraggod@gmail.com',
 	license = 'BSD',
 	keywords = ['feed', 'aggregator', 'planet',
 		'rss', 'atom', 'syndication', 'django', 'feedparser', 'news'],
-	url = 'https://github.com/mk-fg/feedjack',
+	url = feedjack.__url__,
 
 	description = 'Multisite Feed Agregator (Planet)',
 	long_description = readme,

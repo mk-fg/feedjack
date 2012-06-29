@@ -2,11 +2,29 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import itertools as it, operator as op, functools as ft
+from datetime import datetime
+from time import sleep
+from collections import defaultdict
+import os, sys
 
-VERSION = '0.9.16-fg3'
-URL = 'http://www.feedjack.org/'
-USER_AGENT = 'Feedjack {0} - {1}'.format(VERSION, URL)
+import feedparser, feedjack
+from feedjack.models import transaction_wrapper, transaction, IntegrityError
+
+
+USER_AGENT = 'Feedjack {} - {}'.format(feedjack.__version__, feedjack.__url__)
 SLOWFEED_WARNING = 10
+
+import codecs
+codec = codecs.getwriter('utf-8')
+sys.stdout = codec(sys.stdout)
+sys.stderr = codec(sys.stderr)
+
+import logging
+logging.EXTRA = (logging.DEBUG + logging.INFO) // 2
+log = logging.getLogger(os.path.basename(__file__))
+log.extra = ft.partial(log.log, logging.EXTRA)
+# TODO: special formatter to insert feed_id to the prefix
 
 
 ENTRY_NEW, ENTRY_UPDATED,\
@@ -32,27 +50,6 @@ feed_keys = (
 feed_keys_dict = dict(feed_keys)
 
 class FeedValidationError(Exception): pass
-
-
-import itertools as it, operator as op, functools as ft
-from datetime import datetime
-from time import sleep
-from collections import defaultdict
-import os, sys
-
-import feedparser
-from feedjack.models import transaction_wrapper, transaction, IntegrityError
-
-import codecs
-codec = codecs.getwriter('utf-8')
-sys.stdout = codec(sys.stdout)
-sys.stderr = codec(sys.stderr)
-
-import logging
-logging.EXTRA = (logging.DEBUG + logging.INFO) // 2
-log = logging.getLogger(os.path.basename(__file__))
-log.extra = ft.partial(log.log, logging.EXTRA)
-# TODO: special formatter to insert feed_id to the prefix
 
 
 mtime = lambda ttime: datetime(*ttime[:6])
