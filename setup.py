@@ -11,6 +11,9 @@ try:
 		os.path.dirname(__file__), 'README.txt' )).read()
 except IOError: readme = ''
 
+package_data = find_package_data(where='feedjack', package='feedjack')
+package_data.setdefault('', list()).append('README.txt')
+
 setup(
 	name = 'Feedjack',
 	version = '12.06.1',
@@ -52,5 +55,6 @@ setup(
 
 	zip_safe = False,
 	packages = find_packages(),
-	package_data = find_package_data(where='feedjack', package='feedjack'),
+	package_data = package_data,
+	exclude_package_data = {'': ['README.*']},
 	scripts = ['feedjack/bin/feedjack_update.py'] )
