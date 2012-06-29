@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 
 import itertools as it, operator as op, functools as ft
 from datetime import datetime
-from time import sleep
+from time import struct_time, sleep
 from collections import defaultdict
 import os, sys
 
@@ -51,7 +51,12 @@ feed_keys_dict = dict(feed_keys)
 class FeedValidationError(Exception): pass
 
 
-mtime = lambda ttime: datetime(*ttime[:6])
+def feedparser_ts(ts):
+	if isinstance(ts, struct_time):
+		return datetime(*ts[:6]) # assuming it's localtime
+	else:
+		# Timestamp as string, as returned with some feedparser versions
+		return datetime.strptime(ts, '%a, %d %b %Y %H:%M:%S %Z')
 
 _exc_frame = '[{0}] ! ' + '-'*25 + '\n'
 def print_exc(feed_id):
@@ -91,7 +96,7 @@ class FeedProcessor(object):
 		try: post.content = entry.content[0].value
 		except: post.content = entry.get('summary', entry.get('description', ''))
 
-		post.date_modified = mtime(entry.modified_parsed)\
+		post.date_modified = feedparser_ts(entry.modified_parsed)\
 			if 'modified_parsed' in entry else None
 		post.comments = entry.get('comments', '')
 
@@ -151,8 +156,8 @@ class FeedProcessor(object):
 			# Try hard to set date_modified: feed.modified, http.modified and now() as a last resort
 			if not post.date_modified and self.fpf:
 				if self.fpf.feed.get('modified_parsed'):
-					post.date_modified = mtime(self.fpf.feed.modified_parsed)
-				elif self.fpf.get('modified'): post.date_modified = mtime(self.fpf.modified)
+					post.date_modified = feedparser_ts(self.fpf.feed.modified_parsed)
+				elif self.fpf.get('modified'): post.date_modified = feedparser_ts(self.fpf.modified)
 			if not post.date_modified: post.date_modified = datetime.now()
 			if self.options.hidden: post.hidden = True
 			try: post.save()
@@ -265,7 +270,7 @@ class FeedProcessor(object):
 
 		if not ret_values[ENTRY_ERR]: # etag/mtime updated only if there's no errors
 			self.feed.etag = self.fpf.get('etag') or ''
-			try: self.feed.last_modified = mtime(self.fpf.modified)
+			try: self.feed.last_modified = feedparser_ts(self.fpf.modified)
 			except AttributeError: pass
 			self.feed.save()
 
