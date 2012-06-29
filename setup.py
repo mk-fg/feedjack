@@ -58,4 +58,6 @@ setup(
 	packages = find_packages(),
 	package_data = package_data,
 	exclude_package_data = {'': ['README.*']},
-	scripts = ['feedjack/bin/feedjack_update.py'] )
+
+	entry_points = {
+		'console_scripts': ['feedjack_update = feedjack.fjupdate:main'] } )

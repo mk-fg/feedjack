@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
@@ -279,7 +278,6 @@ def bulk_update(optz):
 	import socket
 	socket.setdefaulttimeout(optz.timeout)
 
-
 	from feedjack.models import Feed, Site
 	affected_sites = set() # to drop cache
 
@@ -340,39 +338,49 @@ def bulk_update(optz):
 
 
 
-
-if __name__ == '__main__':
+def make_cli_option_list():
 	import optparse
-	parser = optparse.OptionParser(usage='%prog [options]', version=USER_AGENT)
+	return [
+		optparse.make_option('--force', action='store_true',
+			help='Do not use stored modification time or etag when fetching feed updates.'),
+		optparse.make_option('--hidden', action='store_true',
+			help='Mark all fetched (new) posts as "hidden". Intended'
+				' usage is initial fetching of large (number of) feeds.'),
 
-	parser.add_option('--force', action='store_true',
-		help='Do not use stored modification time or etag when fetching feed updates.')
-	parser.add_option('--hidden', action='store_true',
-		help='Mark all fetched (new) posts as "hidden". Intended'
-			' usage is initial fetching of large (number of) feeds.')
+		optparse.make_option('--max-feed-difference', action='store', dest='max_diff', type='int',
+			help='Maximum percent of new posts to consider feed valid.'
+				' Intended for broken feeds, which sometimes return seemingly-random content.'),
 
-	parser.add_option('--max-feed-difference', action='store', dest='max_diff', type='int',
-		help='Maximum percent of new posts to consider feed valid.'
-			' Intended for broken feeds, which sometimes return seemingly-random content.')
+		optparse.make_option('-f', '--feed', action='append', type='int',
+			help='A feed id to be updated. This option can be given multiple '
+				'times to update several feeds at the same time (-f 1 -f 4 -f 7).'),
+		optparse.make_option('-s', '--site', action='append', type='int',
+			help='A site id (or several of them) to update.'),
 
-	parser.add_option('-f', '--feed', action='append', type='int',
-		help='A feed id to be updated. This option can be given multiple '
-			'times to update several feeds at the same time (-f 1 -f 4 -f 7).')
-	parser.add_option('-s', '--site', action='append', type='int',
-		help='A site id (or several of them) to update.')
+		optparse.make_option('-t', '--timeout', type='int', default=20,
+			help='Socket timeout (in seconds) for connections (default: %(default)s).'),
+		optparse.make_option('-d', '--delay', type='int', default=0,
+			help='Delay between fetching the feeds (default: none).'),
 
-	parser.add_option('-t', '--timeout', type='int', default=20,
-		help='Socket timeout (in seconds) for connections (default: %(default)s).')
-	parser.add_option('-d', '--delay', type='int', default=0,
-		help='Delay between fetching the feeds (default: none).')
+		optparse.make_option('-q', '--quiet', action='store_true',
+			help='Report only severe errors, no info or warnings.'),
+		optparse.make_option('-v', '--verbose', action='store_true', help='Verbose output.'),
+		optparse.make_option('--debug', action='store_true', help='Even more verbose output.') ]
 
-	parser.add_option('-q', '--quiet', action='store_true',
-		help='Report only severe errors, no info or warnings.')
-	parser.add_option('-v', '--verbose', action='store_true', help='Verbose output.')
-	parser.add_option('--debug', action='store_true', help='Even more verbose output.')
 
-	optz,argz = parser.parse_args()
-	if argz: parser.error('This command takes no arguments')
+def main(optz_dict=None):
+	import optparse
+
+	if optz_dict is None:
+		parser = optparse.OptionParser(
+			usage='%prog [options]', version=USER_AGENT,
+			option_list=make_cli_option_list() )
+		optz, argz = parser.parse_args()
+		if argz: parser.error('This command takes no arguments')
+
+	else:
+		optz = optparse.Values()
+		optz._update(optz_dict, 'loose')
 
 	if optz.debug: logging.basicConfig(level=logging.DEBUG)
 	elif optz.verbose: logging.basicConfig(level=logging.EXTRA)
@@ -380,3 +388,5 @@ if __name__ == '__main__':
 	else: logging.basicConfig(level=logging.INFO)
 
 	bulk_update(optz)
+
+if __name__ == '__main__': main()
