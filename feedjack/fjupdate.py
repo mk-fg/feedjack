@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+from django.utils import timezone
+
+import feedparser, feedjack
+from feedjack.models import transaction_wrapper, transaction, IntegrityError
+
 import itertools as it, operator as op, functools as ft
 from datetime import datetime
 from time import struct_time, sleep
 from collections import defaultdict
 import os, sys
-
-import feedparser, feedjack
-from feedjack.models import transaction_wrapper, transaction, IntegrityError
 
 
 USER_AGENT = 'Feedjack {} - {}'.format(feedjack.__version__, feedjack.__url__)
@@ -153,7 +155,7 @@ class FeedProcessor(object):
 				if self.fpf.feed.get('modified_parsed'):
 					post.date_modified = feedparser_ts(self.fpf.feed.modified_parsed)
 				elif self.fpf.get('modified'): post.date_modified = feedparser_ts(self.fpf.modified)
-			if not post.date_modified: post.date_modified = datetime.now()
+			if not post.date_modified: post.date_modified = timezone.now()
 			if self.options.hidden: post.hidden = True
 			try: post.save()
 			except IntegrityError:
@@ -229,7 +231,7 @@ class FeedProcessor(object):
 		self.feed.title = self.fpf.feed.get('title', '')[0:254]
 		self.feed.tagline = self.fpf.feed.get('tagline', '')
 		self.feed.link = self.fpf.feed.get('link', '')
-		self.feed.last_checked = datetime.now()
+		self.feed.last_checked = timezone.now()
 
 		log.debug('[{0}] Feed info for: {1}\n{2}'.format(
 			self.feed.id, self.feed.feed_url, '\n'.join(
@@ -301,15 +303,15 @@ def bulk_update(optz):
 		affected_sites = Site.objects.all().values_list('id', flat=True)
 
 
-	feeds, time_delta_global = list(feeds), datetime.now()
+	feeds, time_delta_global = list(feeds), timezone.now()
 	log.info( '* BEGIN: {0}, feeds to process: {1}'\
 		.format(time_delta_global, len(feeds)) )
 
 	feed_stats, entry_stats = defaultdict(int), defaultdict(int)
 	for feed in feeds:
-		time_delta = datetime.now()
+		time_delta = timezone.now()
 		ret_feed, ret_entries = FeedProcessor(feed, optz).process()
-		time_delta = datetime.now() - time_delta
+		time_delta = timezone.now() - time_delta
 
 		log.info('[{0}] Processed {1} in {2}s [{3}] [{4}]{5}'.format(
 			feed.id, feed.feed_url, time_delta, feed_keys_dict[ret_feed],
@@ -324,9 +326,9 @@ def bulk_update(optz):
 
 	transaction.commit()
 
-	time_delta_global = datetime.now() - time_delta_global
+	time_delta_global = timezone.now() - time_delta_global
 	log.info('* END: {0} (delta: {1}s), entries: {2}, feeds: {3}'.format(
-		datetime.now(), time_delta_global,
+		timezone.now(), time_delta_global,
 		' '.join('{0}={1}'.format(label, entry_stats[key]) for key,label in entry_keys),
 		' '.join('{0}={1}'.format(label, feed_stats[key]) for key,label in feed_keys) ))
 

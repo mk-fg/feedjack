@@ -5,12 +5,13 @@ from django.db.models import signals, Avg, Max, Min, Count
 from django.db import models, connection
 from django.utils.translation import ugettext_lazy as _
 from django.utils.encoding import smart_unicode
+from django.utils import timezone
 
 from feedjack import fjcache
 
 import itertools as it, operator as op, functools as ft
 from collections import namedtuple, defaultdict, Iterable, Iterator
-from datetime import datetime, timedelta
+from datetime import timedelta
 import logging
 
 
@@ -351,7 +352,7 @@ class Feed(models.Model):
 		except StopIteration: date_threshold = max(date_threshold)
 		else: date_threshold = None # there's at least one "reference-all" value
 		if date_threshold:
-			date_threshold = datetime.now() - timedelta(date_threshold)
+			date_threshold = timezone.now() - timedelta(date_threshold)
 			if rebuild_spec == FILTER_CR_REBUILD.new and isinstance(instance, dict):
 				# date_threshold here is one of the timestamps (determined by rebuild_order)
 				#  of the oldest post. This should affect each new/updated post's filtering result,

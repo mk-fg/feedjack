@@ -10,7 +10,7 @@ from django.utils.cache import patch_vary_headers
 from django.template import Context, RequestContext, loader
 from django.views.generic.simple import redirect_to
 from django.core.exceptions import ObjectDoesNotExist
-from django.utils import simplejson as json
+from django.utils import timezone, simplejson as json
 from django.utils.encoding import smart_unicode
 from django.views.decorators.http import condition
 
@@ -94,7 +94,7 @@ def initview(request, response_cache=True):
 				response = HttpResponsePermanentRedirect(
 					'http://{}/{}{}'.format( site_url.netloc, path_info,
 						'?{}'.format(query_string) if query_string.strip() else '') )
-				return (response, datetime.now()), None, cachekey
+				return (response, timezone.now()), None, cachekey
 
 		hostdict[url] = site.id
 		fjcache.hostcache_set(hostdict)
