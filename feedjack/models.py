@@ -323,7 +323,7 @@ class Feed(models.Model):
 		## Shouldn't happen too often, hopefully.
 		if m2m_update or (created is False and instance._filters_logic_update):
 			Feed._filters_update_handler_lock = True # this _is_ recursive!
-			tainted = Post.objects.filter(feed__in=related_feeds)
+			tainted = Post.objects.select_for_update().filter(feed__in=related_feeds)
 			if rebuild_spec:
 				FilterResult.objects.filter(
 					post__feed__in=related_feeds, filter__base__crossref=True ).delete()
@@ -363,7 +363,8 @@ class Feed(models.Model):
 		# This actually drops all the results before "date_threshold" on "related_feeds".
 		# Note that local update-date is checked, not the remote "date_modified" field.
 		related_feeds = set(related_feeds) # so it won't generate repeated queries
-		tainted = FilterResult.objects.filter(post__feed__in=related_feeds, filter__base__crossref=True)
+		tainted = FilterResult.objects.select_for_update().filter(
+			post__feed__in=related_feeds, filter__base__crossref=True )
 		if date_threshold:
 			tainted = tainted.filter(**{ 'post__{0}__gt'\
 				.format(rebuild_order): date_threshold })
@@ -371,7 +372,7 @@ class Feed(models.Model):
 		## Now, walk the posts, checking/updating results for each one.
 		# Posts are be updated in the "last-touched" order, for consistency of cross-ref filters' results.
 		# Amount of work here is quite extensive, since this (ideally) should affect every Post.
-		tainted = Post.objects.filter(feed__in=related_feeds)
+		tainted = Post.objects.select_for_update().filter(feed__in=related_feeds)
 		if date_threshold: tainted = tainted.filter(**{'{0}__gt'.format(rebuild_order): date_threshold})
 		for post in tainted.order_by(rebuild_order): post.filtering_result_update()
 		## Unlock this function again.

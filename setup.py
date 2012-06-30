@@ -49,7 +49,7 @@ setup(
 		'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
 		'Topic :: Internet :: WWW/HTTP :: WSGI :: Application' ],
 
-	install_requires = ['feedparser', 'Django >= 1.1'],
+	install_requires = ['feedparser', 'Django >= 1.4'],
 	extras_require = {
 		'themes.fern': ['lxml'],
 		'themes.plain': ['lxml'] },

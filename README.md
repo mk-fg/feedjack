@@ -136,7 +136,7 @@ otherwise sample default site will be created for you on the first entry.
 
 * [Python 2.7](python.org)
 * [Feedparser 4.1+](feedparser.org)
-* [Django 1.1+](djangoproject.com)
+* [Django 1.4+](djangoproject.com)
 * (optional) [lxml](http://lxml.de) - used for html mangling in some themes (fern, plain)
 
 

@@ -245,8 +245,8 @@ class FeedProcessor(object):
 		if guids:
 			from feedjack.models import Post
 			self.postdict = dict( (post.guid, post)
-				for post in Post.objects.filter(
-					feed=self.feed.id ).filter(guid__in=guids) )
+				for post in Post.objects.select_for_update()\
+					.filter(feed=self.feed.id).filter(guid__in=guids) )
 			if self.options.max_diff:
 				diff = op.truediv(len(guids) - len(self.postdict), len(guids)) * 100
 				if diff > self.options.max_diff:
