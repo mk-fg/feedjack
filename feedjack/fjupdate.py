@@ -14,11 +14,6 @@ from feedjack.models import transaction_wrapper, transaction, IntegrityError
 USER_AGENT = 'Feedjack {} - {}'.format(feedjack.__version__, feedjack.__url__)
 SLOWFEED_WARNING = 10
 
-import codecs
-codec = codecs.getwriter('utf-8')
-sys.stdout = codec(sys.stdout)
-sys.stderr = codec(sys.stderr)
-
 import logging
 logging.EXTRA = (logging.DEBUG + logging.INFO) // 2
 log = logging.getLogger(os.path.basename(__file__))
@@ -392,6 +387,13 @@ def main(optz_dict=None):
 	elif optz.quiet: logging.basicConfig(level=logging.WARNING)
 	else: logging.basicConfig(level=logging.INFO)
 
+	# Make sure logging won't choke on encoding
+	import codecs
+	codec = codecs.getwriter('utf-8')
+	sys.stdout = codec(sys.stdout)
+	sys.stderr = codec(sys.stderr)
+
 	bulk_update(optz)
 
-if __name__ == '__main__': main()
+if __name__ == '__main__':
+	main()
