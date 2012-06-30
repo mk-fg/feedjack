@@ -48,12 +48,7 @@ feed_keys_dict = dict(feed_keys)
 class FeedValidationError(Exception): pass
 
 
-def feedparser_ts(ts):
-	if isinstance(ts, struct_time):
-		return datetime(*ts[:6]) # assuming it's localtime
-	else:
-		# Timestamp as string, as returned with some feedparser versions
-		return datetime.strptime(ts, '%a, %d %b %Y %H:%M:%S %Z')
+feedparser_ts = lambda ts: datetime(*ts[:6])
 
 _exc_frame = '[{0}] ! ' + '-'*25 + '\n'
 def print_exc(feed_id):
