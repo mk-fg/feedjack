@@ -74,7 +74,7 @@ def get_extra_content(site, ctx):
 	chk = chk or datetime(1970, 1, 1)
 	ctx['last_modified'], ctx['last_checked'] = mod or chk, chk
 	ctx['site'] = site
-	ctx['media_url'] = '{0}feedjack/{1}'.format(settings.MEDIA_URL, site.template)
+	ctx['media_url'] = '{0}feedjack/{1}'.format(settings.STATIC_URL, site.template)
 
 
 def get_posts_tags(subscribers, object_list, feed, tag_name):
