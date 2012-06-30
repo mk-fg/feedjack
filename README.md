@@ -105,7 +105,7 @@ necessary dependencies as well:
 	% pip install -e 'git://github.com/mk-fg/feedjack.git#egg=feedjack'
 
 After that you must set up your Feedjack static directory inside your Django
-[STATIC_URL](http://docs.djangoproject.com/en/dev/ref/settings/#media-url)
+[STATIC_URL](http://docs.djangoproject.com/en/dev/ref/settings/#static-url)
 directory.
 It must be set in a way that Feedjack’s static directory can be reached at
 "STATIC_URL/feedjack/".
@@ -114,6 +114,12 @@ For instance, if your STATIC_URL resolves to /var/www, and Feedjack was installe
 in /usr/lib/python2.7/site-packages/feedjack, just type this:
 
     ln -s /usr/lib/python2.7/site-packages/feedjack/static/feedjack /var/www/feedjack
+
+Alternatively, standard
+[django.contrib.staticfiles](https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/)
+app [can be used to copy/link static
+files](https://docs.djangoproject.com/en/dev/howto/static-files/) with
+"django-admin.py collectstatic" command.
 
 You must also add 'feedjack' in your settings.py under
 [INSTALLED_APPS](http://docs.djangoproject.com/en/dev/ref/settings/#installed-apps)
