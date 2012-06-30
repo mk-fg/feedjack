@@ -114,24 +114,43 @@ def get_posts_tags(subscribers, object_list, feed, tag_name):
 	return user_obj, tag_obj
 
 
+_since_formats = {'%Y-%m-%d', '%Y-%m-%d %H:%M', '%d.%m.%Y'}
+_since_formats_vary = ('%Y', '%y'), ('%d', '%a'),\
+	('%d', '%A'), ('%m', '%b'), ('%m', '%B')
+_since_offsets = {
+	'yesterday': 1, 'week': 7, 'month': 30,
+	'10_days': 10, '30_days': 30 }
+
 def get_page(site, page=1, **criterias):
 	'Returns a paginator object and a requested page from it.'
+	global _since_formats_vary
 
 	if 'since' in criterias:
 		since = criterias['since']
-		since_formats = '%Y-%m-%d', '%Y-%m-%d %H:%M', '%d.%m.%Y'
-		since_days = {
-			'yesterday': 1, 'week': 7,
-			'10_days': 10, '30_days': 30 }.get(since)
-		if since_days:
-			since = (datetime.today() - timedelta(since_days)).strftime(since_formats[0])
-		for since_format in since_formats:
-			try: since = datetime.strptime(since, since_format)
-			except ValueError: pass
-			else: break
-		else: raise Http404 # invalid format
-		criterias['since'] = timezone.make_aware(
-			since, timezone.get_current_timezone() )
+		if since in _since_offsets:
+			since = datetime.today() - timedelta(_since_offsets[since])
+		else:
+			if _since_formats_vary:
+				for fmt, substs in it.product( list(_since_formats),
+						it.chain.from_iterable(
+							it.combinations(_since_formats_vary, n)
+							for n in xrange(1, len(_since_formats_vary)) ) ):
+					for src, dst in substs: fmt = fmt.replace(src, dst)
+					_since_formats.add(fmt)
+				_since_formats_vary = None # to avoid doing it again
+			for fmt in _since_formats:
+				try: since = datetime.strptime(since, fmt)
+				except ValueError: pass
+				else: break
+			else: raise Http404 # invalid format
+		try:
+			criterias['since'] = timezone.make_aware(
+				since, timezone.get_current_timezone() )
+		except (
+				timezone.pytz.exceptions.AmbiguousTimeError
+				if timezone.pytz else RuntimeError ):
+			# Since there's no "right" way here anyway...
+			criterias['since'] = since.replace(tzinfo=timezone)
 	order_force = criterias.pop('asc', None)
 
 	posts = models.Post.objects.filtered(site, **criterias)\
