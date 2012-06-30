@@ -48,7 +48,7 @@ feed_keys_dict = dict(feed_keys)
 class FeedValidationError(Exception): pass
 
 
-feedparser_ts = lambda ts: datetime(*ts[:6])
+feedparser_ts = lambda ts: datetime(*ts[:6] + (0, timezone.utc))
 
 _exc_frame = '[{0}] ! ' + '-'*25 + '\n'
 def print_exc(feed_id):

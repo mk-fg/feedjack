@@ -20,7 +20,8 @@ regex_in_content.__doc__ = 'Match only posts with RegEx'\
 
 
 ### Similarity cross-referencing filters
-from datetime import datetime, timedelta
+from datetime import timedelta
+from django.utils import timezone
 import types
 
 DEFAULT_SIMILARITY_THRESHOLD = 0.85
@@ -38,7 +39,7 @@ def same_guid(post, parameter=DEFAULT_SIMILARITY_TIMESPAN):
 	similar = Post.objects.filtered(for_display=False)\
 		.exclude(id=post.id).filter(guid=post.guid)
 	if parameter:
-		similar = similar.filter(date_updated__gt=datetime.now() - timedelta(seconds=parameter))
+		similar = similar.filter(date_updated__gt=timezone.now() - timedelta(seconds=parameter))
 	return not bool(similar.exists())
 
 same_guid.__doc__ = same_guid.__doc__.format(default_span_hr)
@@ -60,7 +61,7 @@ def similar_title(post, parameter=None):
 	similar = Post.objects.filtered(for_display=False)\
 		.exclude(id=post.id).similar(threshold, title=post.title)
 	if timespan:
-		similar = similar.filter(date_updated__gt=datetime.now() - timedelta(seconds=timespan))
+		similar = similar.filter(date_updated__gt=timezone.now() - timedelta(seconds=timespan))
 	return not bool(similar.exists())
 
 similar_title.__doc__ = similar_title.__doc__.format(

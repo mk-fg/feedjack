@@ -7,6 +7,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator, InvalidPage
 from django.http import Http404
 from django.utils.encoding import smart_unicode, force_unicode
+from django.utils import timezone
 
 from feedjack import models, fjcache
 
@@ -71,7 +72,7 @@ def get_extra_content(site, ctx):
 	ctx['feeds'] = feeds.order_by('name')
 	# get the last_modified/checked time
 	mod, chk = op.itemgetter('modified', 'checked')(feeds.timestamps)
-	chk = chk or datetime(1970, 1, 1)
+	chk = chk or datetime(1970, 1, 1, 0, 0, 0, 0, timezone.utc)
 	ctx['last_modified'], ctx['last_checked'] = mod or chk, chk
 	ctx['site'] = site
 	ctx['media_url'] = '{0}feedjack/{1}'.format(settings.STATIC_URL, site.template)
@@ -129,7 +130,8 @@ def get_page(site, page=1, **criterias):
 			except ValueError: pass
 			else: break
 		else: raise Http404 # invalid format
-		criterias['since'] = since
+		criterias['since'] = timezone.make_aware(
+			since, timezone.get_current_timezone() )
 	order_force = criterias.pop('asc', None)
 
 	posts = models.Post.objects.filtered(site, **criterias)\
@@ -182,7 +184,7 @@ def page_context(request, site, **criterias):
 		hits = page.paginator.count,
 		last_modified = max(it.imap(
 				op.attrgetter('date_updated'), page.object_list ))\
-			if len(page.object_list) else datetime(1970, 1, 1) )
+			if len(page.object_list) else datetime(1970, 1, 1, 0, 0, 0, 0, timezone.utc) )
 
 	get_extra_content(site, ctx)
 	ctx['tagcloud'] = tag_cloud
