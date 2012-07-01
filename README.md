@@ -127,6 +127,13 @@ and then [manage.py
 syncdb](http://docs.djangoproject.com/en/dev/ref/django-admin/#syncdb) from the
 command line.
 
+Make sure to add/uncomment "django.contrib.admin" app ([django admin
+interface](https://docs.djangoproject.com/en/dev/ref/contrib/admin/)) as well,
+since it's most convenient and supported way to configure and control feedjack.
+Otherwise the next best way would be to manipulate models from the python code
+directly, which might be desirable for some kind of migration or other automatic
+configuration.
+
 Then you must add an entry in your Django "urls.py" file.
 Just include feedjack.urls like this:
 
@@ -134,8 +141,10 @@ Just include feedjack.urls like this:
       (r'^admin/', include('django.contrib.admin.urls')),
       (r'', include('feedjack.urls')) )
 
-After that you might want to check out /admin section to create a feedjack site,
-otherwise sample default site will be created for you on the first entry.
+After that you might want to check out /admin section (if django.contrib.admin
+app was enabled, otherwise drop the "^admin/" line from urls as well) to create
+a feedjack site, otherwise sample default site will be created for you on the
+first entry.
 
 
 ### Requirements
