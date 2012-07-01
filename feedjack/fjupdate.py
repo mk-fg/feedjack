@@ -355,13 +355,13 @@ def make_cli_option_list():
 			help='A site id (or several of them) to update.'),
 
 		optparse.make_option('-t', '--timeout', type='int', default=20,
-			help='Socket timeout (in seconds) for connections (default: %(default)s).'),
+			help='Socket timeout (in seconds) for connections (default: 20).'),
 		optparse.make_option('-d', '--delay', type='int', default=0,
 			help='Delay between fetching the feeds (default: none).'),
 
 		optparse.make_option('-q', '--quiet', action='store_true',
 			help='Report only severe errors, no info or warnings.'),
-		optparse.make_option('-v', '--verbose', action='store_true', help='Verbose output.'),
+		optparse.make_option('--verbose', action='store_true', help='Verbose output.'),
 		optparse.make_option('--debug', action='store_true', help='Even more verbose output.') ]
 
 
@@ -379,9 +379,10 @@ def main(optz_dict=None):
 		optz = optparse.Values()
 		optz._update(optz_dict, 'loose')
 
-	if optz.debug: logging.basicConfig(level=logging.DEBUG)
-	elif optz.verbose: logging.basicConfig(level=logging.EXTRA)
-	elif optz.quiet: logging.basicConfig(level=logging.WARNING)
+	verbosity = int(vars(optz).get('verbosity', 1)) # from django-admin
+	if optz.debug or verbosity >= 3: logging.basicConfig(level=logging.DEBUG)
+	elif optz.verbose or verbosity >= 2: logging.basicConfig(level=logging.EXTRA)
+	elif optz.quiet or verbosity < 1: logging.basicConfig(level=logging.WARNING)
 	else: logging.basicConfig(level=logging.INFO)
 
 	# Make sure logging won't choke on encoding
