@@ -67,6 +67,9 @@ Fork
 	* Sane, configurable logging in feedjack_update, without re-inventing the wheel
 		via encode, prints and a tons of if's.
 
+	* Ability to use adaptive feed-check interval, based on average feed activity,
+		so feeds that get updated once a year won't be polled every hour.
+
 	* "immutable" flag for feeds, so their posts won't be re-fetched if their
 		content or date changes (for feeds that have "commets: N" thing).
 

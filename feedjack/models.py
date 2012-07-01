@@ -258,6 +258,31 @@ class Feed(models.Model):
 		return u'{0} ({1})'.format( self.name, self.feed_url
 			if len(self.feed_url) <= 50 else '{0}...'.format(self.feed_url[:47]) )
 
+	def calculate_check_interval( self,
+			consider_days, consider_updates, interval_max ):
+		'''Calculate interval for checks as average
+			time between updates for specified period.'''
+		# It should be possible to use (and then re-use) something
+		#  like ewma here, to avoid re-fetching possibly-lot of data from db
+		#  after each feed update
+		posts = posts_base = self.posts.only('date_updated').order_by('date_updated')
+		if consider_days:
+			posts = posts.filter(date_updated__gt=timezone.now() - timedelta(consider_days))
+		if consider_updates > 0:
+			posts = posts[:consider_updates]
+			if len(posts) < 2:
+				# To avoid situation when most rarely-updated feeds get interval=0
+				posts = posts_base[:consider_updates]
+		ts, intervals = None, list()
+		for post in posts:
+			if ts is None: # first post
+				ts = post.date_updated
+				continue
+			intervals.append((post.date_updated - ts).total_seconds())
+			ts = post.date_updated
+		return min( timedelta(interval_max).total_seconds(),
+			0 if not intervals else float(sum(intervals)) / len(intervals) )
+
 
 	@staticmethod
 	def _filters_update_handler_check(sender, instance, **kwz):

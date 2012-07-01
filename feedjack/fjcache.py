@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from hashlib import md5
 from django.core.cache import cache, get_cache
 from django.conf import settings
+
+import itertools as it, operator as op, functools as ft
+from hashlib import md5
 
 
 try:
@@ -15,9 +17,7 @@ except AttributeError:
 else: ajax_cache = get_cache(ajax_cache)
 
 
-T_HOST = 1
-T_ITEM = 2
-T_META = 3
+T_INTERVAL, T_HOST, T_ITEM, T_META = xrange(4)
 
 
 def str2md5(key):
@@ -26,22 +26,41 @@ def str2md5(key):
 
 def getkey(stype, site_id=None, key=None):
 	'Returns the cache key depending on its type.'
-	base = '%s.feedjack' % (settings.CACHE_MIDDLEWARE_KEY_PREFIX)
-	if stype == T_HOST:
-		return '%s.hostcache' % base
-	elif stype == T_ITEM:
-		return '%s.%d.item.%s' % (base, site_id, str2md5(key))
-	elif stype == T_META:
-		return '%s.%d.meta' % (base, site_id)
+	base = '{}.feedjack'.format(settings.CACHE_MIDDLEWARE_KEY_PREFIX)
+	if stype == T_HOST: return '{}.hostcache'.format(base)
+	elif stype == T_ITEM: return '{}.{}.item.{}'.format(base, site_id, str2md5(key))
+	elif stype == T_META: return '{}.{}.meta'.format(base, site_id)
+	elif stype == T_INTERVAL: return '{}.interval.{}'.format(base, site_id, str2md5(key))
 
 
 def hostcache_get():
-	'Retrieves the hostcache dictionary'
+	'Retrieves the hostcache dictionary.'
 	return cache.get(getkey(T_HOST))
 
 def hostcache_set(value):
-	'Sets the hostcache dictionary'
+	'Sets the hostcache dictionary.'
 	cache.set(getkey(T_HOST), value)
+
+
+def feed_interval_key(feed_id, parameters):
+	return '{}__{}'.format( feed_id,
+		':'.join(it.starmap('{}={}'.format, sorted(parameters.viewitems()))) )
+
+def feed_interval_get(feed_id, parameters):
+	'Get adaptive interval between checks for a feed.'
+	return cache.get(getkey( T_INTERVAL,
+		key=feed_interval_key(feed_id, parameters) ))
+
+def feed_interval_set(feed_id, parameters, value):
+	'Set adaptive interval between checks for a feed.'
+	cache.set(getkey( T_INTERVAL,
+		key=feed_interval_key(feed_id, parameters) ), value)
+
+def feed_interval_delete(feed_id, parameters, value):
+	'Invalidate cached adaptive interval value.'
+	cache.delete(getkey( T_INTERVAL,
+		key=feed_interval_key(feed_id, parameters) ))
+
 
 def cache_get(site_id, key):
 	'Retrieves cache data from a site.'

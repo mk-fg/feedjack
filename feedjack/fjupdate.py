@@ -7,10 +7,10 @@ import feedparser, feedjack
 from feedjack.models import transaction_wrapper, transaction, IntegrityError
 
 import itertools as it, operator as op, functools as ft
-from datetime import datetime
+from datetime import datetime, timedelta
 from time import struct_time, sleep
 from collections import defaultdict
-import os, sys
+import os, sys, types
 
 
 USER_AGENT = 'Feedjack {} - {}'.format(feedjack.__version__, feedjack.__url__)
@@ -272,11 +272,13 @@ class FeedProcessor(object):
 
 @transaction_wrapper(logging)
 def bulk_update(optz):
+	from feedjack.models import Feed, Site
+	from feedjack import fjcache
+
 	import socket
 	socket.setdefaulttimeout(optz.timeout)
 
-	from feedjack.models import Feed, Site
-	affected_sites = set() # to drop cache
+	affected_sites = set() # for cache invalidation
 
 	if optz.feed:
 		feeds = list(Feed.objects.filter(pk__in=optz.feed)) # no is_active check
@@ -304,10 +306,32 @@ def bulk_update(optz):
 
 	feed_stats, entry_stats = defaultdict(int), defaultdict(int)
 	for feed in feeds:
+		# Check if feed has to be fetched
+		if optz.adaptive_interval:
+			check_interval = fjcache.feed_interval_get(feed.id, optz.interval_parameters)
+			if check_interval is None: # calculate and cache it
+				check_interval = feed.calculate_check_interval(**optz.interval_parameters)
+				fjcache.feed_interval_set(feed.id, optz.interval_parameters, check_interval)
+			time_delta = timedelta(0, check_interval)
+			time_delta_chk = (timezone.now() - time_delta) - feed.last_checked
+			if time_delta_chk < timedelta(0):
+				log.debug(
+					( '[{}] Skipping check for feed (url: {}) due to adaptive interval setting.'
+						' Minimal time until next check {} (calculated min interval: {}).' )\
+					.format(feed.id, feed.feed_url, abs(time_delta_chk), abs(time_delta)) )
+				continue
+
+		# Fetch new/updated stuff from the feed to db
 		time_delta = timezone.now()
 		ret_feed, ret_entries = FeedProcessor(feed, optz).process()
 		time_delta = timezone.now() - time_delta
 
+		# Invalidate cached interval calculation if feed had any updates
+		if optz.adaptive_interval and any(it.imap(
+				ret_entries.get, [ENTRY_NEW, ENTRY_UPDATED, ENTRY_ERR] )):
+			fjcache.feed_interval_delete(feed.id, optz.interval_parameters)
+
+		# Feedback, stats, delay
 		log.info('[{0}] Processed {1} in {2}s [{3}] [{4}]{5}'.format(
 			feed.id, feed.feed_url, time_delta, feed_keys_dict[ret_feed],
 			' '.join('{0}={1}'.format( label,
@@ -334,6 +358,11 @@ def bulk_update(optz):
 	for site_id in affected_sites: fjcache.cache_delsite(site_id)
 
 
+# Can't be specified in options because django doesn't interpret "%(default)s"
+#  in option help strings, and interval_parameters can be partially overidden.
+cli_defaults = dict( timeout=20, delay=0,
+	interval_parameters=dict(
+		consider_days=60, consider_updates=50, interval_max=1 ) )
 
 def make_cli_option_list():
 	import optparse
@@ -354,10 +383,36 @@ def make_cli_option_list():
 		optparse.make_option('-s', '--site', action='append', type='int',
 			help='A site id (or several of them) to update.'),
 
-		optparse.make_option('-t', '--timeout', type='int', default=20,
-			help='Socket timeout (in seconds) for connections (default: 20).'),
-		optparse.make_option('-d', '--delay', type='int', default=0,
-			help='Delay between fetching the feeds (default: none).'),
+		optparse.make_option('-a', '--adaptive-interval', action='store_true',
+			help=( 'Skip fetching feeds, depending on adaptive'
+					' per-feed update interval, depending on average update intervals.'
+				' This means that rarely-updated feeds will be skipped,'
+					' if time since last check is greater than average interval between feed'
+					' updates for some period (default: '
+						'{0[consider_days]} day(s) or {0[consider_updates]} last updates),'
+					' but lesser than defined maximum (default: {0[interval_max]}d).' )\
+				.format(cli_defaults['interval_parameters'])),
+		optparse.make_option('-i', '--interval-parameters',
+			metavar='k1=v1:k2=v2:...', default=cli_defaults['interval_parameters'],
+			help=( 'Parameters for calculating per-feed update interval.'
+					' Specified as "key=value" pairs, separated by colons.'
+					' Accepted keys: {}.'
+					' Accepted values: integers (days), floats (days),'
+						' "0" or "none" meaning "no limit", adding "h" suffix means'
+						' that value will be interpreted as hours (instead of days),'
+						' "s" suffix for seconds.'
+					' Defaults: {}' )\
+				.format( ', '.join(cli_defaults['interval_parameters']),
+					':'.join(it.starmap('{}={}'.format, cli_defaults['interval_parameters'].viewitems())) )),
+
+		optparse.make_option('-t', '--timeout',
+			metavar='seconds', type='int', default=cli_defaults['timeout'],
+			help='Socket timeout (in seconds)'
+				' for connections (default: {}).'.format(cli_defaults['timeout'])),
+		optparse.make_option('-d', '--delay',
+			metavar='seconds', type='int', default=cli_defaults['delay'],
+			help='Delay (in seconds) between'
+				' fetching the feeds (default: {}).'.format(cli_defaults['delay'])),
 
 		optparse.make_option('-q', '--quiet', action='store_true',
 			help='Report only severe errors, no info or warnings.'),
@@ -366,6 +421,7 @@ def make_cli_option_list():
 
 
 def main(optz_dict=None):
+	from django.core.management.base import CommandError
 	import optparse
 
 	if optz_dict is None:
@@ -376,14 +432,37 @@ def main(optz_dict=None):
 		if argz: parser.error('This command takes no arguments')
 
 	else:
+		parser = None # to check and re-raise django CommandError
 		optz = optparse.Values()
 		optz._update(optz_dict, 'loose')
 
+	# Set console logging level
 	verbosity = int(vars(optz).get('verbosity', 1)) # from django-admin
 	if optz.debug or verbosity >= 3: logging.basicConfig(level=logging.DEBUG)
 	elif optz.verbose or verbosity >= 2: logging.basicConfig(level=logging.EXTRA)
 	elif optz.quiet or verbosity < 1: logging.basicConfig(level=logging.WARNING)
 	else: logging.basicConfig(level=logging.INFO)
+
+	# Process --interval-parameters
+	try:
+		if isinstance(optz.interval_parameters, types.StringTypes):
+			params = cli_defaults['interval_parameters'].copy()
+			for v in optz.interval_parameters.split(':'):
+				k, vs = v.split('=')
+				if k not in params:
+					raise CommandError('Unrecognized interval parameter: {}'.format(k))
+				if vs in ['none', 'None']: v = 0
+				else:
+					try: v = float(vs.rstrip('sdh'))
+					except ValueError:
+						raise CommandError('Unrecognized interval parameter value: {}'.format(vs))
+				if vs.endswith('h'): v = v / float(24)
+				elif vs.endswith('s'): v = v / float(3600 * 24)
+				params[k] = v
+			optz.interval_parameters = params
+	except CommandError as err:
+		if not parser: raise
+		parser.error(*err.args)
 
 	# Make sure logging won't choke on encoding
 	import codecs
