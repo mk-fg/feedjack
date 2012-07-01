@@ -362,7 +362,7 @@ def bulk_update(optz):
 #  in option help strings, and interval_parameters can be partially overidden.
 cli_defaults = dict( timeout=20, delay=0,
 	interval_parameters=dict(
-		consider_days=60, consider_updates=50, interval_max=1 ) )
+		consider_days=14, consider_updates=10, interval_max=0.5 ) )
 
 def make_cli_option_list():
 	import optparse
