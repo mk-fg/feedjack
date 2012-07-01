@@ -153,15 +153,65 @@ first entry.
 * [Feedparser 4.1+](feedparser.org)
 * [Django 1.4+](djangoproject.com)
 * (optional) [lxml](http://lxml.de) - used for html mangling in some themes (fern, plain)
+* (optional) [south](http://south.aeracode.org) - for database schema migrations
+  (when updating from older Feedjack versions)
 
 
-### Update from older versions
+### Updating from older versions
 
-The only non-backwards-compatible changes should be in the database schema and
-are documented in
-[CHANGES_DATABASE](https://raw.github.com/mk-fg/feedjack/master/CHANGES_DATABASE)
-file.
+The only non-backwards-compatible changes should be in the database schema, thus
+requiring migration, but it's much easier (automatic, even) than it sounds.
 
+Feedjack uses South for database migration, so it [has to be
+installed](http://south.readthedocs.org/en/latest/installation.html) if database
+schema migrations are necessary.
+Don't forget to [add "south" to
+INSTALLED_APPS](http://south.readthedocs.org/en/latest/installation.html#installation-configure)
+afterwards.
+
+After that, use something like that to see current database schema version and
+which migrations are necessary:
+
+	./manage.py migrate --list
+
+	feedjack
+	  (*) 0001_initial
+	  (*) 0002_auto__chg_field_post_author__chg_field_post_comments__chg_field_post_l
+	  (*) 0003_auto__add_field_feed_immutable
+	  (*) 0004_auto__chg_field_post_title
+	  (*) 0005_auto__add_filterbase__add_filter__add_filterresult
+	  (*) 0006_auto__add_field_post_filtering_result__chg_field_site_tagcloud_levels_
+	  (*) 0007_auto__add_field_filterbase_crossref
+	  (*) 0008_auto__add_field_filterbase_crossref_span__chg_field_tag_name__chg_fiel
+	  (*) 0009_auto__add_field_post_date_updated__chg_field_post_date_created
+	  (*) 0010_auto__del_field_post_date_updated__chg_field_post_date_created
+	  (*) 0011_auto__add_field_post_date_updated__chg_field_post_date_created
+	  (*) 0012_auto__chg_field_filterbase_crossref_span
+	  (*) 0013_auto__add_field_filterbase_crossref_rebuild__add_field_filterbase_cros
+	  ( ) 0014_auto__add_field_post_hidden
+	  ( ) 0015_auto__add_field_feed_skip_errors
+	  ( ) 0016_auto__chg_field_post_title__chg_field_post_link
+	  ( ) 0017_auto__chg_field_tag_name
+
+Here you can see at which version the current schema is and how far it's behind
+what code (models.py) expects it to be.
+
+All the necessary migrations can be applied with a single `./manage.py migrate feedjack`
+command:
+
+	./manage.py migrate feedjack
+
+	Running migrations for feedjack:
+	 - Migrating forwards to 0017_auto__chg_field_tag_name.
+	 > feedjack:0014_auto__add_field_post_hidden
+	 > feedjack:0015_auto__add_field_feed_skip_errors
+	 > feedjack:0016_auto__chg_field_post_title__chg_field_post_link
+	 > feedjack:0017_auto__chg_field_tag_name
+	 - Loading initial data for feedjack.
+	Installed 4 object(s) from 1 fixture(s)
+
+In case of any issues and for more advanced usage information, please refer to
+[South project documentation](http://south.readthedocs.org/en/latest/).
 
 
 Configuration
