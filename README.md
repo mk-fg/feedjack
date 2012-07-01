@@ -43,42 +43,42 @@ Fork
 --------------------
 
 * (fixed) Bugs:
-  * hashlib warning
-  * field lenghts
-  * non-unique date sort criteria
-  * Always-incorrect date_modified setting (by treating UTC as localtime)
-  * Misc unicode handling fixes.
+	* hashlib warning
+	* field lenghts
+	* non-unique date sort criteria
+	* Always-incorrect date_modified setting (by treating UTC as localtime)
+	* Misc unicode handling fixes.
 
 * Features:
 
-  * Proper transactional updates, so single feed failure is guaranteed not to
-    produce inconsistency or crash the parser.
+	* Proper transactional updates, so single feed failure is guaranteed not to
+		produce inconsistency or crash the parser.
 
-  * Simple individual Post filters, built in python (callable, accepting Post
-    object and optional parameters, returning True/False), attached (to individual
-    Feeds) and configured (additional parameters to pass) via database (or admin
-    interface).
+	* Simple individual Post filters, built in python (callable, accepting Post
+		object and optional parameters, returning True/False), attached (to individual
+		Feeds) and configured (additional parameters to pass) via database (or admin
+		interface).
 
-  * As complex as needed cross-referencing filters for tasks like site-wide
-    elimination of duplicate entries from a different feeds (by arbitrary
-    comparison functions as well), and automatic mechanism for invalidation of
-    their results.
+	* As complex as needed cross-referencing filters for tasks like site-wide
+		elimination of duplicate entries from a different feeds (by arbitrary
+		comparison functions as well), and automatic mechanism for invalidation of
+		their results.
 
-  * Sane, configurable logging in feedjack_update, without re-inventing the wheel
-    via encode, prints and a tons of if's.
+	* Sane, configurable logging in feedjack_update, without re-inventing the wheel
+		via encode, prints and a tons of if's.
 
-  * "immutable" flag for feeds, so their posts won't be re-fetched if their
-    content or date changes (for feeds that have "commets: N" thing).
+	* "immutable" flag for feeds, so their posts won't be re-fetched if their
+		content or date changes (for feeds that have "commets: N" thing).
 
-  * Dropped a chunk of obsolete code (ripped from old django) - ObjectPaginator in
-    favor of native Paginator.
+	* Dropped a chunk of obsolete code (ripped from old django) - ObjectPaginator in
+		favor of native Paginator.
 
-  * Minimalistic "fern" and "plain" (merged from [another
-    fork](http://git.otfbot.org/feedjack.git/)) styles, image feed oriented
-    "fern_grid" style.
+	* Minimalistic "fern" and "plain" (merged from [another
+		fork](http://git.otfbot.org/feedjack.git/)) styles, image feed oriented
+		"fern_grid" style.
 
-  * Quite a few code optimizations.
-  * ...and there's usually more stuff in the CHANGES file.
+	* Quite a few code optimizations.
+	* ...and there's usually more stuff in the CHANGES file.
 
 
 Installation
@@ -113,7 +113,7 @@ It must be set in a way that Feedjack’s static directory can be reached at
 For instance, if your STATIC_URL resolves to /var/www, and Feedjack was installed
 in /usr/lib/python2.7/site-packages/feedjack, just type this:
 
-    ln -s /usr/lib/python2.7/site-packages/feedjack/static/feedjack /var/www/feedjack
+	% ln -s /usr/lib/python2.7/site-packages/feedjack/static/feedjack /var/www/feedjack
 
 Alternatively, standard
 [django.contrib.staticfiles](https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/)
@@ -142,9 +142,9 @@ database schema updates effortlessly.
 Then you must add an entry in your Django "urls.py" file.
 Just include feedjack.urls like this:
 
-    urlpatterns = patterns( '',
-      (r'^admin/', include('django.contrib.admin.urls')),
-      (r'', include('feedjack.urls')) )
+	urlpatterns = patterns( '',
+		(r'^admin/', include('django.contrib.admin.urls')),
+		(r'', include('feedjack.urls')) )
 
 After that you might want to check out /admin section (if django.contrib.admin
 app was enabled, otherwise drop the "^admin/" line from urls as well) to create
@@ -159,7 +159,7 @@ first entry.
 * [Django 1.4+](djangoproject.com)
 * (optional) [lxml](http://lxml.de) - used for html mangling in some themes (fern, plain)
 * (optional) [South](http://south.aeracode.org) - for automated database schema
-  migrations (when updating from older Feedjack versions)
+	migrations (when updating from older Feedjack versions)
 
 
 ### Updating from older versions
@@ -177,7 +177,7 @@ afterwards.
 After that, use something like this to see current database schema version and
 which migrations are necessary:
 
-	./manage.py migrate --list
+	% ./manage.py migrate --list
 
 	feedjack
 	  (*) 0001_initial
@@ -210,7 +210,7 @@ the model classes.
 All the necessary migrations can be applied with a single `./manage.py migrate feedjack`
 command:
 
-	./manage.py migrate feedjack
+	% ./manage.py migrate feedjack
 
 	Running migrations for feedjack:
 	 - Migrating forwards to 0017_auto__chg_field_tag_name.
@@ -267,6 +267,8 @@ Original version is available at [feedjack site](http://www.feedjack.org/).
 Links
 --------------------
 
+* Original feedjack project: http://www.feedjack.org/
+
 * Other known non-github forks
-  * http://git.otfbot.org/feedjack.git/
-  * http://code.google.com/p/feedjack-extension/
+	* http://git.otfbot.org/feedjack.git/
+	* http://code.google.com/p/feedjack-extension/
