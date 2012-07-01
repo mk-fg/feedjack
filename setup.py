@@ -51,6 +51,7 @@ setup(
 
 	install_requires = ['feedparser', 'Django >= 1.4'],
 	extras_require = {
+		'db_migration': ['South'],
 		'themes.fern': ['lxml'],
 		'themes.plain': ['lxml'] },
 

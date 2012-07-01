@@ -128,11 +128,16 @@ syncdb](http://docs.djangoproject.com/en/dev/ref/django-admin/#syncdb) from the
 command line.
 
 Make sure to add/uncomment "django.contrib.admin" app ([django admin
-interface](https://docs.djangoproject.com/en/dev/ref/contrib/admin/)) as well,
-since it's most convenient and supported way to configure and control feedjack.
+interface](https://docs.djangoproject.com/en/dev/ref/contrib/admin/)) before
+runnng syncdb as well, since it's most convenient and supported way to configure
+and control feedjack.
 Otherwise the next best way would be to manipulate models from the python code
 directly, which might be desirable for some kind of migration or other automatic
 configuration.
+
+If [South app](http://south.aeracode.org) is available (highly recommended),
+make sure to add it to INSTALLED_APPS as well, so it'd be able to apply future
+database schema updates effortlessly.
 
 Then you must add an entry in your Django "urls.py" file.
 Just include feedjack.urls like this:
@@ -150,11 +155,11 @@ first entry.
 ### Requirements
 
 * [Python 2.7](python.org)
-* [Feedparser 4.1+](feedparser.org)
+* [feedparser 4.1+](feedparser.org)
 * [Django 1.4+](djangoproject.com)
 * (optional) [lxml](http://lxml.de) - used for html mangling in some themes (fern, plain)
-* (optional) [south](http://south.aeracode.org) - for database schema migrations
-  (when updating from older Feedjack versions)
+* (optional) [South](http://south.aeracode.org) - for automated database schema
+  migrations (when updating from older Feedjack versions)
 
 
 ### Updating from older versions
@@ -169,7 +174,7 @@ Don't forget to [add "south" to
 INSTALLED_APPS](http://south.readthedocs.org/en/latest/installation.html#installation-configure)
 afterwards.
 
-After that, use something like that to see current database schema version and
+After that, use something like this to see current database schema version and
 which migrations are necessary:
 
 	./manage.py migrate --list
@@ -195,6 +200,12 @@ which migrations are necessary:
 
 Here you can see at which version the current schema is and how far it's behind
 what code (models.py) expects it to be.
+
+If South was just installed, you may have to specify initial schema version
+manually by using command like `./manage.py migrate feedjack 0013 --fake`.
+Best way to manually find which model version was used before South is probably
+to inspect git history for models.py to find the first not-yet applied change to
+the model classes.
 
 All the necessary migrations can be applied with a single `./manage.py migrate feedjack`
 command:
