@@ -265,21 +265,21 @@ class Feed(models.Model):
 		# It should be possible to use (and then re-use) something
 		#  like ewma here, to avoid re-fetching possibly-lot of data from db
 		#  after each feed update
-		posts = posts_base = self.posts.only('date_updated').order_by('date_updated')
+		posts = posts_base = self.posts.only('date_modified').order_by('date_modified')
 		if consider_days:
-			posts = posts.filter(date_updated__gt=timezone.now() - timedelta(consider_days))
+			posts = posts.filter(date_modified__gt=timezone.now() - timedelta(consider_days))
 		if consider_updates > 0:
 			posts = posts[:consider_updates]
-			if len(posts) < 2:
+			if len(posts) < min(5, consider_updates):
 				# To avoid situation when most rarely-updated feeds get interval=0
 				posts = posts_base[:consider_updates]
 		ts, intervals = None, list()
 		for post in posts:
 			if ts is None: # first post
-				ts = post.date_updated
+				ts = post.date_modified
 				continue
-			intervals.append((post.date_updated - ts).total_seconds())
-			ts = post.date_updated
+			intervals.append((post.date_modified - ts).total_seconds())
+			ts = post.date_modified
 		return min( timedelta(interval_max).total_seconds(),
 			0 if not intervals else float(sum(intervals)) / len(intervals) )
 
