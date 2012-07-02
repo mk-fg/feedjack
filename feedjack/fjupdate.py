@@ -319,7 +319,7 @@ def bulk_update(optz):
 			time_delta = timedelta(0, check_interval)
 			time_delta_chk = (timezone.now() - time_delta) - feed.last_checked
 			if time_delta_chk < timedelta(0):
-				log.debug(
+				log.extra(
 					( '[{}] Skipping check for feed (url: {}) due to adaptive interval setting.'
 						' Minimal time until next check {} (calculated min interval: {}).' )\
 					.format(feed.id, feed.feed_url, abs(time_delta_chk), abs(time_delta)) )
