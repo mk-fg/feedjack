@@ -6,7 +6,7 @@ body {
 #header {
 	background: #8bad95;
 	border-bottom: 2px solid #CCC;
-	padding: .2em;
+	padding: .2em 0;
 	float: left;
 	width: 100%;
 }
