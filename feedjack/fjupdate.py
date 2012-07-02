@@ -188,8 +188,6 @@ class FeedProcessor(object):
 			ENTRY_SAME: 0,
 			ENTRY_ERR: 0 }
 
-		log.info('[{0}] Processing feed {1}'.format(self.feed.id, self.feed.feed_url))
-
 		try:
 			self.fpf = feedparser.parse(
 				self.feed.feed_url, agent=USER_AGENT,
@@ -306,8 +304,10 @@ def bulk_update(optz):
 
 	feed_stats, entry_stats = defaultdict(int), defaultdict(int)
 	for feed in feeds:
+		log.info('[{}] Processing feed: {}'.format(feed.id, feed.feed_url))
+
 		# Check if feed has to be fetched
-		if optz.adaptive_interval:
+		if optz.adaptive_interval and feed.last_checked:
 			check_interval = fjcache.feed_interval_get(feed.id, optz.interval_parameters)
 			if check_interval is None: # calculate and cache it
 				check_interval = feed.calculate_check_interval(**optz.interval_parameters)
