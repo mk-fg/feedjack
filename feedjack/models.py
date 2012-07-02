@@ -259,29 +259,26 @@ class Feed(models.Model):
 			if len(self.feed_url) <= 50 else '{0}...'.format(self.feed_url[:47]) )
 
 	def calculate_check_interval( self,
-			consider_days, consider_updates, interval_max ):
+			max_days, max_updates, max_interval,
+			ewma_factor, ewma=0, ewma_ts=None ):
 		'''Calculate interval for checks as average
-			time between updates for specified period.'''
-		# It should be possible to use (and then re-use) something
-		#  like ewma here, to avoid re-fetching possibly-lot of data from db
-		#  after each feed update
-		posts = posts_base = self.posts.only('date_modified').order_by('date_modified')
-		if consider_days:
-			posts = posts.filter(date_modified__gt=timezone.now() - timedelta(consider_days))
-		if consider_updates > 0:
-			posts = posts[:consider_updates]
-			if len(posts) < min(5, consider_updates):
-				# To avoid situation when most rarely-updated feeds get interval=0
-				posts = posts_base[:consider_updates]
-		ts, intervals = None, list()
+			time (ewma) between updates for specified period.'''
+		posts_base = self.posts.only('date_modified').order_by('date_modified')
+		if ewma_ts: posts_base = posts_base.filter(date_modified__gt=ewma_ts)
+		posts = posts_base
+		if max_days:
+			posts = posts.filter(date_modified__gt=timezone.now() - timedelta(max_days))
+		if max_updates > 0:
+			posts = posts[:max_updates]
+			if len(posts) < max_updates: posts = posts_base[:max_updates]
 		for post in posts:
-			if ts is None: # first post
-				ts = post.date_modified
+			if ewma_ts is None: # first post
+				ewma_ts = post.date_modified
 				continue
-			intervals.append((post.date_modified - ts).total_seconds())
-			ts = post.date_modified
-		return min( timedelta(interval_max).total_seconds(),
-			0 if not intervals else float(sum(intervals)) / len(intervals) )
+			ewma_ts, interval = post.date_modified,\
+				(post.date_modified - ewma_ts).total_seconds()
+			ewma = ewma_factor * interval + (1 - ewma_factor) * ewma
+		return min(timedelta(max_interval).total_seconds(), ewma)
 
 
 	@staticmethod

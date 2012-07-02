@@ -311,29 +311,34 @@ def bulk_update(optz):
 		log.info('[{}] Processing feed: {}'.format(feed.id, feed.feed_url))
 
 		# Check if feed has to be fetched
-		if optz.adaptive_interval and feed.last_checked:
-			check_interval = fjcache.feed_interval_get(feed.id, optz.interval_parameters)
-			if check_interval is None: # calculate and cache it
-				check_interval = feed.calculate_check_interval(**optz.interval_parameters)
-				fjcache.feed_interval_set(feed.id, optz.interval_parameters, check_interval)
-			time_delta = timedelta(0, check_interval)
-			time_delta_chk = (timezone.now() - time_delta) - feed.last_checked
-			if time_delta_chk < timedelta(0):
-				log.extra(
-					( '[{}] Skipping check for feed (url: {}) due to adaptive interval setting.'
-						' Minimal time until next check {} (calculated min interval: {}).' )\
-					.format(feed.id, feed.feed_url, abs(time_delta_chk), abs(time_delta)) )
-				continue
+		if optz.adaptive_interval:
+			if feed.last_checked:
+				check_interval = fjcache.feed_interval_get(feed.id, optz.interval_parameters)
+				if check_interval is None: # calculate and cache it
+					check_interval = feed.calculate_check_interval(**optz.interval_parameters)
+					fjcache.feed_interval_set(feed.id, optz.interval_parameters, check_interval)
+				check_interval_ts = feed.last_checked
+				time_delta = timedelta(0, check_interval)
+				time_delta_chk = (timezone.now() - time_delta) - check_interval_ts
+				if time_delta_chk < timedelta(0):
+					log.extra(
+						( '[{}] Skipping check for feed (url: {}) due to adaptive interval setting.'
+							' Minimal time until next check {} (calculated min interval: {}).' )\
+						.format(feed.id, feed.feed_url, abs(time_delta_chk), abs(time_delta)) )
+					continue
+			else: check_interval, check_interval_ts = 0, None
 
 		# Fetch new/updated stuff from the feed to db
 		time_delta = timezone.now()
 		ret_feed, ret_entries = FeedProcessor(feed, optz).process()
 		time_delta = timezone.now() - time_delta
 
-		# Invalidate cached interval calculation if feed had any updates
+		# Update check_interval ewma if feed had updates
 		if optz.adaptive_interval and any(it.imap(
 				ret_entries.get, [ENTRY_NEW, ENTRY_UPDATED, ENTRY_ERR] )):
-			fjcache.feed_interval_delete(feed.id, optz.interval_parameters)
+			check_interval = feed.calculate_check_interval(
+				ewma=check_interval, ewma_ts=check_interval_ts, **optz.interval_parameters )
+			fjcache.feed_interval_set(feed.id, optz.interval_parameters, check_interval)
 
 		# Feedback, stats, delay
 		log.info('[{0}] Processed {1} in {2}s [{3}] [{4}]{5}'.format(
@@ -367,7 +372,8 @@ def bulk_update(optz):
 #  in option help strings, and interval_parameters can be partially overidden.
 cli_defaults = dict( timeout=20, delay=0,
 	interval_parameters=dict(
-		consider_days=14, consider_updates=10, interval_max=0.5 ) )
+		ewma_factor=0.3, max_interval=0.5,
+		max_days=14, max_updates=20 ) )
 
 def make_cli_option_list():
 	import optparse
@@ -392,10 +398,10 @@ def make_cli_option_list():
 			help=( 'Skip fetching feeds, depending on adaptive'
 					' per-feed update interval, depending on average update intervals.'
 				' This means that rarely-updated feeds will be skipped,'
-					' if time since last check is greater than average interval between feed'
-					' updates for some period (default: '
-						'{0[consider_days]} day(s) or {0[consider_updates]} last updates),'
-					' but lesser than defined maximum (default: {0[interval_max]}d).' )\
+					' if time since last check is greater than average (ewma) interval between'
+					' feed updates for some period (default: '
+						'{0[max_days]} day(s) or {0[max_updates]} last updates),'
+					' but lesser than defined maximum (default: {0[max_interval]}d).' )\
 				.format(cli_defaults['interval_parameters'])),
 		optparse.make_option('-i', '--interval-parameters',
 			metavar='k1=v1:k2=v2:...', default=cli_defaults['interval_parameters'],
