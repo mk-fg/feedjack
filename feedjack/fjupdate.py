@@ -347,6 +347,7 @@ def bulk_update(optz):
 
 		if optz.delay: sleep(optz.delay)
 
+	_exc_feed_id = None
 	transaction.commit()
 
 	time_delta_global = timezone.now() - time_delta_global
