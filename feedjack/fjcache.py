@@ -30,7 +30,7 @@ def getkey(stype, site_id=None, key=None):
 	if stype == T_HOST: return '{}.hostcache'.format(base)
 	elif stype == T_ITEM: return '{}.{}.item.{}'.format(base, site_id, str2md5(key))
 	elif stype == T_META: return '{}.{}.meta'.format(base, site_id)
-	elif stype == T_INTERVAL: return '{}.interval.{}'.format(base, site_id, str2md5(key))
+	elif stype == T_INTERVAL: return '{}.interval.{}'.format(base, str2md5(key))
 
 
 def hostcache_get():
@@ -56,7 +56,7 @@ def feed_interval_set(feed_id, parameters, value):
 	cache.set(getkey( T_INTERVAL,
 		key=feed_interval_key(feed_id, parameters) ), value)
 
-def feed_interval_delete(feed_id, parameters, value):
+def feed_interval_delete(feed_id, parameters):
 	'Invalidate cached adaptive interval value.'
 	cache.delete(getkey( T_INTERVAL,
 		key=feed_interval_key(feed_id, parameters) ))
