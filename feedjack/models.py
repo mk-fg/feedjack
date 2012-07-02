@@ -702,7 +702,7 @@ transaction.rollback = signaled_rollback
 transaction_start = Signal(providing_args=list())
 transaction_finish = Signal(providing_args=['error']) # error holds exception or None
 
-def transaction_wrapper(func, logger=None):
+def transaction_wrapper(func, logger=None, print_exc=None):
 	'''Traps exceptions in transaction.commit_manually blocks,
 		instead of just replacing them by non-meaningful no-commit django exceptions'''
 	if (func is not None and logger is not None)\
@@ -714,17 +714,19 @@ def transaction_wrapper(func, logger=None):
 			try: result = func(*argz, **kwz)
 			except Exception as err:
 				transaction_finish.send(sender=func.func_name, error=err)
-				import sys, traceback
-				(logger or log).error(( u'Unhandled exception: {0},'
-					' traceback:\n {1}' ).format( err,
-						smart_unicode(''.join(traceback.format_tb(sys.exc_info()[2]))) ))
+				if print_exc: print_exc() # used in fjupdate to add feed data to error msg
+				else:
+					import sys, traceback
+					(logger or log).error(( u'Unhandled exception: {0},'
+						' traceback:\n {1}' ).format( err,
+							smart_unicode(''.join(traceback.format_tb(sys.exc_info()[2]))) ))
 				raise
 			else:
 				transaction_finish.send(sender=func.func_name, error=None)
 			return result
 		return _transaction_wrapper
 	else:
-		return ft.partial(transaction_wrapper, logger=func)
+		return ft.partial(transaction_wrapper, logger=func, print_exc=print_exc)
 
 
 # These are here to defer costly FilterResult updates until the end of transaction,

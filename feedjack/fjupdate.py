@@ -18,9 +18,9 @@ SLOWFEED_WARNING = 10
 
 import logging
 logging.EXTRA = (logging.DEBUG + logging.INFO) // 2
+logging.addLevelName(logging.EXTRA, 'EXTRA')
 log = logging.getLogger(os.path.basename(__file__))
-log.extra = ft.partial(log.log, logging.EXTRA)
-# TODO: special formatter to insert feed_id to the prefix
+log.extra = ft.partial(log.log, logging.EXTRA) # should only be used here
 
 
 ENTRY_NEW, ENTRY_UPDATED,\
@@ -50,9 +50,10 @@ class FeedValidationError(Exception): pass
 
 feedparser_ts = lambda ts: datetime(*ts[:6] + (0, timezone.utc))
 
-_exc_frame = '[{0}] ! ' + '-'*25 + '\n'
-def print_exc(feed_id):
+_exc_feed_id = None # to be available on any print_exc call
+def print_exc(feed_id=None, _exc_frame='[{0}] ! ' + '-'*25 + '\n'):
 	import traceback
+	if not feed_id: feed_id = _exc_feed_id
 	sys.stderr.write(_exc_frame.format(feed_id))
 	traceback.print_exc()
 	sys.stderr.write(_exc_frame.format(feed_id))
@@ -268,8 +269,10 @@ class FeedProcessor(object):
 
 
 
-@transaction_wrapper(logging)
+@transaction_wrapper(logging, print_exc=print_exc)
 def bulk_update(optz):
+	global _exc_feed_id # updated to be available on uncaught errors
+
 	from feedjack.models import Feed, Site
 	from feedjack import fjcache
 
@@ -304,6 +307,7 @@ def bulk_update(optz):
 
 	feed_stats, entry_stats = defaultdict(int), defaultdict(int)
 	for feed in feeds:
+		_exc_feed_id = feed.id
 		log.info('[{}] Processing feed: {}'.format(feed.id, feed.feed_url))
 
 		# Check if feed has to be fetched
