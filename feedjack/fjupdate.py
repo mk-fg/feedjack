@@ -89,8 +89,8 @@ class FeedProcessor(object):
 		try: post.content = entry.content[0].value
 		except: post.content = entry.get('summary', entry.get('description', ''))
 
-		post.date_modified = feedparser_ts(entry.modified_parsed)\
-			if 'modified_parsed' in entry else None
+		post.date_modified = entry.get('modified_parsed', None)
+		if post.date_modified: post.date_modified = feedparser_ts(post.date_modified)
 		post.comments = entry.get('comments', '')
 
 		## Get a list of tag objects from an entry
