@@ -237,9 +237,11 @@ class FeedProcessor(object):
 			from feedjack.models import Post
 			self.postdict = dict( (post.guid, post)
 				for post in Post.objects.filter(
-					feed=self.feed.id ).filter(guid__in=guids) )
+					feed=self.feed.id, guid__in=guids ) )
 			if self.options.max_diff:
-				diff = op.truediv(len(guids) - len(self.postdict), len(guids)) * 100
+				# Do not calculate diff for empty (probably just-added) feeds
+				if not self.postdict and Post.objects.filter(feed=self.feed.id).count() == 0: diff = 0
+				else: diff = op.truediv(len(guids) - len(self.postdict), len(guids)) * 100
 				if diff > self.options.max_diff:
 					log.warn( '[{0}] Feed validation failed: {1} (diff: {2}% > {3}%)'\
 						.format(self.feed.id, self.feed.feed_url, round(diff, 1), self.options.max_diff) )
