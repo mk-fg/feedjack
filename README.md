@@ -105,7 +105,7 @@ installs into custom paths.
 Better way would be to use [pip](http://pip-installer.org/) to install all the
 necessary dependencies as well:
 
-	% pip install -e 'git://github.com/mk-fg/feedjack.git#egg=feedjack'
+	% pip install 'git+https://github.com/mk-fg/feedjack.git#egg=feedjack'
 
 After that you must set up your Feedjack static directory inside your Django
 [STATIC_URL](http://docs.djangoproject.com/en/dev/ref/settings/#static-url)
@@ -141,9 +141,11 @@ configuration.
 If [South app](http://south.aeracode.org) is available (highly recommended),
 make sure to add it to INSTALLED_APPS as well, so it'd be able to apply future
 database schema updates effortlessly.
+Don't forget to run "./manage.py migrate feedjack" in addition to syncdb in that
+case.
 
-Then you must add an entry in your Django "urls.py" file.
-Just include feedjack.urls like this:
+Then you must add an entry for feedjack.urls in your Django "urls.py" file, like
+this:
 
 	urlpatterns = patterns( '',
 		(r'^admin/', include('django.contrib.admin.urls')),
