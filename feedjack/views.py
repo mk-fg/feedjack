@@ -69,7 +69,8 @@ def initview(request, response_cache=True):
 				url=request.build_absolute_uri(request.path),
 				title='Feedjack Site Title',
 				description='Feedjack Site Description.'
-					' Please change this in the admin interface.' )
+					' Please change this in the admin interface.',
+				template='bootstrap' )
 			site.save()
 
 		else:

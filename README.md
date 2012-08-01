@@ -76,7 +76,7 @@ Fork
 	* Dropped a chunk of obsolete code (ripped from old Django) - ObjectPaginator in
 		favor of native Paginator.
 
-	* Minimalistic "fern" and "plain" (merged from [another
+	* Minimalistic "bootstrap", "fern" and "plain" (merged from [another
 		fork](http://git.otfbot.org/feedjack.git/)) styles, image feed oriented
 		"fern_grid" style.
 
