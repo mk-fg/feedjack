@@ -113,27 +113,27 @@ directory.
 It must be set in a way that Feedjack’s static directory can be reached at
 "STATIC_URL/feedjack/".
 
-For instance, if your STATIC_URL resolves to /var/www, and Feedjack was installed
-in /usr/lib/python2.7/site-packages/feedjack, just type this:
+For instance, if your STATIC_URL resolves to "/var/www/htdocs", and Feedjack was
+installed in /usr/lib/python2.7/site-packages/feedjack, just type this:
 
-	% ln -s /usr/lib/python2.7/site-packages/feedjack/static/feedjack /var/www/feedjack
+	% ln -s /usr/lib/python2.7/site-packages/feedjack/static/feedjack /var/www/htdocs/feedjack
 
 Alternatively, standard
 [django.contrib.staticfiles](https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/)
 app [can be used to copy/link static
 files](https://docs.djangoproject.com/en/dev/howto/static-files/) with
-"django-admin.py collectstatic" command.
+"./manage.py collectstatic" command.
 
 You must also add 'feedjack' in your settings.py under
 [INSTALLED_APPS](http://docs.djangoproject.com/en/dev/ref/settings/#installed-apps)
-and then [manage.py
-syncdb](http://docs.djangoproject.com/en/dev/ref/django-admin/#syncdb) from the
+and then run "[./manage.py
+syncdb](http://docs.djangoproject.com/en/dev/ref/django-admin/#syncdb)" from the
 command line.
 
 Make sure to add/uncomment "django.contrib.admin" app ([Django admin
 interface](https://docs.djangoproject.com/en/dev/ref/contrib/admin/)) before
-runnng syncdb as well, since it's most convenient and supported way to configure
-and control feedjack.
+runnng syncdb as well, since it's the most convenient and supported way to
+configure and control feedjack.
 Otherwise the next best way would be to manipulate models from the python code
 directly, which might be desirable for some kind of migration or other automatic
 configuration.
@@ -144,17 +144,16 @@ database schema updates effortlessly.
 Don't forget to run "./manage.py migrate feedjack" in addition to syncdb in that
 case.
 
-Then you must add an entry for feedjack.urls in your Django "urls.py" file, like
-this:
+Then you must add an entry for feedjack.urls in your Django "urls.py" file, so
+it'd look something like this (with admin interface also enabled on "/admin/"):
 
 	urlpatterns = patterns( '',
 		(r'^admin/', include('django.contrib.admin.urls')),
 		(r'', include('feedjack.urls')) )
 
 After that you might want to check out /admin section (if django.contrib.admin
-app was enabled, otherwise drop the "^admin/" line from urls as well) to create
-a feedjack site, otherwise sample default site will be created for you on the
-first entry.
+app was enabled) to create a feedjack site, otherwise sample default site will
+be created for you on the first request.
 
 
 ### Requirements
@@ -185,18 +184,7 @@ which migrations are necessary:
 	% ./manage.py migrate --list
 
 	feedjack
-	  (*) 0001_initial
-	  (*) 0002_auto__chg_field_post_author__chg_field_post_comments__chg_field_post_l
-	  (*) 0003_auto__add_field_feed_immutable
-	  (*) 0004_auto__chg_field_post_title
-	  (*) 0005_auto__add_filterbase__add_filter__add_filterresult
-	  (*) 0006_auto__add_field_post_filtering_result__chg_field_site_tagcloud_levels_
-	  (*) 0007_auto__add_field_filterbase_crossref
-	  (*) 0008_auto__add_field_filterbase_crossref_span__chg_field_tag_name__chg_fiel
-	  (*) 0009_auto__add_field_post_date_updated__chg_field_post_date_created
-	  (*) 0010_auto__del_field_post_date_updated__chg_field_post_date_created
-	  (*) 0011_auto__add_field_post_date_updated__chg_field_post_date_created
-	  (*) 0012_auto__chg_field_filterbase_crossref_span
+	  ...
 	  (*) 0013_auto__add_field_filterbase_crossref_rebuild__add_field_filterbase_cros
 	  ( ) 0014_auto__add_field_post_hidden
 	  ( ) 0015_auto__add_field_feed_skip_errors
