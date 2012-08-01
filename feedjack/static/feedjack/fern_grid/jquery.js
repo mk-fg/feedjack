@@ -1,1 +1,1 @@
-../fern/jquery.js
+../jquery.js

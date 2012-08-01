@@ -1,0 +1,29 @@
+@import url(bootstrap/css/bootstrap.min.css);
+
+.footer {
+	border-top: 1px solid #E5E5E5;
+	margin-top: 35px;
+	padding: 20px;
+}
+
+.page-header { margin: 50px 0 18px 0; }
+section.day:first-child .page-header { margin-top: 0; }
+
+.channel-header {
+	padding-left: 1em;
+	margin: .2em 0 1.5em;
+	border-bottom: 1px solid #ccc;
+}
+.entry-header {
+	border-bottom: 1px solid #dfdfdf;
+	margin-bottom: .6em;
+}
+
+.entry { margin-top: 2em; }
+.entry .clear { clear: both; }
+
+.entry>.content h1 { font-size: 110%; }
+.entry>.content h2 { font-size: 107%; }
+.entry>.content h3 { font-size: 105%; }
+.entry>.content h4 { font-size: 103%; }
+.entry>.content h5, .entry>.content h6  { font-size: 102%; }

@@ -12,6 +12,7 @@ from django.utils import timezone
 from feedjack import models, fjcache
 
 import itertools as it, operator as op, functools as ft
+from collections import OrderedDict
 from datetime import datetime, timedelta
 from urllib import quote
 
@@ -67,15 +68,18 @@ def getquery(query):
 
 def get_extra_content(site, ctx):
 	'Returns extra data useful to the templates.'
-	# get the subscribers' feeds
+	# Get the subscribers' feeds.
 	feeds = site.active_feeds
 	ctx['feeds'] = feeds.order_by('name')
-	# get the last_modified/checked time
+	# Get the last_modified/checked time.
 	mod, chk = op.itemgetter('modified', 'checked')(feeds.timestamps)
 	chk = chk or datetime(1970, 1, 1, 0, 0, 0, 0, timezone.utc)
 	ctx['last_modified'], ctx['last_checked'] = mod or chk, chk
 	ctx['site'] = site
-	ctx['media_url'] = '{0}feedjack/{1}'.format(settings.STATIC_URL, site.template)
+	# media_url is set here for historical reasons,
+	#  please use static_url or STATIC_URL (from django context) in any new templates.
+	ctx['media_url'] = ctx['static_url'] =\
+		'{}feedjack/{}'.format(settings.STATIC_URL, site.template)
 
 
 def get_posts_tags(subscribers, object_list, feed, tag_name):
@@ -191,7 +195,35 @@ def page_context(request, site, **criterias):
 		except ObjectDoesNotExist: raise Http404
 
 	ctx = dict(
+		last_modified = max(it.imap(
+				op.attrgetter('date_updated'), page.object_list ))\
+			if len(page.object_list) else datetime(1970, 1, 1, 0, 0, 0, 0, timezone.utc),
+
 		object_list = page.object_list,
+		subscribers = subscribers,
+		tag = tag_obj,
+		tagcloud = tag_cloud,
+
+		feed = feed,
+		url_suffix = ''.join((
+			'/feed/{0}'.format(feed.id) if feed else '',
+			'/tag/{0}'.format(quote(tag)) if tag else '' )),
+
+		p = page, # "page" is taken by legacy number
+		p_10neighbors = OrderedDict(
+			# OrderedDict of "num: exists" values
+			# Use as "{% for p_num, p_exists in p_10neighbors.items|slice:"7:-7" %}"
+			(p, p >= 1 and p <= page.paginator.num_pages)
+			for p in ((page.number + n) for n in xrange(-10, 11)) ),
+
+		## DEPRECATED:
+
+		# Totally misnamed and inconsistent b/w user/user_obj,
+		#  use "feed" and "subscribers" instead.
+		user_id = feed and feed.id,
+		user = user_obj,
+
+		# Legacy flat pagination context, use "p" instead.
 		is_paginated = page.paginator.num_pages > 1,
 		results_per_page = site.posts_per_page,
 		has_next = page.has_next(),
@@ -200,24 +232,8 @@ def page_context(request, site, **criterias):
 		next = page.number + 1,
 		previous = page.number - 1,
 		pages = page.paginator.num_pages,
-		hits = page.paginator.count,
-		last_modified = max(it.imap(
-				op.attrgetter('date_updated'), page.object_list ))\
-			if len(page.object_list) else datetime(1970, 1, 1, 0, 0, 0, 0, timezone.utc) )
+		hits = page.paginator.count )
 
 	get_extra_content(site, ctx)
-	ctx['tagcloud'] = tag_cloud
-	ctx['tag'] = tag_obj
-	ctx['subscribers'] = subscribers
-
-	# New
-	ctx['feed'] = feed
-	ctx['url_suffix'] = ''.join((
-		'/feed/{0}'.format(feed.id) if feed else '',
-		'/tag/{0}'.format(quote(tag)) if tag else '' ))
-
-	# Deprecated
-	ctx['user_id'] = feed and feed.id # totally misnamed and inconsistent with user_obj
-	ctx['user'] = user_obj
 
 	return ctx

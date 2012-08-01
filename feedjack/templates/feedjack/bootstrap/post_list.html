@@ -1,0 +1,206 @@
+{% load i18n html extract %}
+<!DOCTYPE html>
+<html
+	data-url_site="{{ site.url }}"
+	data-url_static="{{ static_url }}">
+
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+
+	<title>{% if feed %}{{ feed.title }} - {% endif %}{{ site.title }}</title>
+
+	<link rel="stylesheet" href="{{ static_url }}/default.css" type="text/css"/>
+	<!--[if lt IE 9]>
+		<script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+	<![endif]-->
+
+	<link rel="alternate" type="application/rss+xml"
+		title="RSS 2.0" href="{{ site.url }}/feed/rss/" />
+	<link rel="alternate" type="application/atom+xml"
+		title="Atom 1.0" href="{{ site.url }}/feed/atom/" />
+
+	<script type="text/javascript" src="{{ static_url }}/jquery.js"></script>
+	<script type="text/javascript" src="{{ static_url }}/bootstrap/js/bootstrap.min.js"></script>
+
+	{% block extrastyle %}{% endblock %}
+	{% block extrahead %}{% endblock %}
+</head>
+
+<body>
+
+<div class="navbar"><div class="navbar-inner">
+	<div class="container">
+		<span class="brand"><a href="{{ site.url }}"
+			>{% if feed %}{{ feed.shortname }} - {% endif %}{{ site.title }}</a></span>
+
+		<div class="nav-collapse">
+		<ul class="nav pull-right">
+			<li class="divider-vertical"></li>
+			<li><a href="{{ site.url }}/syndication/atom{{ url_suffix }}/" title="Atom 1.0 feed">Atom</a></li>
+			<li><a href="{{ site.url }}/syndication/rss{{ url_suffix }}/" title="RSS 2.0 feed">RSS</a></li>
+			<li class="divider-vertical"></li>
+			<li><a href="{{ site.url }}/syndication/foaf/">FOAF</a></li>
+			<li><a href="{{ site.url }}/syndication/opml/">OPML</a></li>
+			<li class="divider-vertical"></li>
+			<li class="dropdown">
+				<a class="dropdown-toggle"
+					data-toggle="dropdown" href="#"
+					>Subfeeds<b class="caret"></b></a>
+				<ul class="dropdown-menu">
+					{% for subsciber in subscribers %}
+					<li><a href="{{ site.url }}/feed/{{ subsciber.feed.id }}/"
+						title="{{ subsciber.feed.title }}">{{ subsciber.name }}</a></li>
+					{% endfor %}
+				</ul>
+			</li>
+    </ul>
+		</div>
+	</div>
+</div></div>
+
+
+<div class="buttons">
+	<a href="{{ site.url }}/syndication/atom{{ url_suffix }}/" title="Atom 1.0 feed">
+		<img src="{{ static_url }}/button-atom.png"/></a>
+	<a href="{{ site.url }}/syndication/rss{{ url_suffix }}/" title="RSS 2.0 feed">
+		<img src="{{ static_url }}/button-rss.png"/></a>
+	<a href="{{ site.url }}/syndication/opml/" title="OPML"><img src="{{ static_url }}/button-opml.png"/></a>
+	<a href="{{ site.url }}/syndication/foaf/" title="FOAF"><img src="{{ static_url }}/button-foaf.png"/></a>
+</div>
+
+
+<div class="container row-fluid">
+
+<div class="span1"></div> {# empty offset-column #}
+<div class="span10">
+
+<!-- <div class="subfeeds"></div> -->
+
+{% for item in object_list %}
+
+{% with item|site_ordering_date:site as date_site %}
+{% with date_site|date:"Y-m-d" as date_key %}
+
+{% ifchanged item.feed.id date_key %}
+{% if not forloop.first %}
+	</section> {# /.channel #}
+{% endif %}
+{% endifchanged %}
+
+{% ifchanged date_key %}
+{% if not forloop.first %}
+</section> {# /.day #}
+{% endif %}
+<section class="day">
+	<header class="page-header">
+		<h1 data-timestamp="{{ date_key }}">{{ date_site|date:"l, F j, Y" }}</h1>
+	</header>
+{% endifchanged %}
+
+{% ifchanged item.feed.id date_key %}
+	<section class="channel well">
+		<header class="channel-header">
+			<h3><a href="{{ item.feed.link }}"
+				title="{{ item.feed.title }}">{{ item.feed.shortname }}</a></h2>
+		</header>
+{% endifchanged %}
+
+		<div data-timestamp="{{ date_site|date:"U" }}" class="entry">
+			<h4 class="entry-header">
+				<a href="{{ item.link }}">{% if item.title %}{{ item.title|safe }}
+						{% else %}{{ item.subscriber.name|safe }}{% endif %}</a></h3>
+			<div class="content">{{ item.content|prettyhtml|safe }}</div>
+
+			<p class="pull-right"><a href="{{ item.link }}" title="{% trans "Author link" %}">{% if item.author %}{% blocktrans with item.author as author %}by {{ author }} at{% endblocktrans %}{% endif %} {{ item.date_modified|date:"g:i A" }}</a>{% for tag in item.qtags %}{% if forloop.first %} {% trans "under" %} {% endif %}<a href="{{ site.url }}/tag/{{ tag.name }}" title="Tag">{{ tag.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}
+			{% if item.comments %}<a href="{{ item.comments }}"
+				title="{% trans "Comments" %}">({% trans "Comments" %})</a> {% endif %}
+			</p>
+			<br class="clear" />
+		</div> {# /.entry #}
+
+{% if forloop.last %}
+	</section> {# /.channel #}
+{% endif %}
+
+{% if forloop.last %}
+</section> {# /.day #}
+{% endif %}
+
+{% endwith %}
+{% endwith %}
+
+{% endfor %}
+
+
+<footer class="footer">
+
+	<p class="pull-right"><a href="#">Back to top</a></p>
+
+	{% if site.welcome %}
+	<section class="welcome">
+		<h2>{% trans "Welcome" %}</h2>
+		{{ site.welcome|safe }}
+	</section>
+	{% endif %}
+
+	{% if site.greets %}
+	<section class="credits">
+		<h2>{% trans "Credits" %}</h2>
+		{{ site.greets|safe }}
+	</section>
+	{% endif %}
+
+	{# Hardcore pagination logic #}
+	{% if p.has_other_pages %}
+	{% with "7:-7" as p_slice_range %}
+	{% with p_10neighbors.items|slice:p_slice_range as p_slice %}
+	{% with p_10neighbors.keys|slice:p_slice_range as p_slice_keys %}
+	<div class="pagination">
+	<ul>
+		<li {% if not p.has_previous %}class="disabled"{% endif %}>
+			<a href="{% if not p.has_previous %}#{% else %}?page={{ p.previous_page_number }}{% endif %}">&laquo;</a>
+		</li>
+		{% if 1 not in p_slice_keys %}
+			<li><a href="?page=1">1</a></li>
+			{% if 2 not in p_slice_keys %}<li class="disabled">
+				<a href="#">...</a></li>{% endif %}
+		{% endif %}
+		{% for p_num, p_exists in p_slice %}
+			{% if p_exists %}
+			<li {% if p_num == p.number %} class="active"{% endif %}>
+				<a href="?page={{ p_num }}">{{ p_num }}</a></li>
+			{% endif %}
+		{% endfor %}
+		{% if p.paginator.num_pages not in p_slice_keys %}
+			{% if p.paginator.num_pages|add:-1 not in p_slice_keys %}
+				<li class="disabled"><a href="#">...</a></li>
+			{% endif %}
+			<li><a href="?page={{ p.paginator.num_pages }}"
+				>{{ p.paginator.num_pages }}</a></li>
+		{% endif %}
+		<li {% if not p.has_next %}class="disabled"{% endif %}>
+			<a href="{% if not p.has_next %}#{% else %}?page={{ p.next_page_number }}{% endif %}">&raquo;</a>
+		</li>
+	</ul>
+	<p>{{ pages }} pages
+		({% blocktrans count hits as posts %}{{ posts }}
+			post{% plural %}{{ posts }} posts{% endblocktrans %},
+		showing {{ p.start_index }}-{{ p.end_index }})</p>
+	</div>
+	{% endwith %}
+	{% endwith %}
+	{% endwith %}
+	{% endif %}
+
+</footer>
+
+
+</div> {# span10 #}
+
+</div> {# container #}
+
+
+</body>
+
+</html>
