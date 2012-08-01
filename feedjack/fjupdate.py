@@ -263,7 +263,7 @@ class FeedProcessor(object):
 
 		if not ret_values[ENTRY_ERR]: # etag/mtime updated only if there's no errors
 			self.feed.etag = self.fpf.get('etag') or ''
-			try: self.feed.last_modified = feedparser_ts(self.fpf.modified)
+			try: self.feed.last_modified = feedparser_ts(self.fpf.modified_parsed)
 			except AttributeError: pass
 			self.feed.save()
 
@@ -355,7 +355,6 @@ def bulk_update(optz):
 		if optz.delay: sleep(optz.delay)
 
 	_exc_feed_id = None
-	transaction.commit()
 
 	time_delta_global = timezone.now() - time_delta_global
 	log.info('* END: {0} (delta: {1}s), entries: {2}, feeds: {3}'.format(
@@ -368,6 +367,8 @@ def bulk_update(optz):
 	# TODO: make it work by "magic" through model signals
 	from feedjack import fjcache
 	for site_id in affected_sites: fjcache.cache_delsite(site_id)
+
+	transaction.commit()
 
 
 # Can't be specified in options because django doesn't interpret "%(default)s"
