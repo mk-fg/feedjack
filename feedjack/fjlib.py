@@ -186,7 +186,7 @@ def page_context(request, site, **criterias):
 		# property.
 		user_obj, tag_obj = get_posts_tags(
 			subscribers, page.object_list, feed, tag )
-		tag_cloud = fjcloud.getcloud(site, feed.id)
+		tag_cloud = fjcloud.getcloud(site, feed and feed.id)
 	else:
 		tag_obj, tag_cloud = None, tuple()
 		try:
