@@ -68,7 +68,7 @@ def initview(request, response_cache=True):
 			#  didn't create a site yet. Creating a default one...
 			site = models.Site(
 				name='Default Feedjack Site/Planet',
-				url='www.feedjack.org',
+				url=request.build_absolute_uri(request.path),
 				title='Feedjack Site Title',
 				description='Feedjack Site Description.'
 					' Please change this in the admin interface.' )
