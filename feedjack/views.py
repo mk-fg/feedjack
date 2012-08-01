@@ -3,14 +3,12 @@
 
 from django.utils import feedgenerator
 from django.shortcuts import render_to_response
-from django.http import HttpResponse, Http404,\
-	HttpResponsePermanentRedirect, HttpResponseBadRequest,\
-	HttpResponseNotModified
+from django.http import HttpResponse, Http404, HttpResponsePermanentRedirect
 from django.utils.cache import patch_vary_headers
 from django.template import Context, RequestContext, loader
 from django.views.generic.simple import redirect_to
 from django.core.exceptions import ObjectDoesNotExist
-from django.utils import timezone, simplejson as json
+from django.utils import timezone
 from django.utils.encoding import smart_unicode
 from django.views.decorators.http import condition
 
@@ -89,8 +87,6 @@ def initview(request, response_cache=True):
 				except IndexError: pass
 				else: break
 			if site_url.netloc != http_host: # redirect to proper site hostname
-				# TODO: SERVER_PORT doesn't seem very useful here, but just "http://{}/" is just wrong
-				#  ...in a way that it doesn't respect port and protocol
 				response = HttpResponsePermanentRedirect(
 					'http://{}/{}{}'.format( site_url.netloc, path_info,
 						'?{}'.format(query_string) if query_string.strip() else '') )
@@ -194,54 +190,6 @@ def atomfeed(request, **criterias):
 	return buildfeed(request, feedgenerator.Atom1Feed, **criterias)
 
 
-
-def _ajax_headers(response):
-	response['Cache-Control'] = ', '.join([ 'no-cache', 'private',
-		'no-store', 'must-revalidate', 'max-stale=0', 'max-age=0', 'post-check=0', 'pre-check=0' ])
-	response['Pragma'] = 'no-cache'
-	response['Expires'] = 'Wed, 09 Jun 1993 00:00:00 GMT'
-	return response
-
-def ajax_store(request):
-	'Handler for JS requests from tracked users.'
-	fj_track_header = request.META.get('HTTP_X_FEEDJACK_TRACKING')\
-		or request.COOKIES.get('feedjack.tracking')
-	build_response = lambda content=None, type=HttpResponse,\
-		content_type='application/json': _ajax_headers(type(
-			'true' if content is None else content, content_type=content_type ))
-
-	if request.method in ('HEAD', 'OPTIONS'):
-		response = build_response('')
-		if request.method == 'HEAD': response['X-Feedjack-Tracking'] = fj_track_header
-		if request.method == 'OPTIONS': response['Access-Control-Allow-Origin'] = '*'
-		return response
-
-	if not request.is_ajax() or request.method not in ('GET', 'POST'):
-		return _ajax_headers(HttpResponseBadRequest(
-			'Ajax/json-only backend for tracked get/post reqz' ))
-
-	response = None
-	storage_key = '{site_key}__{track_header}'
-	if not fj_track_header:
-		return HttpResponseBadRequest('Untracked request')
-	elif request.method == 'GET':
-		try: sk = request.GET['site_key']
-		except KeyError:
-			return HttpResponseBadRequest('No site key passed')
-		response = fjcache.ajax_cache.get(
-			storage_key.format(site_key=sk, track_header=fj_track_header) )
-	elif request.method == 'POST':
-		try: sk = json.loads(request.raw_post_data)['site_key']
-		except KeyError:
-			return HttpResponseBadRequest('No site key passed')
-		except ValueError:
-			return HttpResponseBadRequest('Unable to process json data')
-		fjcache.ajax_cache.set(
-			storage_key.format(site_key=sk, track_header=fj_track_header),
-			request.raw_post_data )
-	return build_response(response)
-
-
 @condition( etag_func=cache_etag,
 	last_modified_func=cache_last_modified )
 def mainview(request, **criterias):
@@ -259,11 +207,5 @@ def mainview(request, **criterias):
 			fjcache.cache_set(
 				site, cachekey, (response, ctx['last_modified']) )
 	else: response = response[0]
-
-	fj_track_header = request.META.get('HTTP_X_FEEDJACK_TRACKING')\
-		or request.COOKIES.get('feedjack.tracking')
-	if fj_track_header:
-		response['X-Feedjack-Tracking'] = fj_track_header
-		response.set_cookie('feedjack.tracking', fj_track_header)
 
 	return response

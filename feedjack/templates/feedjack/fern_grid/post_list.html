@@ -1,18 +1,14 @@
 {% load i18n html extract %}
-<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html
 	data-url_site="{{ site.url }}"
-	data-url_media="{{ media_url }}"
-	data-url_store="{{ site.url }}/ajax/store.json">
+	data-url_static="{{ media_url }}">
 
 <head>
 	<title>{% if feed %}{{ feed.title }} - {% endif %}{{ site.title }}</title>
 	<link rel="stylesheet" href="{{ media_url }}/default.css" type="text/css"/>
 	<link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="{{ site.url }}/feed/rss/" />
 	<script type="text/javascript" src="{{ media_url }}/jquery.js"></script>
-	<script type="text/javascript" src="{{ media_url }}/jquery.cookie.js"></script>
-	<script type="text/javascript" src="{{ media_url }}/json2.js"></script>
 	<script type="text/javascript" src="{{ media_url }}/fold.fern.js"></script>
 	{% block extrastyle %}{% endblock %}
 	{% block extrahead %}{% endblock %}
@@ -52,7 +48,7 @@
 {% for item in object_list %}
 
 {% with item|site_ordering_date:site as date_site %}
-{% with date_site|date:"F j, Y" as date_key %}
+{% with date_site|date:"Y-m-d" as date_key %}
 
 {% ifchanged item.feed.id date_key %}
 {% if not forloop.first %}
@@ -67,7 +63,7 @@
 </div> {# /.day #}
 {% endif %}
 <div class="day">
-	<h1 data-timestamp="{{ date_key }}">{{ date_site|date:"F j, Y" }}</h1>
+	<h1 data-timestamp="{{ date_key }}">{{ date_site|date:"l, F j, Y" }}</h1>
 {% endifchanged %}
 
 {% ifchanged item.feed.id date_key %}

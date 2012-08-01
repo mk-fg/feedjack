@@ -1,1 +1,0 @@
-../fern/jquery.cookie.js

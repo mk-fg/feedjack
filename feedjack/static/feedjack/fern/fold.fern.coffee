@@ -18,10 +18,9 @@ $(document).ready ->
 
 	get_ts = -> Math.round((new Date()).getTime() / 1000)
 
-	[url_site, url_media, url_store] = [
+	[url_site, url_static] = [
 		$('html').data('url_site'),
-		$('html').data('url_media'),
-		$('html').data('url_store') ]
+		$('html').data('url_static') ]
 	site_key = url_site
 	storage_key = "feedjack.fold.#{site_key}"
 	[folds, folds_lru, folds_ts] = [
@@ -55,36 +54,6 @@ $(document).ready ->
 		localStorage["#{storage_key}.folds"] = JSON.stringify(folds)
 		localStorage["#{storage_key}.folds_lru"] = JSON.stringify(folds_lru)
 		localStorage["#{storage_key}.folds_ts"] = JSON.stringify(folds_ts)
-
-	folds_sync = (ev) ->
-		return unless $.cookie('feedjack.tracking')
-
-		# rotation effect for image while data ping-pong goes on
-		img = $(ev.target)
-		timer = setInterval(( ->
-			tilt = img.data('tilt') or 0
-			img.css(
-				'transform': "rotate(#{tilt}deg)"
-				'-moz-transform': "rotate(#{tilt}deg)"
-				'-o-transform': "rotate(#{tilt}deg)"
-				'-webkit-transform': "rotate(#{tilt}deg)" )
-			img.data('tilt', tilt - 10) ), 80)
-
-		$.get url_store, {site_key},
-			(raw, status) ->
-				data = raw or {folds: {}, folds_ts: {}}
-				if status != 'success' or not data
-					alert("Failed to fetch data (#{status}): #{raw}")
-				for own k,v of data.folds
-					folds_update(k, v) if not folds_ts[k]? or data.folds_ts[k] > folds_ts[k]
-				folds_commit()
-				$('.day>h1').each (idx, el) -> fold_entries(el)
-				$.post url_store, JSON.stringify({site_key, folds, folds_ts}),
-					(raw, status) ->
-						if status != 'success' or not JSON.parse(raw)
-							alert("Failed to send data (#{status}): #{raw}")
-						clearInterval(timer)
-
 
 	# (un)fold everything under the specified day-header
 	fold_entries = (h1, fold=null, unfold=false) ->
@@ -147,17 +116,11 @@ $(document).ready ->
 		[ts_day, ts_entry_max]
 
 	# Buttons, initial fold
-	img_sync = if $.cookie('feedjack.tracking')
-	then """<img title="fold sync" class="button_fold_sync" src="#{url_media}/fold_sync.png" />"""
-	else ''
 	$('.day>h1')
 		.append(
-			"""<img title="fold page" class="button_fold_all" src="#{url_media}/fold_all.png" />
-			<img title="fold day" class="button_fold" src="#{url_media}/fold.png" />""" + img_sync )
+			"""<img title="fold page" class="button_fold_all" src="#{url_static}/fold_all.png" />
+			<img title="fold day" class="button_fold" src="#{url_static}/fold.png" />""" )
 		.each (idx, el) -> fold_entries(el)
-
-	# Fold sync button
-	$('.button_fold_sync').click(folds_sync)
 
 	# Fold day button
 	$('.button_fold').click (ev) ->
