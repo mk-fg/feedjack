@@ -32,6 +32,7 @@
 <div class="navbar"><div class="navbar-inner">
 	<div class="container">
 		<span class="brand"><a href="{{ site.url }}"
+			{% if feed %}title="{{ feed.title }} - {{ site.title }}"{% endif %}
 			>{% if feed %}{{ feed.shortname }} - {% endif %}{{ site.title }}</a></span>
 
 		<div class="nav-collapse">
