@@ -22,6 +22,7 @@
 
 	<script type="text/javascript" src="{{ static_url }}/jquery.js"></script>
 	<script type="text/javascript" src="{{ static_url }}/bootstrap/js/bootstrap.min.js"></script>
+	<script type="text/javascript" src="{{ static_url }}/fold.bootstrap.js"></script>
 
 	{% block extrastyle %}{% endblock %}
 	{% block extrahead %}{% endblock %}
@@ -83,9 +84,13 @@
 {% if not forloop.first %}
 </section> {# /.day #}
 {% endif %}
-<section class="day">
+<section data-timestamp="{{ date_key }}" class="day">
 	<header class="page-header">
-		<h1 data-timestamp="{{ date_key }}">{{ date_site|date:"l, F j, Y" }}</h1>
+		<h1>{{ date_site|date:"l, F j, Y" }}</h1>
+		<div class="fold-controls pull-right">
+			<span class="btn fold-toggle"
+				title="Show/hide displayed posts for this day"><i></i></span>
+		</div>
 	</header>
 {% endifchanged %}
 
