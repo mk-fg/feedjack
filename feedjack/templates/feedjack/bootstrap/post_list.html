@@ -61,16 +61,6 @@
 </div></div>
 
 
-<div class="buttons">
-	<a href="{{ site.url }}/syndication/atom{{ url_suffix }}/" title="Atom 1.0 feed">
-		<img src="{{ static_url }}/button-atom.png"/></a>
-	<a href="{{ site.url }}/syndication/rss{{ url_suffix }}/" title="RSS 2.0 feed">
-		<img src="{{ static_url }}/button-rss.png"/></a>
-	<a href="{{ site.url }}/syndication/opml/" title="OPML"><img src="{{ static_url }}/button-opml.png"/></a>
-	<a href="{{ site.url }}/syndication/foaf/" title="FOAF"><img src="{{ static_url }}/button-foaf.png"/></a>
-</div>
-
-
 <div class="container row-fluid">
 
 <div class="span1"></div> {# empty offset-column #}
@@ -103,14 +93,14 @@
 	<section class="channel well">
 		<header class="channel-header">
 			<h3><a href="{{ item.feed.link }}"
-				title="{{ item.feed.title }}">{{ item.feed.shortname }}</a></h2>
+				title="{{ item.feed.title }}">{{ item.feed.shortname }}</a></h3>
 		</header>
 {% endifchanged %}
 
 		<div data-timestamp="{{ date_site|date:"U" }}" class="entry">
 			<h4 class="entry-header">
 				<a href="{{ item.link }}">{% if item.title %}{{ item.title|safe }}
-						{% else %}{{ item.subscriber.name|safe }}{% endif %}</a></h3>
+						{% else %}{{ item.subscriber.name|safe }}{% endif %}</a></h4>
 			<div class="content">{{ item.content|prettyhtml|safe }}</div>
 
 			{% spaceless %}
