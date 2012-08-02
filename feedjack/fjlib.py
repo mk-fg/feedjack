@@ -15,6 +15,7 @@ import itertools as it, operator as op, functools as ft
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from urllib import quote
+import warnings
 
 
 try:
@@ -23,6 +24,10 @@ try:
 	from lxml.etree import XMLSyntaxError as lxml_SyntaxError
 
 except ImportError:
+	warnings.warn( 'Failed to import "lxml" module, some'
+		' html-sanitization and processing functionality, as well'
+		' as some template tags will be unavailable.' )
+
 	# at least strip c0 control codes, which are quite common in broken html
 	_xml_c0ctl_chars = bytearray(
 		set(it.imap(chr, xrange(32)))\

@@ -246,6 +246,15 @@ retrieve the actual data from the feeds.
 This script should be setup to be run periodically (to retreive new posts from
 the feeds), which is usually a task of unix cron daemon.
 
+In case of some missing or inaccessible functionality, feedjack may issue (once
+per runtime) [python warnings](http://docs.python.org/library/warnings.html),
+which can (and most likely should) be captured by logging system, so they can be
+handled by django (e.g. notification mail sent to ADMINS).
+To do that, add following code to settings.py:
+
+	import logging
+	logging.captureWarnings(True)
+
 
 Bugs, development, support
 --------------------
