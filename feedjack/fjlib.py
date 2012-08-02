@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import unicode_literals
 
 
 from django.conf import settings
@@ -7,6 +8,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator, InvalidPage
 from django.http import Http404
 from django.utils.encoding import smart_unicode, force_unicode
+from django.utils.html import escape
 from django.utils import timezone
 
 from feedjack import models, fjcache
@@ -14,7 +16,6 @@ from feedjack import models, fjcache
 import itertools as it, operator as op, functools as ft
 from collections import OrderedDict
 from datetime import datetime, timedelta
-from urllib import quote
 import warnings
 
 
@@ -31,9 +32,9 @@ except ImportError:
 	# at least strip c0 control codes, which are quite common in broken html
 	_xml_c0ctl_chars = bytearray(
 		set(it.imap(chr, xrange(32)))\
-			.difference('\x09\x0a\x0d').union('\x7f'))
+			.difference(b'\x09\x0a\x0d').union(b'\x7f'))
 	_xml_c0ctl_trans = dict(it.izip(
-		_xml_c0ctl_chars, u'_'*len(_xml_c0ctl_chars) ))
+		_xml_c0ctl_chars, '_'*len(_xml_c0ctl_chars) ))
 
 	def html_cleaner(string):
 		'Produces template-safe valid xml-escaped string.'
@@ -212,7 +213,7 @@ def page_context(request, site, **criterias):
 		feed = feed,
 		url_suffix = ''.join((
 			'/feed/{0}'.format(feed.id) if feed else '',
-			'/tag/{0}'.format(quote(tag)) if tag else '' )),
+			'/tag/{0}'.format(escape(tag)) if tag else '' )),
 
 		p = page, # "page" is taken by legacy number
 		p_10neighbors = OrderedDict(

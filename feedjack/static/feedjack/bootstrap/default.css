@@ -27,3 +27,10 @@ section.day:first-child .page-header { margin-top: 0; }
 .entry>.content h3 { font-size: 105%; }
 .entry>.content h4 { font-size: 103%; }
 .entry>.content h5, .entry>.content h6  { font-size: 102%; }
+
+.entry .label.tag { background-color: #ddd; }
+.entry .label.tag a {
+	color: #059;
+	font-weight: normal;
+	text-shadow: 0 -1px 0 #bbb;
+}

@@ -56,7 +56,7 @@ class Site(models.Model):
 				_('Day the post was first obtained (for nicer per-feed grouping).')) ),
 		default=SITE_ORDERING.modified )
 	tagcloud_levels = models.PositiveIntegerField(_('tagcloud level'), default=5)
-	show_tagcloud = models.BooleanField(_('show tagcloud'), default=False)
+	show_tagcloud = models.BooleanField(_('show tagcloud'), default=True)
 
 	use_internal_cache = models.BooleanField(_('use internal cache'), default=True)
 	cache_duration = models.PositiveIntegerField(_('cache duration'), default=60*60*24,
