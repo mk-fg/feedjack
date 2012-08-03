@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 
 import itertools as it, operator as op, functools as ft
+from hashlib import sha256 as hash_func
 
 from django.template.defaultfilters import stringfilter
 from django.utils.safestring import SafeData, mark_safe
@@ -20,6 +21,14 @@ def prettyhtml(value, autoescape=None):
 	value = html_cleaner(value)
 	return escape(value) if autoescape\
 		and not isinstance(value, SafeData) else mark_safe(value)
+
+@register.filter
+@stringfilter
+def hash(value, chars=None):
+	'Get N chars (default: all) of secure hash hexdigest of value.'
+	value = hash_func(value).hexdigest()
+	if chars: value = value[:chars]
+	return mark_safe(value)
 
 
 # lxml is hard-dep in fern style only, at least initially

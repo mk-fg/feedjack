@@ -1,6 +1,14 @@
 
-# Prefix for values in localStorage
-localStorage_prefix = $('script').last().data('localStorage_prefix')
+# site_key is used to prefix values in storage api's
+site_key = $('script').last().data('site_key')
+localStorage_prefix = "feedjack.#{site_key}.fold"
+
+# Listen for storage-ready event
+storage = null
+$(document).on( 'fold_storage_init', (ev, storage_obj) ->
+	storage = storage_obj
+	$('.btn.fold-sync').show() )
+
 
 $(document).ready ->
 	# IE6? Fuck off
@@ -15,10 +23,10 @@ $(document).ready ->
 	# css class to mark folded entries with
 	fold_css = 'folded'
 
-	Object::get_length = ->
+	get_length = (obj) ->
 		len = 0
 		len += 1 for own k,v of this
-		len
+		return len
 
 	get_ts = -> Math.round((new Date()).getTime() / 1000)
 
@@ -36,23 +44,51 @@ $(document).ready ->
 		folds_lru.push([key, value])
 		folds_ts[key] = get_ts()
 
+
 	folds_commit = ->
-		# gc
+		# GC
 		len_lru = folds_lru.length
 		if len_lru > limit_lru_gc
 			[folds_lru, folds_lru_gc] = [
 				folds_lru[(len_lru - limit_lru)..len_lru],
 				folds_lru[0...(len_lru - limit_lru)] ]
-			len_folds = folds.get_length() - limit
+			len_folds = get_length(folds) - limit
 			for [key,val] in folds_lru_gc
 				break if len_folds <= 0
 				if folds[key] == val
 					folds_update(key)
 					len_folds -= 1
-		# actual storage
+		# Actual storage
 		localStorage["#{localStorage_prefix}.folds"] = JSON.stringify(folds)
 		localStorage["#{localStorage_prefix}.folds_lru"] = JSON.stringify(folds_lru)
 		localStorage["#{localStorage_prefix}.folds_ts"] = JSON.stringify(folds_ts)
+
+
+	folds_sync = (ev) ->
+		# Get storage object
+		if not storage?
+			alert('Unable to remote storage api.')
+			return
+		# "In progress" effect for button
+		btn = $(ev.target).parents('.btn').andSelf().filter('.btn')
+		btn.button('loading')
+		# Actual storage sync
+		storage.get site_key, (error, data) ->
+			if error and error != 404
+				# alert("Failed to fetch data from storage: #{error} (data: #{data})")
+				return btn.button('reset')
+			data = JSON.parse(data or "null") or {folds: {}, folds_ts: {}}
+			for own k,v of data.folds
+				folds_update(k, v) if not folds_ts[k]? or data.folds_ts[k] > folds_ts[k]
+			folds_commit()
+			$('.fold-controls .fold-toggle').each -> fold_apply(this)
+			storage.put site_key, JSON.stringify({site_key, folds, folds_ts}), (error) ->
+				# if error
+				# 	alert("Failed to store data: #{error}")
+				btn.button('reset')
+
+	$('.btn.fold-sync').on('click', folds_sync)
+
 
 	# (un)fold everything under the specified day-header
 	fold_entries = (day, fold=null, unfold=false) ->
@@ -88,7 +124,7 @@ $(document).ready ->
 								entry.removeClass(fold_css)
 								links_entry.unbind('click', links_entry_unfold)
 								false
-							links_entry.click(links_entry_unfold)
+							links_entry.on('click', links_entry_unfold)
 						fold_entry = true
 					if not fold_entry
 						fold_channel = false
@@ -101,7 +137,7 @@ $(document).ready ->
 					channel.removeClass(fold_css)
 					links_channel.unbind('click', links_channel_unfold)
 					false
-				links_channel.click(links_channel_unfold)
+				links_channel.on('click', links_channel_unfold)
 			else
 				channel.removeClass(fold_css)
 
@@ -113,8 +149,9 @@ $(document).ready ->
 
 		[ts_day, ts_entry_max]
 
-	fold_apply = (fold_btn, toggle=true) ->
-		fold_btn = $(fold_btn)
+	# Fold day button triggers
+	$('.fold-toggle').click (ev, toggle=true) ->
+		fold_btn = $(ev.target).parents('.fold-toggle').andSelf()
 		day = fold_btn.parents('.day')
 		# Check whether stuff needs to be folded or unfolded
 		[ts_day, ts_entry_max] = fold_entries(day, false)
@@ -131,14 +168,12 @@ $(document).ready ->
 		if toggle
 			folds_commit()
 
-	# Fold day buttons
-	$('.fold-toggle').click (ev) ->
-		fold_apply($(ev.target).parents('.fold-toggle').andSelf())
-
 	# Initial (un)fold, show controls
+	fold_apply = (fold_btn) ->
+		fold_btn = $(fold_btn)
+		[ts_day, ts_entry_max] = fold_entries(fold_btn.parents('.day'))
+		fold_btn.children('i').attr( 'class',
+			if ts_entry_max == 0 then 'icon-plus' else 'icon-minus' )
+
 	$('.fold-controls').each ->
-		$(this).show().find('.fold-toggle').each ->
-			fold_btn = $(this)
-			[ts_day, ts_entry_max] = fold_entries(fold_btn.parents('.day'))
-			fold_btn.children('i').attr( 'class',
-				if ts_entry_max == 0 then 'icon-plus' else 'icon-minus' )
+		$(this).show().find('.fold-toggle').each -> fold_apply(this)

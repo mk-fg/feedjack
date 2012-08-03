@@ -1,9 +1,12 @@
 
 script = $('script').last()
-# Prefix for values in localStorage
-localStorage_prefix = script.data('localStorage_prefix')
+# site_key is used to prefix values in storage api's
+site_key = $('script').last().data('site_key')
+localStorage_prefix = "feedjack.#{site_key}.rs"
+storage_category = "feedjack.fold"
 # Callback URL with JS to get access_token from fragment
 receive_token_url = script.data('receive_token_url')
+
 
 $(document).ready ->
 	rs_form = $('#rs-form')
@@ -12,15 +15,27 @@ $(document).ready ->
 	rs_form.click (ev) ->
 		ev.stopPropagation()
 
-	if not receive_token_url? or not receive_token_url
+	if not receive_token_url?
 		console.log('Failed to find receive_token'
 			+ ' interface URL, remoteStorage interface will be disabled.')
-		rs_form.find('input, button').addClass('disabled').attr('disabled', 'disabled')
+		rs_form.find('input, .btn').addClass('disabled').attr('disabled', 'disabled')
+		return
 
 
 	# --- Storage API wrapper
 
-	storage = do ->
+	class Storage
+		@auth_callback = null
+
+		constructor: (@category) ->
+			# Listener for authorization events
+			$(window).on( 'message', (ev) =>
+				ev = ev.originalEvent
+				if ev.origin == location.protocol+'//'+location.host
+					console.log('Received an OAuth token: ' + ev.data)
+					localStorage.setItem("#{localStorage_prefix}.bearerToken", ev.data)
+					if @auth_callback?
+						@auth_callback() )
 
 		connect: (user_address, callback) ->
 			# Takes a user address ("user@host") and a callback as its arguments.
@@ -36,37 +51,26 @@ $(document).ready ->
 
 		authorize: (scopes, callback) ->
 			# Opens a popup that sends the user to the OAuth dialog of the remoteStorage provider.
-			storageInfo = JSON.parse(localStorage.getItem('userStorageInfo'))
+			scopes ?= [@category + ':rw']
+			storageInfo = JSON.parse \
+				localStorage.getItem("#{localStorage_prefix}.userStorageInfo")
 			redirectUri = location.protocol + '//' + location.host + receive_token_url
-
-			window.addEventListener(
-				'message', (event) ->
-					if event.origin == location.protocol + '//' + location.host
-						console.log('Received an OAuth token: ' + event.data)
-						localStorage.setItem('bearerToken', event.data)
-						callback()
-				, false )
-
+			@auth_callback = callback
 			window.open \
 				remoteStorage.createOAuthAddress(storageInfo, scopes, redirectUri)
 
-		getData: (path, callback) ->
-			# Takes the object that from connect call and the category to access.
-			# If the category is any other than "public", OAuth token should be in localStorage.
-			storageInfo = JSON.parse(localStorage.getItem('userStorageInfo'))
-
-			if path.split('/').length < 2
-				cb('error: path '+path+' contains no slashes');
-				return
-			else
-				if path.split('/')[0] == 'public'
-					client = remoteStorage.createClient(storageInfo, '')
-				else
-					token = localStorage.getItem('bearerToken')
-					client = remoteStorage.createClient(storageInfo, '', token)
+		get: (key, callback) ->
+			storageInfo = JSON.parse \
+				localStorage.getItem("#{localStorage_prefix}.userStorageInfo")
+			token = localStorage.getItem("#{localStorage_prefix}.bearerToken")
+			if not storageInfo? or not token?
+				alert('No remoteStorage authorization, please connect/authorize first.')
+				return callback(401)
+			path = @category + '/' + key
+			client = remoteStorage.createClient(storageInfo, '', token)
 
 			client.get( path, (error, data) ->
-				if error==401
+				if error == 401
 					alert('Your session has expired. Please connect to your remoteStorage again.')
 				else
 					if error
@@ -76,17 +80,18 @@ $(document).ready ->
 						if data == undefined
 							console.log('There wasn\'t anything for "' + path + '"')
 						else
-							console.log('We received this for item "' + path + '": ' + data)
+							console.log('Received item "' + path + '": ' + data)
 				callback(error, data) )
 
-		putData: (path, value, callback) ->
+		put: (key, value, callback) ->
 			# Takes a key, the value and a callback.
-			storageInfo = JSON.parse(localStorage.getItem('userStorageInfo'))
-			token = localStorage.getItem('bearerToken')
+			storageInfo = JSON.parse \
+				localStorage.getItem("#{localStorage_prefix}.userStorageInfo")
+			path = @category + '/' + key
+			token = localStorage.getItem("#{localStorage_prefix}.bearerToken")
 			client = remoteStorage.createClient(storageInfo, '', token)
 
-			client.put \
-					path, value, (error) ->
+			client.put( path, value, (error) ->
 				if error == 401
 					alert('Your session has expired. Please connect to your remoteStorage again.')
 				else
@@ -95,28 +100,32 @@ $(document).ready ->
 						console.log(error)
 					else
 						console.log('Stored "' + value + '" for item "' + path + '"')
+				callback(error) )
 
-				callback(error)
+	storage = new Storage(storage_category)
+	$(document).trigger('fold_storage_init', storage)
 
 
 	# --- Storage Interface
 
-	connected = localStorage.getItem('userStorageInfo') != null
-	authorized = localStorage.getItem('bearerToken') != null
+	connected = localStorage.getItem(
+		"#{localStorage_prefix}.userStorageInfo" ) != null
+	authorized = localStorage.getItem(
+		"#{localStorage_prefix}.bearerToken" ) != null
 
 	state_update_hook = ->
 		# Connection state
-		[show, hide] = if connected\
-			then ['connected', 'disconnected']\
-			else ['disconnected', 'connected']
-		rs_form.find("span.#{hide}").hide()
-		rs_form.find("span.#{show}").show()
-		# Authorization state
-		[show, hide] = if authorized\
-			then ['authorized', 'unauthorized']\
-			else ['unauthorized', 'authorized']
-		rs_form.find("span.#{hide}").hide()
-		rs_form.find("span.#{show}").show()
+		if connected
+			# Set userAddress in a form to the one stored
+			rs_form.find('input[name="userAddress"]').val \
+				localStorage.getItem("#{localStorage_prefix}.userAddress")
+			rs_form.find('.btn.connect').addClass('btn-success')
+		else
+			rs_form.find('.btn.connect').removeClass('btn-success')
+		if authorized
+			rs_form.find('.btn.authorize').addClass('btn-success')
+		else
+			rs_form.find('.btn.authorize').removeClass('btn-success')
 	state_update_hook()
 
 	connect_handler = (ev) ->
@@ -126,26 +135,28 @@ $(document).ready ->
 				if error
 					connected = false
 				else
-					localStorage.setItem('userStorageInfo', JSON.stringify(storageInfo))
-					localStorage.setItem('userAddress', user_address)
+					localStorage.setItem \
+						"#{localStorage_prefix}.userStorageInfo", JSON.stringify(storageInfo)
+					localStorage.setItem \
+						"#{localStorage_prefix}.userAddress", user_address
 					connected = true
 				state_update_hook() )
 		else
-			localStorage.removeItem('userStorageInfo')
-			localStorage.removeItem('bearerToken')
+			localStorage.removeItem("#{localStorage_prefix}.userStorageInfo")
+			localStorage.removeItem("#{localStorage_prefix}.bearerToken")
 			connected = authorized = false
 			state_update_hook()
 			connect_handler(ev)
 		return false
-	$('#connect').click(connect_handler)
+	rs_form.find('.connect').on('click', connect_handler)
 
-	$('#authorize').click ->
+	rs_form.find('.authorize').on( 'click', ->
 		if not authorized
-			storage.authorize( ['public/tutorial:rw', 'tutorial:rw'], ->
+			storage.authorize( null, ->
 				authorized = true
 				state_update_hook() )
 		else
-			localStorage.removeItem('bearerToken')
+			localStorage.removeItem("#{localStorage_prefix}.bearerToken")
 			authorized = false
 			state_update_hook()
-		return false
+		return false )

@@ -20,15 +20,20 @@
 
 	<script type="text/javascript" src="{{ static_url }}/jquery.js"></script>
 	<script type="text/javascript" src="{{ static_url }}/bootstrap/js/bootstrap.min.js"></script>
-	<script type="text/javascript"
-		data-localStorage_prefix="feedjack__{{ site.url }}__fold__"
-		src="{{ static_url }}/fold.bootstrap.js"></script>
 
-	<script type="text/javascript" src="{{ static_url }}/remoteStorage.js"></script>
-	<script type="text/javascript"
-		data-localStorage_prefix="feedjack__{{ site.url }}__"
-		data-receive_token_url="{{ static_url }}/receive_token.html"
-		src="{{ static_url }}/remoteStorage.bootstrap.js"></script>
+	{% with site.url|hash:5 as site_key %}
+		{# Local (client-side only) storage #}
+		<script type="text/javascript"
+			data-site_key="{{ site_key }}"
+			src="{{ static_url }}/fold.bootstrap.js"></script>
+
+		{# Remote (some host on the net) storage #}
+		<script type="text/javascript" src="{{ static_url }}/remoteStorage.js"></script>
+		<script type="text/javascript"
+			data-site_key="{{ site_key }}"
+			data-receive_token_url="{{ static_url }}/receive_token.html"
+			src="{{ static_url }}/remoteStorage.bootstrap.js"></script>
+	{% endwith %}
 
 	{% block extrastyle %}{% endblock %}
 	{% block extrahead %}{% endblock %}
@@ -49,19 +54,24 @@
 					data-toggle="dropdown" href="#"
 					>remoteStorage<b class="caret"></b></a>
 				<div id="rs-form" class="dropdown-menu">
-					<label class="control-label" for="userAddress">Your user address</label>
-					<input type="text" id="userAddress"
+					<label class="control-label"
+						for="userAddress_{{ site_key }}">Your user address</label>
+					<input type="text" id="userAddress_{{ site_key }}"
 						name="userAddress" placeholder="user@somehost" />
 					{% spaceless %}
 					<div class="btn-group">
-						<button type="submit" class="btn" id="connect">
+						<span class="btn connect">
 							<span class="disconnected">Connect</span>
-							<span class="connected non-default">Reconnect</span>
-						</button>
-						<button type="submit" class="btn" id="authorize">
+							<span class="connected">Reconnect</span>
+						</span>
+						<span class="btn authorize">
 							<span class="unauthorized">Authorize</span>
-							<span class="authorized non-default">Deauthorize</span>
-						</button>
+							<span class="authorized">Deauthorize</span>
+						</span>
+						<span class="btn fold-sync non-default" data-loading-text="Syncing...">
+							<i class="icon-refresh"></i>
+							Sync
+						</span>
 					</div>
 					{% endspaceless %}
 				</div>
@@ -95,8 +105,6 @@
 <div class="span1"></div> {# empty offset-column #}
 <div class="span10">
 
-<!-- <div class="subfeeds"></div> -->
-
 {% for item in object_list %}
 
 {% with item|site_ordering_date:site as date_site %}
@@ -116,8 +124,13 @@
 	<header class="page-header">
 		<h1>{{ date_site|date:"l, F j, Y" }}</h1>
 		<div class="fold-controls pull-right">
+			<span class="btn fold-sync non-default"
+				title="Synchronize folding data with remoteStorage"
+				data-loading-text="Syncing..."
+				><i class="icon-refresh"></i></span>
 			<span class="btn fold-toggle"
-				title="Show/hide displayed posts for this day"><i></i></span>
+				title="Show/hide displayed posts for this day"
+				><i></i></span>
 		</div>
 	</header>
 {% endifchanged %}

@@ -37,6 +37,8 @@ section.day:first-child .page-header { margin-top: 0; }
 
 /* Enabled/used only from js: */
 
+ .non-default { display: none; }
+
 .collapse-controls,
 .day.folded .channel,
 .channel.folded .entry,
@@ -48,7 +50,12 @@ section.day:first-child .page-header { margin-top: 0; }
 .day .channel .entry.folded a { color: #97c2d9; }
 
 #rs-form {
-	width: 20em;
+	width: 22em;
 	padding: 5px 20px;
 }
-#rs-form .non-default { display: none; }
+
+#rs-form .connect.btn-success .disconnected,
+#rs-form .authorize.btn-success .unauthorized,
+#rs-form .connect .connected, #rs-form .authorize .authorized { display: none; }
+#rs-form .connect.btn-success .connected,
+#rs-form .authorize.btn-success .authorized { display: inline-block; }

@@ -10,7 +10,8 @@
 		// This script is the only point of this window.
 		var token = remoteStorage.receiveToken();
 		if (token)
-			window.opener.postMessage(token, location.protocol+'//'+location.host);
+			window.opener.postMessage(
+				token, location.protocol+'//'+location.host );
 		window.close();
 	</script>
 
