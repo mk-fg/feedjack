@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<title>remoteStorage token receiver interface</title>
+
+	<script src="remoteStorage.js" type="text/javascript"></script>
+	<script type="text/javascript">
+		// This script is the only point of this window.
+		var token = remoteStorage.receiveToken();
+		if (token)
+			window.opener.postMessage(token, location.protocol+'//'+location.host);
+		window.close();
+	</script>
+
+</head>
+
+<body>
+	<p>Closing dialog...</p>
+</body>
+
+</html>

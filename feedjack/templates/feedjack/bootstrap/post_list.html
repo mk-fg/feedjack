@@ -1,8 +1,6 @@
 {% load i18n html extract %}
 <!DOCTYPE html>
-<html
-	data-url_site="{{ site.url }}"
-	data-url_static="{{ static_url }}">
+<html>
 
 <head>
 	<meta charset="utf-8">
@@ -22,7 +20,15 @@
 
 	<script type="text/javascript" src="{{ static_url }}/jquery.js"></script>
 	<script type="text/javascript" src="{{ static_url }}/bootstrap/js/bootstrap.min.js"></script>
-	<script type="text/javascript" src="{{ static_url }}/fold.bootstrap.js"></script>
+	<script type="text/javascript"
+		data-localStorage_prefix="feedjack__{{ site.url }}__fold__"
+		src="{{ static_url }}/fold.bootstrap.js"></script>
+
+	<script type="text/javascript" src="{{ static_url }}/remoteStorage.js"></script>
+	<script type="text/javascript"
+		data-localStorage_prefix="feedjack__{{ site.url }}__"
+		data-receive_token_url="{{ static_url }}/receive_token.html"
+		src="{{ static_url }}/remoteStorage.bootstrap.js"></script>
 
 	{% block extrastyle %}{% endblock %}
 	{% block extrahead %}{% endblock %}
@@ -38,6 +44,28 @@
 
 		<div class="nav-collapse">
 		<ul class="nav pull-right">
+			<li class="dropdown">
+				<a class="dropdown-toggle"
+					data-toggle="dropdown" href="#"
+					>remoteStorage<b class="caret"></b></a>
+				<div id="rs-form" class="dropdown-menu">
+					<label class="control-label" for="userAddress">Your user address</label>
+					<input type="text" id="userAddress"
+						name="userAddress" placeholder="user@somehost" />
+					{% spaceless %}
+					<div class="btn-group">
+						<button type="submit" class="btn" id="connect">
+							<span class="disconnected">Connect</span>
+							<span class="connected non-default">Reconnect</span>
+						</button>
+						<button type="submit" class="btn" id="authorize">
+							<span class="unauthorized">Authorize</span>
+							<span class="authorized non-default">Deauthorize</span>
+						</button>
+					</div>
+					{% endspaceless %}
+				</div>
+			</li>
 			<li class="divider-vertical"></li>
 			<li><a href="{{ site.url }}/syndication/atom{{ url_suffix }}/" title="Atom 1.0 feed">Atom</a></li>
 			<li><a href="{{ site.url }}/syndication/rss{{ url_suffix }}/" title="RSS 2.0 feed">RSS</a></li>

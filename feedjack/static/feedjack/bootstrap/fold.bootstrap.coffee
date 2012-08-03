@@ -1,3 +1,7 @@
+
+# Prefix for values in localStorage
+localStorage_prefix = $('script').last().data('localStorage_prefix')
+
 $(document).ready ->
 	# IE6? Fuck off
 	return unless localStorage?
@@ -18,15 +22,10 @@ $(document).ready ->
 
 	get_ts = -> Math.round((new Date()).getTime() / 1000)
 
-	[url_site, url_static] = [
-		$('html').data('url_site'),
-		$('html').data('url_static') ]
-	site_key = url_site
-	storage_key = "test.fold.#{site_key}"
 	[folds, folds_lru, folds_ts] = [
-		localStorage["#{storage_key}.folds"],
-		localStorage["#{storage_key}.folds_lru"],
-		localStorage["#{storage_key}.folds_ts"] ]
+		localStorage["#{localStorage_prefix}.folds"],
+		localStorage["#{localStorage_prefix}.folds_lru"],
+		localStorage["#{localStorage_prefix}.folds_ts"] ]
 	[folds, folds_lru, folds_ts] = [
 		if folds then JSON.parse(folds) else {},
 		if folds_lru then JSON.parse(folds_lru) else [],
@@ -51,9 +50,9 @@ $(document).ready ->
 					folds_update(key)
 					len_folds -= 1
 		# actual storage
-		localStorage["#{storage_key}.folds"] = JSON.stringify(folds)
-		localStorage["#{storage_key}.folds_lru"] = JSON.stringify(folds_lru)
-		localStorage["#{storage_key}.folds_ts"] = JSON.stringify(folds_ts)
+		localStorage["#{localStorage_prefix}.folds"] = JSON.stringify(folds)
+		localStorage["#{localStorage_prefix}.folds_lru"] = JSON.stringify(folds_lru)
+		localStorage["#{localStorage_prefix}.folds_ts"] = JSON.stringify(folds_ts)
 
 	# (un)fold everything under the specified day-header
 	fold_entries = (day, fold=null, unfold=false) ->

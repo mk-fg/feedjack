@@ -36,6 +36,7 @@ section.day:first-child .page-header { margin-top: 0; }
 }
 
 /* Enabled/used only from js: */
+
 .collapse-controls,
 .day.folded .channel,
 .channel.folded .entry,
@@ -43,7 +44,11 @@ section.day:first-child .page-header { margin-top: 0; }
 
 .day .channel.folded h3,
 .day .channel.folded a,
-.day .channel.folded h3 a { color: #97c2d9; }
 .day .channel .entry.folded h4,
-.day .channel .entry.folded a,
-.day .channel .entry.folded h4 a { color: #97c2d9; }
+.day .channel .entry.folded a { color: #97c2d9; }
+
+#rs-form {
+	width: 20em;
+	padding: 5px 20px;
+}
+#rs-form .non-default { display: none; }
