@@ -14,6 +14,10 @@
     rs_form.click(function(ev) {
       return ev.stopPropagation();
     });
+    if (!(receive_token_url != null) || !receive_token_url) {
+      console.log('Failed to find receive_token', +' interface URL, remoteStorage interface will be disabled.');
+      rs_form.find('input, button').addClass('disabled').attr('disabled', 'disabled');
+    }
     storage = (function() {
       return {
         connect: function(user_address, callback) {
@@ -99,11 +103,11 @@
     state_update_hook = function() {
       var hide, show, _ref, _ref1;
       _ref = connected ? ['connected', 'disconnected'] : ['disconnected', 'connected'], show = _ref[0], hide = _ref[1];
-      rs_form.find("span." + show).show();
       rs_form.find("span." + hide).hide();
-      _ref1 = authorized ? ['authorized', 'unauthorized'] : ['unauthorized', 'authorized'], show = _ref1[0], hide = _ref1[1];
       rs_form.find("span." + show).show();
-      return rs_form.find("span." + hide).hide();
+      _ref1 = authorized ? ['authorized', 'unauthorized'] : ['unauthorized', 'authorized'], show = _ref1[0], hide = _ref1[1];
+      rs_form.find("span." + hide).hide();
+      return rs_form.find("span." + show).show();
     };
     state_update_hook();
     connect_handler = function(ev) {

@@ -12,8 +12,10 @@ $(document).ready ->
 	rs_form.click (ev) ->
 		ev.stopPropagation()
 
-	# TODO: some msg in this case
-	# if (receive_token_url == undefined) return;
+	if not receive_token_url? or not receive_token_url
+		console.log('Failed to find receive_token'
+			+ ' interface URL, remoteStorage interface will be disabled.')
+		rs_form.find('input, button').addClass('disabled').attr('disabled', 'disabled')
 
 
 	# --- Storage API wrapper
