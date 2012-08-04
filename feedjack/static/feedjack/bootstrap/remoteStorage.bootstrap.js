@@ -84,7 +84,7 @@
               alert('Could not find "' + path + '" on the remoteStorage');
               console.log(error);
             } else {
-              if (data === void 0) {
+              if (!(data != null)) {
                 console.log('There wasn\'t anything for "' + path + '"');
               } else {
                 console.log('Received item "' + path + '": ' + data);

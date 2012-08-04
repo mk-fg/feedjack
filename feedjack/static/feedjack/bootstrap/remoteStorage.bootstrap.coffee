@@ -16,8 +16,8 @@ $(document).ready ->
 		ev.stopPropagation()
 
 	if not receive_token_url?
-		console.log('Failed to find receive_token'
-			+ ' interface URL, remoteStorage interface will be disabled.')
+		console.log( 'Failed to find receive_token'
+			+ ' interface URL, remoteStorage interface will be disabled.' )
 		rs_form.find('input, .btn').addClass('disabled').attr('disabled', 'disabled')
 		return
 
@@ -77,7 +77,7 @@ $(document).ready ->
 						alert('Could not find "' + path + '" on the remoteStorage')
 						console.log(error)
 					else
-						if data == undefined
+						if not data?
 							console.log('There wasn\'t anything for "' + path + '"')
 						else
 							console.log('Received item "' + path + '": ' + data)
