@@ -29,15 +29,6 @@ Original FeedJack also has some advantages:
 [Original feedjack](http://www.feedjack.org/) project looks abandoned though -
 no real updates since 2008 (with quite a lively history before that).
 
-Feedparser itself isn't in much better shape, for that matter - releases weren't
-a frequent thing there up to 2011 (svn looked a bit more alive though), but then
-Mark Pilgrim pulled out from the internets (4 October 2011), so guess it will
-get worse unless someone picks up the development.
-It's purpose is fairly simple though and feed formats haven't really changed
-since 2005, so it's not so bad yet.
-Feel free to update this paragraph if there are now more-or-less mainstream
-forks.
-
 
 Fork
 --------------------
@@ -54,9 +45,9 @@ Fork
 	* Proper transactional updates, so single feed failure is guaranteed not to
 		produce inconsistency or crash the parser.
 
-	* Simple individual Post filters, built in python (callable, accepting Post
-		object and optional parameters, returning True/False), attached (to individual
-		Feeds) and configured (additional parameters to pass) via database (or admin
+	* Simple individual Post filters - python callables (accepting Post object and
+		optional parameters, returning True/False), attached (to individual Feeds)
+		and configured (additional parameters to pass) via database (or admin
 		interface).
 
 	* As complex as needed cross-referencing filters for tasks like site-wide
@@ -64,8 +55,9 @@ Fork
 		comparison functions as well), and automatic mechanism for invalidation of
 		their results.
 
-	* Sane, configurable logging in feedjack_update, without re-inventing the wheel
-		via encode, prints and a tons of if's.
+	* Sane, configurable logging in feedjack_update, without re-inventing the
+		wheel via encode, prints and a tons of if's. feedjack_update command in
+		django-admin suite.
 
 	* Ability to use adaptive feed-check interval, based on average feed activity,
 		so feeds that get updated once a year won't be polled every hour.
@@ -76,9 +68,15 @@ Fork
 	* Dropped a chunk of obsolete code (ripped from old Django) - ObjectPaginator in
 		favor of native Paginator.
 
-	* Minimalistic "bootstrap", "fern" and "plain" (merged from [another
-		fork](http://git.otfbot.org/feedjack.git/)) styles, image feed oriented
-		"fern_grid" style.
+	* "bootstrap", "fern" and "plain" (merged from [another
+		fork](http://git.otfbot.org/feedjack.git/)) themes, image feed oriented
+		"fern_grid" theme.
+
+	* Keeping track of already-read entries with client-side localStorage (only on
+		"bootstrap" and "fern*" themes") or server-side (on any compatible server,
+		not the feedjack instance,
+		[django-unhosted](https://github.com/mk-fg/django-unhosted) instance, for
+		example) [remoteStorage](http://remotestoragejs.com/) ("bootstrap" theme).
 
 	* Quite a few code optimizations.
 	* ...and there's usually more stuff in the CHANGES file.
@@ -158,9 +156,9 @@ be created for you on the first request.
 
 ### Requirements
 
-* [Python 2.7](python.org)
-* [feedparser 4.1+](feedparser.org)
-* [Django 1.4+](djangoproject.com)
+* [Python 2.7](http://python.org)
+* [feedparser 4.1+](https://code.google.com/p/feedparser/)
+* [Django 1.4+](http://djangoproject.com)
 * (optional) [lxml](http://lxml.de) - used for html mangling in some themes (fern, plain)
 * (optional) [South](http://south.aeracode.org) - for automated database schema
 	migrations (when updating from older Feedjack versions)
