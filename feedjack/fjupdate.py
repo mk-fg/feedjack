@@ -89,8 +89,12 @@ class FeedProcessor(object):
 		try: post.content = entry.content[0].value
 		except: post.content = entry.get('summary', entry.get('description', ''))
 
-		post.date_modified = entry.get('modified_parsed', None)
+		post.date_modified = entry.get('modified_parsed')
 		if post.date_modified: post.date_modified = feedparser_ts(post.date_modified)
+		elif entry.get('modified'):
+			log.warn(
+				'Failed to parse post timestamp: {!r} (feed_id: {}, post_guid: {})'\
+				.format(entry.modified, self.feed.id, post.guid) )
 		post.comments = entry.get('comments', '')
 
 		## Get a list of tag objects from an entry
@@ -148,9 +152,13 @@ class FeedProcessor(object):
 			log.extra('[{0}] Saving new post: {1}'.format(self.feed.id, post.guid))
 			# Try hard to set date_modified: feed.modified, http.modified and now() as a last resort
 			if not post.date_modified and self.fpf:
-				if self.fpf.feed.get('modified_parsed'):
-					post.date_modified = feedparser_ts(self.fpf.feed.modified_parsed)
-				elif self.fpf.get('modified'): post.date_modified = feedparser_ts(self.fpf.modified)
+				ts = self.fpf.feed.get('modified_parsed') or self.fpf.get('modified_parsed')
+				if ts: post.date_modified = feedparser_ts(ts)
+				else:
+					ts = self.fpf.feed.get('modified') or self.fpf.get('modified')
+					if ts:
+						log.warn( 'Failed to parse feed/http'
+							' timestamp: {!r} (feed_id: {})'.format(ts, self.feed.id) )
 			if not post.date_modified: post.date_modified = timezone.now()
 			if self.options.hidden: post.hidden = True
 			try: post.save()
