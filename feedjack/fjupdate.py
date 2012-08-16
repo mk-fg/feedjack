@@ -276,7 +276,8 @@ class FeedProcessor(object):
 			except AttributeError: pass
 			self.feed.save()
 
-		return FEED_OK, ret_values
+		return FEED_OK if ret_values[ENTRY_NEW]\
+			or ret_values[ENTRY_UPDATED] else FEED_SAME, ret_values
 
 
 
