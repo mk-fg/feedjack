@@ -669,8 +669,9 @@ signals.post_save.connect(Subscriber._update_handler, sender=Subscriber)
 from django.db import transaction, IntegrityError
 from django.dispatch import Signal
 
-# Following signals are wired into django by monkey-patching,
-#  because there's no support for these in 1.2.
+# Following signals are only used in feedjack transactions,
+#  signaled from following transaction.{commit,rollback} wrappers.
+# Do not use pure transaction.{commit,rollback} in feedjack code.
 # See also: http://code.djangoproject.com/ticket/14051
 
 transaction_pre_commit = Signal(providing_args=list())
@@ -678,21 +679,17 @@ transaction_post_commit = Signal(providing_args=list())
 transaction_pre_rollback = Signal(providing_args=list())
 transaction_post_rollback = Signal(providing_args=list())
 
-_django_commit = transaction.commit
 @ft.wraps(transaction.commit)
-def signaled_commit(using=None):
+def transaction_signaled_commit(using=None):
 	transaction_pre_commit.send(sender=using)
-	_django_commit(using=using)
+	transaction.commit(using=using)
 	transaction_post_commit.send(sender=using)
-transaction.commit = signaled_commit
 
-_django_rollback = transaction.rollback
 @ft.wraps(transaction.rollback)
-def signaled_rollback(using=None):
+def transaction_signaled_rollback(using=None):
 	transaction_pre_rollback.send(sender=using)
-	_django_rollback(using=using)
+	transaction.rollback(using=using)
 	transaction_post_rollback.send(sender=using)
-transaction.rollback = signaled_rollback
 
 
 # These are sent along with transaction_wrapper func start/finish

@@ -4,7 +4,8 @@ from __future__ import unicode_literals
 from django.utils import timezone
 
 import feedparser, feedjack
-from feedjack.models import transaction_wrapper, transaction, IntegrityError
+from feedjack.models import transaction_wrapper, transaction, IntegrityError,\
+	transaction_signaled_commit, transaction_signaled_rollback
 
 import itertools as it, operator as op, functools as ft
 from datetime import datetime, timedelta
@@ -376,7 +377,7 @@ def bulk_update(optz):
 	from feedjack import fjcache
 	for site_id in affected_sites: fjcache.cache_delsite(site_id)
 
-	transaction.commit()
+	transaction_signaled_commit()
 
 
 # Can't be specified in options because django doesn't interpret "%(default)s"
