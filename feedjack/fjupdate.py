@@ -231,7 +231,7 @@ class FeedProcessor(object):
 				log.info( '[{0}] Skipped feed error: {1} ({2})'\
 					.format(self.feed.id, self.feed.feed_url, bozo) )
 
-		self.feed.title = self.fpf.feed.get('title', '')[0:254]
+		self.feed.title = self.fpf.feed.get('title', '')[0:200]
 		self.feed.tagline = self.fpf.feed.get('tagline', '')
 		self.feed.link = self.fpf.feed.get('link', '')
 		self.feed.last_checked = timezone.now()
