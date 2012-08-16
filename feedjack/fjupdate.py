@@ -373,7 +373,7 @@ def bulk_update(optz):
 
 	# Removing the cached data in all sites,
 	#  this will only work with the memcached, db and file backends
-	Site.signal_updated.connect(lambda site: fjcache.cache_delsite(site.id))
+	Site.signal_updated.connect(lambda site, **kwz: fjcache.cache_delsite(site.id))
 	for feed in affected_feeds: feed.signal_updated_dispatch()
 	for site in Site.objects.filter(subscriber__feed__in=affected_feeds):
 		site.signal_updated_dispatch()
