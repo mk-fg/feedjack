@@ -6,6 +6,7 @@ from django.db import models, connection
 from django.utils.translation import ugettext_lazy as _
 from django.utils.encoding import smart_unicode
 from django.utils import timezone
+from django.dispatch import Signal
 
 from feedjack import fjcache
 
@@ -85,6 +86,15 @@ class Site(models.Model):
 
 
 	def __unicode__(self): return self.name
+
+	# Indicates that any linked feed is updated
+	#  (and update is comitted, in case of transaction).
+	# "sender" is always an updated Site object,
+	#  use signal_updated_dispatch method to dispatch the signal.
+	signal_updated = Signal()
+
+	def signal_updated_dispatch(self):
+		return self.signal_updated.send(sender=self)
 
 	def save(self):
 		if not self.template:
@@ -254,9 +264,21 @@ class Feed(models.Model):
 		verbose_name_plural = _('feeds')
 		ordering = ('name', 'feed_url',)
 
+
 	def __unicode__(self):
 		return u'{0} ({1})'.format( self.name, self.feed_url
 			if len(self.feed_url) <= 50 else '{0}...'.format(self.feed_url[:47]) )
+
+	# Indicates that at least one linked Post was added or modified
+	#  (and update is comitted, in case of transaction).
+	# Note that it's different from post_save model signal in that it's
+	#  signaled by updater after all the changes to the object are finalized.
+	# "sender" is always an updated Feed object,
+	#  use signal_updated_dispatch method to dispatch the signal.
+	signal_updated = Signal()
+
+	def signal_updated_dispatch(self):
+		return self.signal_updated.send(sender=self)
 
 	def calculate_check_interval( self,
 			max_days, max_updates, max_interval,
@@ -667,7 +689,6 @@ signals.post_save.connect(Subscriber._update_handler, sender=Subscriber)
 
 
 from django.db import transaction, IntegrityError
-from django.dispatch import Signal
 
 # Following signals are only used in feedjack transactions,
 #  signaled from following transaction.{commit,rollback} wrappers.

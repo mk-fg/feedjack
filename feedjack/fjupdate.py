@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 
 from django.utils import timezone
+from django.dispatch import Signal
 
 import feedparser, feedjack
 from feedjack.models import transaction_wrapper, transaction, IntegrityError,\
@@ -291,26 +292,22 @@ def bulk_update(optz):
 	import socket
 	socket.setdefaulttimeout(optz.timeout)
 
-	affected_sites = set() # for cache invalidation
+	affected_feeds = set() # for post-transaction signals
 
 	if optz.feed:
 		feeds = list(Feed.objects.filter(pk__in=optz.feed)) # no is_active check
 		for feed_id in set(optz.feed).difference(it.imap(op.attrgetter('id'), feeds)):
 			log.warn('Unknown feed id: {0}'.format(feed_id))
-		affected_sites.update(Site.objects.filter(
-			subscriber__feed__in=feeds ).values_list('id', flat=True))
 
 	if optz.site:
 		feeds = Feed.objects.filter( is_active=True,
 			subscriber__site__pk__in=optz.site )
-		sites = Site.objects.filter(pk__in=optz.site).values_list('id', flat=True)
-		for site_id in set(optz.site).difference(sites):
+		sites = Site.objects.filter(pk__in=optz.site)
+		for site_id in set(optz.site).difference(sites.values_list('id', flat=True)):
 			log.warn('Unknown site id: {0}'.format(site_id))
-		affected_sites.update(sites)
 
 	if not optz.feed and not optz.site: # fetches even unbound feeds
 		feeds = Feed.objects.filter(is_active=True)
-		affected_sites = Site.objects.all().values_list('id', flat=True)
 
 
 	feeds, time_delta_global = list(feeds), timezone.now()
@@ -344,6 +341,8 @@ def bulk_update(optz):
 		time_delta = timezone.now()
 		ret_feed, ret_entries = FeedProcessor(feed, optz).process()
 		time_delta = timezone.now() - time_delta
+		# FEED_SAME or errors don't invalidate cache or generate "updated" signals
+		if ret_feed == FEED_OK: affected_feeds.add(feed)
 
 		# Update check_interval ewma if feed had updates
 		if optz.adaptive_interval and any(it.imap(
@@ -374,9 +373,10 @@ def bulk_update(optz):
 
 	# Removing the cached data in all sites,
 	#  this will only work with the memcached, db and file backends
-	# TODO: make it work by "magic" through model signals
-	from feedjack import fjcache
-	for site_id in affected_sites: fjcache.cache_delsite(site_id)
+	Site.signal_updated.connect(lambda site: fjcache.cache_delsite(site.id))
+	for feed in affected_feeds: feed.signal_updated_dispatch()
+	for site in Site.objects.filter(subscriber__feed__in=affected_feeds):
+		site.signal_updated_dispatch()
 
 	transaction_signaled_commit()
 
