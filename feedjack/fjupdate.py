@@ -2,7 +2,6 @@
 from __future__ import unicode_literals
 
 from django.utils import timezone
-from django.dispatch import Signal
 
 import feedparser, feedjack
 from feedjack.models import transaction_wrapper, transaction, IntegrityError,\
@@ -371,14 +370,16 @@ def bulk_update(optz):
 		' '.join('{0}={1}'.format(label, entry_stats[key]) for key,label in entry_keys),
 		' '.join('{0}={1}'.format(label, feed_stats[key]) for key,label in feed_keys) ))
 
+	transaction_signaled_commit()
+
 	# Removing the cached data in all sites,
 	#  this will only work with the memcached, db and file backends
-	Site.signal_updated.connect(lambda site, **kwz: fjcache.cache_delsite(site.id))
-	for feed in affected_feeds: feed.signal_updated_dispatch()
+	Site.signal_updated.connect(lambda sender, instance, **kwz: fjcache.cache_delsite(instance.id))
+	for feed in affected_feeds: feed.signal_updated_dispatch(sender=FeedProcessor)
 	for site in Site.objects.filter(subscriber__feed__in=affected_feeds):
-		site.signal_updated_dispatch()
+		site.signal_updated_dispatch(sender=FeedProcessor)
 
-	transaction_signaled_commit()
+	transaction_signaled_commit() # in case of any immediate changes from signals
 
 
 # Can't be specified in options because django doesn't interpret "%(default)s"

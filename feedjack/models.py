@@ -16,6 +16,8 @@ from datetime import timedelta
 import logging
 
 
+signal_sender_empty = object()
+
 
 class Link(models.Model):
 	name = models.CharField(_('name'), max_length=100, unique=True)
@@ -91,10 +93,11 @@ class Site(models.Model):
 	#  (and update is comitted, in case of transaction).
 	# "sender" is always an updated Site object,
 	#  use signal_updated_dispatch method to dispatch the signal.
-	signal_updated = Signal()
+	signal_updated = Signal(providing_args=['instance'])
 
-	def signal_updated_dispatch(self):
-		return self.signal_updated.send(sender=self)
+	def signal_updated_dispatch(self, sender=signal_sender_empty):
+		if sender is signal_sender_empty: sender = self.__class__
+		return self.signal_updated.send(sender=sender, instance=self)
 
 	def save(self):
 		if not self.template:
@@ -275,10 +278,11 @@ class Feed(models.Model):
 	#  signaled by updater after all the changes to the object are finalized.
 	# "sender" is always an updated Feed object,
 	#  use signal_updated_dispatch method to dispatch the signal.
-	signal_updated = Signal()
+	signal_updated = Signal(providing_args=['instance'])
 
-	def signal_updated_dispatch(self):
-		return self.signal_updated.send(sender=self)
+	def signal_updated_dispatch(self, sender=signal_sender_empty):
+		if sender is signal_sender_empty: sender = self.__class__
+		return self.signal_updated.send(sender=sender, instance=self)
 
 	def calculate_check_interval( self,
 			max_days, max_updates, max_interval,
@@ -695,10 +699,10 @@ from django.db import transaction, IntegrityError
 # Do not use pure transaction.{commit,rollback} in feedjack code.
 # See also: http://code.djangoproject.com/ticket/14051
 
-transaction_pre_commit = Signal(providing_args=list())
-transaction_post_commit = Signal(providing_args=list())
-transaction_pre_rollback = Signal(providing_args=list())
-transaction_post_rollback = Signal(providing_args=list())
+transaction_pre_commit = Signal()
+transaction_post_commit = Signal()
+transaction_pre_rollback = Signal()
+transaction_post_rollback = Signal()
 
 @ft.wraps(transaction.commit)
 def transaction_signaled_commit(using=None):
