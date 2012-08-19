@@ -45,7 +45,7 @@ class Site(models.Model):
 		u'http://www.planetexample.com',
 		u'http://www.planetexample.com:8000/foo' ) )
 	title = models.CharField(_('title'), max_length=200)
-	description = models.TextField(_('description'))
+	description = models.TextField(_('description'), blank=True)
 	welcome = models.TextField(_('welcome'), null=True, blank=True)
 	greets = models.TextField(_('greets'), null=True, blank=True)
 
@@ -75,7 +75,7 @@ class Site(models.Model):
 	class Meta:
 		verbose_name = _('site')
 		verbose_name_plural = _('sites')
-		ordering = ('name',)
+		ordering = 'name',
 
 
 	@property
@@ -99,7 +99,7 @@ class Site(models.Model):
 		if sender is signal_sender_empty: sender = self.__class__
 		return self.signal_updated.send(sender=sender, instance=self)
 
-	def save(self):
+	def save(self, *argz, **kwz):
 		if not self.template:
 			self.template = 'default'
 		# there must be only ONE default site
@@ -113,7 +113,7 @@ class Site(models.Model):
 					tdef.save()
 		self.url = self.url.rstrip('/')
 		fjcache.hostcache_set({})
-		super(Site, self).save()
+		super(Site, self).save(*argz, **kwz)
 
 
 
@@ -265,7 +265,7 @@ class Feed(models.Model):
 	class Meta:
 		verbose_name = _('feed')
 		verbose_name_plural = _('feeds')
-		ordering = ('name', 'feed_url',)
+		ordering = ('name', 'feed_url')
 
 
 	def __unicode__(self):
@@ -452,7 +452,7 @@ class Tag(models.Model):
 	class Meta:
 		verbose_name = _('tag')
 		verbose_name_plural = _('tags')
-		ordering = ('name',)
+		ordering = 'name',
 
 	def __unicode__(self): return self.name
 
@@ -557,8 +557,8 @@ class Post(models.Model):
 	class Meta:
 		verbose_name = _('post')
 		verbose_name_plural = _('posts')
-		ordering = ('-date_modified',)
-		unique_together = (('feed', 'guid'),)
+		ordering = '-date_modified',
+		unique_together = ('feed', 'guid'),
 
 
 	@staticmethod
@@ -657,7 +657,7 @@ class Subscriber(models.Model):
 		verbose_name = _('subscriber')
 		verbose_name_plural = _('subscribers')
 		ordering = ('site', 'name', 'feed')
-		unique_together = (('site', 'feed'),)
+		unique_together = ('site', 'feed'),
 
 	def __unicode__(self): return u'%s in %s' % (self.feed, self.site)
 
@@ -665,10 +665,10 @@ class Subscriber(models.Model):
 		from feedjack import fjcloud
 		return fjcloud.getcloud(self.site, self.feed.id)
 
-	def save(self):
+	def save(self, *argz, **kwz):
 		if not self.name: self.name = self.feed.name
 		if not self.shortname: self.shortname = self.feed.shortname
-		super(Subscriber, self).save()
+		super(Subscriber, self).save(*argz, **kwz)
 
 
 	@staticmethod

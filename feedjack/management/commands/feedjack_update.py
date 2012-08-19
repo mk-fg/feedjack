@@ -17,5 +17,5 @@ class Command(NoArgsCommand):
 	option_list = NoArgsCommand.option_list\
 		+ tuple(fjupdate.make_cli_option_list())
 
-	def handle_noargs(self, **optz_dict):
-		fjupdate.main(optz_dict)
+	def handle_noargs(self, **optz):
+		fjupdate.main(optz)

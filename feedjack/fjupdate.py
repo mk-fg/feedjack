@@ -231,7 +231,7 @@ class FeedProcessor(object):
 				log.info( '[{0}] Skipped feed error: {1} ({2})'\
 					.format(self.feed.id, self.feed.feed_url, bozo) )
 
-		self.feed.title = self.fpf.feed.get('title', '')[0:200]
+		self.feed.title = self.fpf.feed.get('title', '')[:200]
 		self.feed.tagline = self.fpf.feed.get('tagline', '')
 		self.feed.link = self.fpf.feed.get('link', '')
 		self.feed.last_checked = timezone.now()
@@ -445,11 +445,11 @@ def make_cli_option_list():
 		optparse.make_option('--debug', action='store_true', help='Even more verbose output.') ]
 
 
-def main(optz_dict=None):
+def main(optz=None):
 	from django.core.management.base import CommandError
 	import optparse
 
-	if optz_dict is None:
+	if optz is None:
 		parser = optparse.OptionParser(
 			usage='%prog [options]', version=USER_AGENT,
 			option_list=make_cli_option_list() )
@@ -458,8 +458,9 @@ def main(optz_dict=None):
 
 	else:
 		parser = None # to check and re-raise django CommandError
-		optz = optparse.Values()
-		optz._update(optz_dict, 'loose')
+		if not isinstance(optz, optparse.Values):
+			optz, optz_dict = optparse.Values(), optz
+			optz._update(optz_dict, 'loose')
 
 	# Set console logging level
 	verbosity = int(vars(optz).get('verbosity', 1)) # from django-admin
