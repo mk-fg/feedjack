@@ -15,6 +15,12 @@ from collections import namedtuple, defaultdict, Iterable, Iterator
 from datetime import timedelta
 import logging
 
+# Try to find more optimized json module than builtin one
+try: import anyjson as json
+except ImportError:
+	try: import simplejson as json
+	except ImportError: import json
+
 
 signal_sender_empty = object()
 
@@ -544,6 +550,18 @@ class Post(models.Model):
 	hidden = models.BooleanField( default=False,
 		help_text='Manual switch to completely hide the Post,'
 			' although it will be present for internal checks, like filters.' )
+
+	# Media enclosures data is stored as a opaque serializad data blob in db,
+	#  and should only be accessed through de-/serializing descriptor, never directly.
+	_enclosures = models.TextField(
+		db_column='enclosures', blank=True, editable=False )
+	def _enclosures_set(self, data):
+		self._enclosures = json.dumps(data) if data else ''
+	def _enclosures_get(self):
+		if not self._enclosures: return None
+		return json.loads(self._enclosures)
+	enclosures = property(_enclosures_get, _enclosures_set)
+	del _enclosures_get, _enclosures_set
 
 	# These two will be quite different from date_modified, since date_modified is
 	#  parsed from the feed itself, and should always be earlier than either of two

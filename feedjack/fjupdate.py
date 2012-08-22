@@ -96,7 +96,9 @@ class FeedProcessor(object):
 			log.warn(
 				'Failed to parse post timestamp: {!r} (feed_id: {}, post_guid: {})'\
 				.format(entry.modified, self.feed.id, post.guid) )
+
 		post.comments = entry.get('comments', '')
+		post.enclosures = entry.get('enclosures')
 
 		## Get a list of tag objects from an entry
 		# Note that these objects can't go into m2m field until properly saved
