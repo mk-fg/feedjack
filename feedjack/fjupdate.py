@@ -11,7 +11,8 @@ import itertools as it, operator as op, functools as ft
 from datetime import datetime, timedelta
 from time import struct_time, sleep
 from collections import defaultdict
-import os, sys, types
+from hashlib import sha256
+import os, sys, types, hmac
 
 
 USER_AGENT = 'Feedjack {} - {}'.format(feedjack.__version__, feedjack.__url__)
@@ -59,6 +60,9 @@ def print_exc(feed_id=None, _exc_frame='[{0}] ! ' + '-'*25 + '\n'):
 	traceback.print_exc()
 	sys.stderr.write(_exc_frame.format(feed_id))
 
+def guid_hash(guid, nid='feedjack:guid'):
+	return 'urn:{}:{}'.format( nid,
+		hmac.new(nid, msg=guid, digestmod=sha256).hexdigest() )
 
 
 class FeedProcessor(object):
@@ -67,8 +71,10 @@ class FeedProcessor(object):
 		self.feed, self.options = feed, options
 		self.fpf = None
 
-	def _get_guid(self, fp_entry):
-		return fp_entry.get('id', '') or fp_entry.get('title', '') or fp_entry.get('link', '')
+	def _get_guid(self, fp_entry, nid='feedjack:guid'):
+		guid = fp_entry.get('id', '') or fp_entry.get('title', '') or fp_entry.get('link', '')
+		# Hashing fallback is necessary due to mysql field length limitations
+		return guid if len(guid) <= 255 else guid_hash(guid)
 
 	def process_entry(self, entry):
 		'Construct a Post from a feedparser entry and save/update it in db'

@@ -542,7 +542,7 @@ class Post(models.Model):
 	link = models.URLField(_('link'), max_length=2047) # look at hashify.me for reasoning behind 2k+ length
 	content = models.TextField(_('content'), blank=True)
 	date_modified = models.DateTimeField(_('date modified'), null=True, blank=True)
-	guid = models.CharField(_('guid'), max_length=511, db_index=True)
+	guid = models.CharField(_('guid'), max_length=255, db_index=True)
 	author = models.CharField(_('author'), max_length=255, blank=True)
 	author_email = models.EmailField(_('author email'), blank=True)
 	comments = models.URLField(_('comments'), max_length=511, blank=True)
