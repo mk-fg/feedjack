@@ -15,7 +15,7 @@ class Migration(SchemaMigration):
     def backwards(self, orm):
 
         # Changing field 'Tag.name'
-        db.alter_column('feedjack_tag', 'name', self.gf('django.db.models.fields.CharField')(max_length=2047, unique=True))
+        db.alter_column('feedjack_tag', 'name', self.gf('django.db.models.fields.CharField')(max_length=255, unique=True))
 
     models = {
         'feedjack.feed': {
