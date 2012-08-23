@@ -113,7 +113,7 @@ class FeedProcessor(object):
 				else: qcat = [qcat]
 
 				for zcat in qcat:
-					tagname = ' '.join(zcat.lower().split()).strip()
+					tagname = ' '.join(zcat.lower().split()).strip()[:255]
 					if not tagname: continue
 					if not Tag.objects.filter(name=tagname):
 						cobj = Tag(name=tagname)

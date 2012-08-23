@@ -453,7 +453,7 @@ signals.post_save.connect(Feed._filters_update_handler, sender=Feed)
 
 
 class Tag(models.Model):
-	name = models.CharField(_('name'), max_length=2047, unique=True)
+	name = models.CharField(_('name'), max_length=255, unique=True)
 
 	class Meta:
 		verbose_name = _('tag')
