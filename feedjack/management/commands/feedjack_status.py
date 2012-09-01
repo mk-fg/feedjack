@@ -18,6 +18,8 @@ class Command(NoArgsCommand):
 			help='Display feeds for the specified site only.'
 				' Should be either numeric site_id or exact (and unique)'
 				' part of the site name or title to subscribe to the added feed.'),
+		make_option('-f', '--feed', action='append', type='int', default=list(),
+			help='Only display status for specified feeds.'),
 	)
 
 	def p(self, *argz, **kwz):
@@ -31,22 +33,27 @@ class Command(NoArgsCommand):
 				raise CommandError(err.args[0])
 		else: sites = models.Site.objects.all()
 
+		def display_feed_status(feed):
+			status = list()
+			if not feed.is_active: status.append('disabled')
+			elif feed.subscriber_set.filter(site_id=site.id, is_active=False):
+				status.append('subscriber disabled')
+
+			self.p('  {} [{}] {}'.format(' '.join(it.imap( '({})'.format,
+				status )) if int(optz['verbosity']) <= 1 else '', feed.id, feed))
+
+			if int(optz['verbosity']) > 1:
+				self.p('    Status: {}. Last check: {} ({}).'.format(
+					', '.join(status) or 'active',
+					feed.last_checked, naturaltime(feed.last_checked) ))
+
 		for site in sites:
-			self.p('Site: {} (id: {})'.format(site, site.id))
-			for feed in models.Feed.objects\
+			feeds = models.Feed.objects\
 					.filter(subscriber__site_id=site.id)\
-					.order_by('-is_active', 'name', '-subscriber__is_active'):
-				status = list()
-				if not feed.is_active: status.append('disabled')
-				elif feed.subscriber_set.filter(site_id=site.id, is_active=False):
-					status.append('subscriber disabled')
+					.order_by('-is_active', 'name', '-subscriber__is_active')
+			if optz['feed']: feeds = feeds.filter(id__in=optz['feed'])
+			if not feeds.count(): continue
 
-				self.p('  {} [{}] {}'.format(' '.join(it.imap( '({})'.format,
-					status )) if int(optz['verbosity']) <= 1 else '', feed.id, feed))
-
-				if int(optz['verbosity']) > 1:
-					self.p('    Status: {}. Last check: {} ({}).'.format(
-						', '.join(status) or 'active',
-						feed.last_checked, naturaltime(feed.last_checked) ))
-
+			self.p('Site: {} (id: {})'.format(site, site.id))
+			for feed in feeds: display_feed_status(feed)
 			self.p()
