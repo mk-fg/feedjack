@@ -17,7 +17,7 @@ class Command(NoArgsCommand):
 		make_option('-s', '--site', action='append', default=list(),
 			help='Display feeds for the specified site only.'
 				' Should be either numeric site_id or exact (and unique)'
-				' part of the site name or title to subscribe to the added feed.'),
+				' part of the site name/title or "none" to show feeds without subscribers.'),
 		make_option('-f', '--feed', action='append', type='int', default=list(),
 			help='Only display status for specified feeds.'),
 	)
@@ -27,16 +27,22 @@ class Command(NoArgsCommand):
 		return print(*argz, **kwz)
 
 	def handle_noargs(self, **optz):
+		sites = list()
 		if optz.get('site'):
-			try: sites = list(models.Site.get_by_string(name) for name in optz['site'])
+			site_names = set(optz['site'])
+			try: site_names.remove('none')
+			except KeyError: pass
+			else: sites.append(None)
+			try: sites.extend(models.Site.get_by_string(name) for name in site_names)
 			except (ObjectDoesNotExist, MultipleObjectsReturned) as err:
 				raise CommandError(err.args[0])
-		else: sites = models.Site.objects.all()
+		else: sites.extend(models.Site.objects.all())
 
 		def display_feed_status(feed):
 			status = list()
 			if not feed.is_active: status.append('disabled')
-			elif feed.subscriber_set.filter(site_id=site.id, is_active=False):
+			elif feed.subscriber_set.count()\
+					and feed.subscriber_set.filter(site_id=site.id, is_active=False):
 				status.append('subscriber disabled')
 
 			self.p('  {} [{}] {}'.format(' '.join(it.imap( '({})'.format,
@@ -47,13 +53,20 @@ class Command(NoArgsCommand):
 					', '.join(status) or 'active',
 					feed.last_checked, naturaltime(feed.last_checked) ))
 
+		if not optz.get('site'): sites.append(None)
+
 		for site in sites:
 			feeds = models.Feed.objects\
-					.filter(subscriber__site_id=site.id)\
-					.order_by('-is_active', 'name', '-subscriber__is_active')
-			if optz['feed']: feeds = feeds.filter(id__in=optz['feed'])
-			if not feeds.count(): continue
+				.order_by('-is_active', 'name', '-subscriber__is_active')
+			if optz.get('feed'): feeds = feeds.filter(id__in=optz['feed'])
+			if site:
+				feeds = feeds.filter(subscriber__site_id=site.id)
+				if not feeds.count(): continue
+				self.p('Site: {} (id: {})'.format(site, site.id))
+			else:
+				feeds = list(f for f in feeds if f.subscriber_set.count() == 0)
+				if not feeds: continue
+				self.p('Not subscribed to by any site')
 
-			self.p('Site: {} (id: {})'.format(site, site.id))
 			for feed in feeds: display_feed_status(feed)
 			self.p()
