@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from django.core.exceptions import ObjectDoesNotExist, ValidationError
-from django.db.models import signals, Avg, Max, Min, Count
+from django.core.exceptions import ObjectDoesNotExist,\
+	ValidationError, MultipleObjectsReturned
+from django.db.models import signals, Avg, Max, Min, Count, Q
 from django.db import models, connection
 from django.utils.translation import ugettext_lazy as _
 from django.utils.encoding import smart_unicode
@@ -83,6 +84,21 @@ class Site(models.Model):
 		verbose_name_plural = _('sites')
 		ordering = 'name',
 
+
+	@classmethod
+	def get_by_string(cls, name):
+		'Get Site object by numeric site_id or exact (and unique) part of site name or title.'
+		site = list(
+			cls.objects.filter(id=int(name)) if name.isdigit()\
+			else cls.objects.filter(
+				Q(name__icontains=name) | Q(title__icontains=name) ) )
+		if len(site) > 1:
+			raise MultipleObjectsReturned( u'Unable to uniquely identify site by provided'
+				u' name part: {!r} (candidates: {})'.format(name, ', '.join(it.imap(unicode, site))) )
+		elif not len(site):
+			raise ObjectDoesNotExist(
+				u'Unable to find site by provided criteria: {!r}'.format(name) )
+		return site[0]
 
 	@property
 	def active_subscribers(self):

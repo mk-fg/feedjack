@@ -5,7 +5,6 @@ import itertools as it, operator as op, functools as ft
 
 from django.core.management.base import BaseCommand, CommandError
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
-from django.db.models import Q
 from django.db import transaction
 
 from optparse import make_option, OptionParser
@@ -21,9 +20,11 @@ class Command(BaseCommand):
 			help='Name for the feed (default: fetch from feed).'),
 		make_option('-c', '--shortname',
 			help='Feed shortname (default: same as --name).'),
-		make_option('-s', '--subscribe', metavar='SITE',
+		make_option('-s', '--subscribe',
+			action='append', metavar='SITE', default=list(),
 			help='Either numeric site_id or exact (and unique)'
-				' part of the site name or title to subscribe to the added feed.'),
+					' part of the site name or title to subscribe to the added feed.'
+				' Can be specified multiple times.'),
 
 		make_option('-f', '--initial-fetch',
 			action='store_true', help='Do the initial fetch of the feed.'),
@@ -35,18 +36,12 @@ class Command(BaseCommand):
 	def handle(self, url, **optz):
 		# Check if subscriber site can be found
 		if optz.get('subscribe'):
-			site = list(models.Site.objects.filter(id=int(optz['subscribe']))\
-				if optz['subscribe'].isdigit()\
-				else models.Site.objects.filter(
-					Q(name__icontains=optz['subscribe']) |
-					Q(title__icontains=optz['subscribe']) ))
-			if len(site) > 1:
-				raise CommandError( u'Unable to uniquely identify subscriber site by'
-					' provided name part (candidates: {})'.format(', '.join(it.imap(unicode, site))) )
-			elif not len(site):
-				raise CommandError(u'Unable to find subscriber site by provided criteria')
-			site, = site
-		else: site = None
+			try:
+				subscribe = list(
+					models.Site.get_by_string(name) for name in optz['subscribe'] )
+			except (ObjectDoesNotExist, MultipleObjectsReturned) as err:
+				raise CommandError(err.args[0])
+		else: subscribe = None
 
 		# Fill in missing feed name fields
 		if not optz.get('name'):
@@ -62,7 +57,9 @@ class Command(BaseCommand):
 			feed = models.Feed( feed_url=url,
 				name=optz['name'], shortname=optz['shortname'] )
 			feed.save()
-			if site: models.Subscriber.objects.create(feed=feed, site=site)
+			if subscribe:
+				for site in subscribe:
+					models.Subscriber.objects.create(feed=feed, site=site)
 
 		# Perform the initial fetch, if requested
 		if optz.get('initial_fetch'):

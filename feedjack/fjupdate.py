@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.utils import timezone
 
 import feedparser, feedjack
@@ -308,11 +309,9 @@ def bulk_update(optz):
 			log.warn('Unknown feed id: {0}'.format(feed_id))
 
 	if optz.site:
+		sites = list(Site.get_by_string(unicode(name)) for name in optz.site)
 		feeds = Feed.objects.filter( is_active=True,
-			subscriber__site__pk__in=optz.site )
-		sites = Site.objects.filter(pk__in=optz.site)
-		for site_id in set(optz.site).difference(sites.values_list('id', flat=True)):
-			log.warn('Unknown site id: {0}'.format(site_id))
+			subscriber__site__pk__in=map(op.attrgetter('id'), sites) )
 
 	if not optz.feed and not optz.site: # fetches even unbound feeds
 		feeds = Feed.objects.filter(is_active=True)
@@ -413,9 +412,9 @@ def make_cli_option_list():
 
 		optparse.make_option('-f', '--feed', action='append', type='int',
 			help='A feed id to be updated. This option can be given multiple '
-				'times to update several feeds at the same time (-f 1 -f 4 -f 7).'),
-		optparse.make_option('-s', '--site', action='append', type='int',
-			help='A site id (or several of them) to update.'),
+				'times to update several feeds at the same time (-f 1 -f 4 -f7).'),
+		optparse.make_option('-s', '--site', action='append',
+			help='A site id or name/title part to update. Can be specified multiple times.'),
 
 		optparse.make_option('-a', '--adaptive-interval', action='store_true',
 			help=( 'Skip fetching feeds, depending on adaptive'
