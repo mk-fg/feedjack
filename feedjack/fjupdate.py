@@ -185,7 +185,8 @@ class FeedProcessor(object):
 		tsp = transaction.savepoint()
 		try:
 			ret_feed, ret_entries = self._process()
-			if ret_feed != FEED_OK: raise FeedValidationError()
+			if ret_feed not in {FEED_OK, FEED_SAME}:
+				raise FeedValidationError()
 		except FeedValidationError: # no extra noise necessary
 			transaction.savepoint_rollback(tsp)
 		except:
