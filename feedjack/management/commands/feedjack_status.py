@@ -3,6 +3,7 @@ from __future__ import unicode_literals, print_function
 
 import itertools as it, operator as op, functools as ft
 from optparse import make_option, OptionParser
+from pprint import pformat
 
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.core.management.base import NoArgsCommand, CommandError
@@ -12,7 +13,8 @@ from feedjack import models
 
 
 class Command(NoArgsCommand):
-	help = 'Show registered sites, feeds and their update status.'
+	help = 'Show registered sites, feeds and their update status.\n'\
+		'Increase --verbosity value to get more details for each individual feed.'
 	option_list = NoArgsCommand.option_list + (
 		make_option('-s', '--site', action='append', default=list(),
 			help='Display feeds for the specified site only.'
@@ -23,8 +25,15 @@ class Command(NoArgsCommand):
 	)
 
 	def p(self, *argz, **kwz):
-		kwz['file'] = self.stdout
+		kwz.setdefault('file', self.stdout)
 		return print(*argz, **kwz)
+
+	def dump(self, data, header=None, indent=''):
+		data = pformat(data)
+		indent_line = indent + ('  ' if header else '')
+		if indent_line: data = ''.join((indent_line + line) for line in data.splitlines())
+		if header: self.p(indent + header)
+		return self.p(data)
 
 	def handle_noargs(self, **optz):
 		sites = list()
@@ -52,6 +61,8 @@ class Command(NoArgsCommand):
 				self.p('    Status: {}. Last check: {} ({}).'.format(
 					', '.join(status) or 'active',
 					feed.last_checked, naturaltime(feed.last_checked) ))
+			if int(optz['verbosity']) > 2:
+				self.dump(list(feed.filters.all()), header='Filters:', indent=' '*4)
 
 		if not optz.get('site'): sites.append(None)
 

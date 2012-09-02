@@ -221,12 +221,13 @@ class Filter(models.Model):
 	@property
 	def shortname(self): return self.__unicode__(short=True)
 	def __unicode__(self, short=False):
-		usage = [self.parameter] if self.parameter else list()
+		extra = ['id: {}'.format(self.id)]
+		if self.parameter: extra.append('param: {}'.format(self.parameter))
 		if not short:
 			binding = self.feeds.values_list('shortname', flat=True)
 			binding = u', '.join(binding) if len(binding) < 5 else '{0} feeds'.format(len(binding))
-			usage.append(u'used on {0}'.format(binding) if binding else 'not used for any feed')
-		return u'{0.base.name}{1}'.format(self, u' ({0})'.format(u', '.join(usage)) if usage else '')
+			extra.append(u'used on {0}'.format(binding) if binding else 'not used for any feed')
+		return u'{0.base.name}{1}'.format(self, u' ({0})'.format(u', '.join(extra)) if extra else '')
 
 
 class FilterResult(models.Model):
