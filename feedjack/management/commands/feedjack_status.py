@@ -73,7 +73,7 @@ class Command(NoArgsCommand):
 			if site:
 				feeds = feeds.filter(subscriber__site_id=site.id)
 				if not feeds.count(): continue
-				self.p('Site: {} (id: {})'.format(site, site.id))
+				self.p('Site: {} (id: {}, feeds: {})'.format(site, site.id, feeds.count()))
 			else:
 				feeds = list(f for f in feeds if f.subscriber_set.count() == 0)
 				if not feeds: continue
