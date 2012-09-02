@@ -20,11 +20,14 @@ class Command(BaseCommand):
 			help='Name for the feed (default: fetch from feed).'),
 		make_option('-c', '--shortname',
 			help='Feed shortname (default: same as --name).'),
+
 		make_option('-s', '--subscribe',
 			action='append', metavar='SITE', default=list(),
 			help='Either numeric site_id or exact (and unique)'
 					' part of the site name or title to subscribe to the added feed.'
 				' Can be specified multiple times.'),
+		make_option('-e', '--filter', action='append', type='int', default=list(),
+			help='Numeric filter_id to attach to a feed. Can be specified multiple times.'),
 
 		make_option('-f', '--initial-fetch',
 			action='store_true', help='Do the initial fetch of the feed.'),
@@ -34,14 +37,19 @@ class Command(BaseCommand):
 	)
 
 	def handle(self, url, **optz):
-		# Check if subscriber site can be found
+		# Check if subscriber sites and filters can be found
 		if optz.get('subscribe'):
 			try:
 				subscribe = list(
 					models.Site.get_by_string(name) for name in optz['subscribe'] )
 			except (ObjectDoesNotExist, MultipleObjectsReturned) as err:
-				raise CommandError(err.args[0])
-		else: subscribe = None
+				raise CommandError(err.message)
+		else: subscribe = list()
+		if optz.get('filter'):
+			try: filters = list(models.Filter.objects.get(id=fid) for fid in optz['filter'])
+			except ObjectDoesNotExist as err:
+				raise CommandError(err.message)
+		else: filters = list()
 
 		# Fill in missing feed name fields
 		if not optz.get('name'):
@@ -56,10 +64,10 @@ class Command(BaseCommand):
 		with transaction.commit_on_success():
 			feed = models.Feed( feed_url=url,
 				name=optz['name'], shortname=optz['shortname'] )
+			for f in filters: feed.filters.add(f)
 			feed.save()
-			if subscribe:
-				for site in subscribe:
-					models.Subscriber.objects.create(feed=feed, site=site)
+			for site in subscribe:
+				models.Subscriber.objects.create(feed=feed, site=site)
 
 		# Perform the initial fetch, if requested
 		if optz.get('initial_fetch'):
