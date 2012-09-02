@@ -64,8 +64,8 @@ class Command(BaseCommand):
 		with transaction.commit_on_success():
 			feed = models.Feed( feed_url=url,
 				name=optz['name'], shortname=optz['shortname'] )
-			for f in filters: feed.filters.add(f)
 			feed.save()
+			for f in filters: feed.filters.add(f)
 			for site in subscribe:
 				models.Subscriber.objects.create(feed=feed, site=site)
 
