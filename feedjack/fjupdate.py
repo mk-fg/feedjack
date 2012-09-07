@@ -301,7 +301,19 @@ def bulk_update(optz):
 	import socket
 	socket.setdefaulttimeout(optz.timeout)
 
+
 	affected_feeds = set() # for post-transaction signals
+	Site.signal_updated.connect(
+		lambda sender, instance, **kwz: fjcache.cache_delsite(instance.id) )
+
+	def transaction_commit():
+		log.debug('Comitting db transaction')
+		transaction_signaled_commit()
+		for feed in affected_feeds: feed.signal_updated_dispatch(sender=FeedProcessor)
+		for site in Site.objects.filter(subscriber__feed__in=affected_feeds):
+			site.signal_updated_dispatch(sender=FeedProcessor)
+		transaction_signaled_commit() # in case of any immediate changes from signals
+
 
 	if optz.feed:
 		feeds = list(Feed.objects.filter(pk__in=optz.feed)) # no is_active check
@@ -317,7 +329,8 @@ def bulk_update(optz):
 		feeds = Feed.objects.filter(is_active=True)
 
 
-	feeds, time_delta_global = list(feeds), timezone.now()
+	feeds = list(feeds)
+	time_delta_global = time_delta_commit = timezone.now()
 	log.info( '* BEGIN: {0}, feeds to process: {1}'\
 		.format(time_delta_global, len(feeds)) )
 
@@ -377,7 +390,7 @@ def bulk_update(optz):
 				ewma=check_interval, ewma_ts=check_interval_ts, **check_optz )
 			fjcache.feed_interval_set(feed.id, check_optz, check_interval, check_interval_ts)
 
-		# Feedback, stats, delay
+		# Feedback, stats, commit, delay
 		log.info('[{0}] Processed {1} in {2}s [{3}] [{4}]{5}'.format(
 			feed.id, feed.feed_url, time_delta, feed_keys_dict[ret_feed],
 			' '.join('{0}={1}'.format( label,
@@ -387,7 +400,17 @@ def bulk_update(optz):
 		feed_stats[ret_feed] += 1
 		for k,v in ret_entries.iteritems(): entry_stats[k] += v
 
-		if optz.delay: sleep(optz.delay)
+		if optz.commit_interval:
+			if isinstance(optz.commit_interval, timedelta):
+				ts = timezone.now()
+				if ts - time_delta_commit > optz.commit_interval:
+					transaction_commit()
+					time_delta_commit = ts
+			elif sum(feed_stats.viewvalues()) % optz.commit_interval == 0: transaction_commit()
+
+		if optz.delay:
+			log.debug('Waiting for {}s (delay option)'.format(optz.delay))
+			sleep(optz.delay)
 
 	_exc_feed_id = None
 
@@ -397,17 +420,7 @@ def bulk_update(optz):
 		' '.join('{0}={1}'.format(label, entry_stats[key]) for key,label in entry_keys),
 		' '.join('{0}={1}'.format(label, feed_stats[key]) for key,label in feed_keys) ))
 
-	transaction_signaled_commit()
-
-	# Removing the cached data in all sites,
-	#  this will only work with the memcached, db and file backends
-	Site.signal_updated.connect(lambda sender, instance, **kwz: fjcache.cache_delsite(instance.id))
-	for feed in affected_feeds: feed.signal_updated_dispatch(sender=FeedProcessor)
-	for site in Site.objects.filter(subscriber__feed__in=affected_feeds):
-		site.signal_updated_dispatch(sender=FeedProcessor)
-
-	transaction_signaled_commit() # in case of any immediate changes from signals
-
+	transaction_commit()
 
 # Can't be specified in options because django doesn't interpret "%(default)s"
 #  in option help strings, and interval_parameters can be partially overidden.
@@ -469,6 +482,16 @@ def make_cli_option_list():
 			metavar='seconds', type='int', default=cli_defaults['delay'],
 			help='Delay (in seconds) between'
 				' fetching the feeds (default: {}).'.format(cli_defaults['delay'])),
+		optparse.make_option('-c', '--commit-interval',
+			metavar='feed_count/<seconds>s',
+			help='Interval between intermediate database transaction commits.'
+				' Can be specified as feed_count (example: 5) to commit after each N processed feeds,'
+					' or as a time interval in seconds (example: 600s).'
+				' Default behavior is to make db commit only after all requested feeds/sites'
+					' were processed (with savepoints after each individual feed,'
+					' to rollback feed processing errors).'
+				' Should only be useful for sufficiently large processing'
+					' jobs, large --delay values or very slow feeds.'),
 
 		optparse.make_option('-q', '--quiet', action='store_true',
 			help='Report only severe errors, no info or warnings.'),
@@ -502,7 +525,7 @@ def main(optz=None):
 	elif optz.quiet or verbosity < 1: logging.basicConfig(level=logging.WARNING)
 	else: logging.basicConfig(level=logging.INFO)
 
-	# Process --interval-parameters
+	# Process --interval-parameters, --commit-interval
 	try:
 		if isinstance(optz.interval_parameters, types.StringTypes):
 			params = cli_defaults['interval_parameters'].copy()
@@ -521,6 +544,14 @@ def main(optz=None):
 				elif vs.endswith('s'): v = v / float(3600 * 24)
 				params[k] = v
 			optz.interval_parameters = params
+		if optz.commit_interval:
+			if optz.commit_interval.isdigit():
+				optz.commit_interval = int(optz.commit_interval)
+			elif optz.commit_interval.endswith('s'):
+				optz.commit_interval = timedelta(0, int(optz.commit_interval[:-1]))
+			else:
+				raise CommandError( 'Invalid'
+					' interval value: {}'.format(optz.commit_interval) )
 	except CommandError as err:
 		if not parser: raise
 		parser.error(*err.args)

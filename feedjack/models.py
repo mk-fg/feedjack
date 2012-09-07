@@ -329,7 +329,7 @@ class Feed(models.Model):
 				try:
 					ewma_ts = self.posts.only('date_modified')\
 						.order_by('-date_modified')[0].date_modified
-				except ObjectDoesNotExist: return 0 # no previous timestamp available
+				except (ObjectDoesNotExist, IndexError): return 0 # no previous timestamp available
 			timestamps.append(add_partial)
 			if (add_partial - ewma_ts).total_seconds() < ewma:
 				# It doesn't make sense to lower interval due to frequent check attempts.
