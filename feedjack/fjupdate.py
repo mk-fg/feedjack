@@ -328,13 +328,25 @@ def bulk_update(optz):
 
 		# Check if feed has to be fetched
 		if optz.adaptive_interval:
+			check_optz = optz.interval_parameters.copy()
+			check_clc = check_optz.pop('consider_last_check') or False
 			if feed.last_checked:
-				check_interval = fjcache.feed_interval_get(feed.id, optz.interval_parameters)
+				check_interval, check_interval_ts =\
+					fjcache.feed_interval_get(feed.id, check_optz)
 				if check_interval is None: # calculate and cache it
-					check_interval = feed.calculate_check_interval(**optz.interval_parameters)
-					fjcache.feed_interval_set(feed.id, optz.interval_parameters, check_interval)
-				check_interval_ts = feed.last_checked
-				time_delta = timedelta(0, check_interval)
+					check_interval = feed.calculate_check_interval(**check_optz)
+					fjcache.feed_interval_set( feed.id,
+						check_optz, check_interval, check_interval_ts )
+				# With "consider_last_check", interval to feed.last_checked is added to average
+				time_delta = timedelta( 0,
+					feed.calculate_check_interval(
+						ewma=check_interval, ewma_ts=check_interval_ts,
+						add_partial=feed.last_checked, **check_optz )\
+					if check_clc else check_interval )
+				if not check_interval_ts:
+					# Cache miss, legacy case or first post on the feed
+					# Normally, it should be set after any feed update
+					check_interval_ts = feed.last_checked
 				time_delta_chk = (timezone.now() - time_delta) - check_interval_ts
 				if time_delta_chk < timedelta(0):
 					log.extra(
@@ -346,7 +358,11 @@ def bulk_update(optz):
 
 		# Fetch new/updated stuff from the feed to db
 		time_delta = timezone.now()
-		ret_feed, ret_entries = FeedProcessor(feed, optz).process()
+		if not optz.dry_run:
+			ret_feed, ret_entries = FeedProcessor(feed, optz).process()
+		else:
+			log.debug('[{}] Not fetching feed, because dry-run flag is set'.format(feed.id))
+			ret_feed, ret_entries = FEED_SAME, dict()
 		time_delta = timezone.now() - time_delta
 		# FEED_SAME or errors don't invalidate cache or generate "updated" signals
 		if ret_feed == FEED_OK: affected_feeds.add(feed)
@@ -354,9 +370,12 @@ def bulk_update(optz):
 		# Update check_interval ewma if feed had updates
 		if optz.adaptive_interval and any(it.imap(
 				ret_entries.get, [ENTRY_NEW, ENTRY_UPDATED, ENTRY_ERR] )):
+			if not check_interval_ts:
+				assert feed.last_checked
+				check_interval_ts = feed.last_checked
 			check_interval = feed.calculate_check_interval(
-				ewma=check_interval, ewma_ts=check_interval_ts, **optz.interval_parameters )
-			fjcache.feed_interval_set(feed.id, optz.interval_parameters, check_interval)
+				ewma=check_interval, ewma_ts=check_interval_ts, **check_optz )
+			fjcache.feed_interval_set(feed.id, check_optz, check_interval, check_interval_ts)
 
 		# Feedback, stats, delay
 		log.info('[{0}] Processed {1} in {2}s [{3}] [{4}]{5}'.format(
@@ -395,7 +414,7 @@ def bulk_update(optz):
 cli_defaults = dict( timeout=20, delay=0,
 	interval_parameters=dict(
 		ewma_factor=0.3, max_interval=0.5,
-		max_days=14, max_updates=20 ) )
+		max_days=14, max_updates=20, consider_last_check=True ) )
 
 def make_cli_option_list():
 	import optparse
@@ -423,16 +442,20 @@ def make_cli_option_list():
 					' if time since last check is greater than average (ewma) interval between'
 					' feed updates for some period (default: '
 						'{0[max_days]} day(s) or {0[max_updates]} last updates),'
-					' but lesser than defined maximum (default: {0[max_interval]}d).' )\
+					' but lesser than defined maximum (default: {0[max_interval]}d).'
+				' consider_last_check flag (default: {0[consider_last_check]}), if set,'
+					' also adds interval between last seen post and last feed check to'
+					' calculation, but only if its larger than average interval between posts'
+					' (i.e. make checks less frequent with each subsequent "nothing new" result).' )\
 				.format(cli_defaults['interval_parameters'])),
 		optparse.make_option('-i', '--interval-parameters',
 			metavar='k1=v1:k2=v2:...', default=cli_defaults['interval_parameters'],
 			help=( 'Parameters for calculating per-feed update interval.'
 					' Specified as "key=value" pairs, separated by colons.'
 					' Accepted keys: {}.'
-					' Accepted values: integers (days), floats (days),'
-						' "0" or "none" meaning "no limit", adding "h" suffix means'
-						' that value will be interpreted as hours (instead of days),'
+					' Accepted values: bool ("true" or "false"), integers (days), floats (days);'
+						' for timespan values "0" or "none" meaning "no limit",'
+						' adding "h" suffix will interpret number before it as hours (instead of days),'
 						' "s" suffix for seconds.'
 					' Defaults: {}' )\
 				.format( ', '.join(cli_defaults['interval_parameters']),
@@ -449,6 +472,8 @@ def make_cli_option_list():
 
 		optparse.make_option('-q', '--quiet', action='store_true',
 			help='Report only severe errors, no info or warnings.'),
+		optparse.make_option('--dry-run', action='store_true',
+			help='Dont do the actual fetching, reporting feeds as unchanged.'),
 		optparse.make_option('--verbose', action='store_true', help='Verbose output.'),
 		optparse.make_option('--debug', action='store_true', help='Even more verbose output.') ]
 
@@ -485,7 +510,9 @@ def main(optz=None):
 				k, vs = v.split('=')
 				if k not in params:
 					raise CommandError('Unrecognized interval parameter: {}'.format(k))
-				if vs in ['none', 'None']: v = 0
+				if vs.lower() == 'true': v = True
+				elif vs.lower() == 'false': v = False
+				elif vs.lower() == 'none': v = 0
 				else:
 					try: v = float(vs.rstrip('sdh'))
 					except ValueError:

@@ -38,13 +38,14 @@ def feed_interval_key(feed_id, parameters):
 
 def feed_interval_get(feed_id, parameters):
 	'Get adaptive interval between checks for a feed.'
-	return cache.get(getkey( T_INTERVAL,
+	val = cache.get(getkey( T_INTERVAL,
 		key=feed_interval_key(feed_id, parameters) ))
+	return val if isinstance(val, tuple) else (val, None)
 
-def feed_interval_set(feed_id, parameters, value):
+def feed_interval_set(feed_id, parameters, interval, interval_ts):
 	'Set adaptive interval between checks for a feed.'
 	cache.set(getkey( T_INTERVAL,
-		key=feed_interval_key(feed_id, parameters) ), value)
+		key=feed_interval_key(feed_id, parameters) ), (interval, interval_ts))
 
 def feed_interval_delete(feed_id, parameters):
 	'Invalidate cached adaptive interval value.'
