@@ -224,6 +224,9 @@ class FeedProcessor(object):
 			if self.fpf.status == 304:
 				log.extra(( '[{0}] Feed has not changed since '
 					'last check: {1}' ).format(self.feed.id, self.feed.feed_url))
+				# Fast-path: just update last_checked timestamp
+				self.feed.last_checked = timezone.now()
+				self.feed.save()
 				return FEED_SAME, ret_values
 
 			if self.fpf.status >= 400:
