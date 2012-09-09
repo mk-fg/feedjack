@@ -207,6 +207,8 @@ class FeedProcessor(object):
 			ENTRY_UPDATED: 0,
 			ENTRY_SAME: 0,
 			ENTRY_ERR: 0 }
+		report_errors = not self.options.report_after\
+			or self.feed.last_checked + self.options.report_after < timezone.now()
 
 		try:
 			self.fpf = feedparser.parse(
@@ -214,8 +216,9 @@ class FeedProcessor(object):
 				etag=self.feed.etag if not self.options.force else '' )
 		except KeyboardInterrupt: raise
 		except:
-			log.error( 'Feed cannot be parsed: {0} (#{1})'\
-				.format(self.feed.feed_url, self.feed.id) )
+			if report_errors:
+				log.error( 'Feed cannot be parsed: {0} (#{1})'\
+					.format(self.feed.feed_url, self.feed.id) )
 			return FEED_ERRPARSE, ret_values
 
 		if hasattr(self.fpf, 'status'):
@@ -230,17 +233,19 @@ class FeedProcessor(object):
 				return FEED_SAME, ret_values
 
 			if self.fpf.status >= 400:
-				log.warn('[{0}] HTTP error {1}: {2}'.format(
-					self.feed.id, self.fpf.status, self.feed.feed_url ))
+				if report_errors:
+					log.warn('[{0}] HTTP error {1}: {2}'.format(
+						self.feed.id, self.fpf.status, self.feed.feed_url ))
 				return FEED_ERRFETCH, ret_values
 
 		if self.fpf.bozo:
 			bozo = getattr(self.fpf, 'bozo_exception', 'unknown error')
 			if not self.feed.skip_errors:
-				log.warn( '[{0}] Failed to fetch feed: {1} ({2})'\
-					.format(self.feed.id, self.feed.feed_url, bozo) )
+				if report_errors:
+					log.warn( '[{0}] Failed to fetch feed: {1} ({2})'\
+						.format(self.feed.id, self.feed.feed_url, bozo) )
 				return FEED_ERRFETCH, ret_values
-			else:
+			elif report_errors:
 				log.info( '[{0}] Skipped feed error: {1} ({2})'\
 					.format(self.feed.id, self.feed.feed_url, bozo) )
 
@@ -444,6 +449,11 @@ def make_cli_option_list():
 		optparse.make_option('--max-feed-difference', action='store', dest='max_diff', type='int',
 			help='Maximum percent of new posts to consider feed valid.'
 				' Intended for broken feeds, which sometimes return seemingly-random content.'),
+		optparse.make_option('-r', '--report-after', metavar='timespan', action='store',
+			help="Report feed fetch errors only if it's unchecked for at least"
+					' specified amount of time, i.e. to avoid extra noise on transient errors.'
+				' Number (can be float) is interpreted as days, "s", "h" or "d" suffix can be used'
+					' to explicitly indicate seconds, hours or days, respectively.'),
 
 		optparse.make_option('-f', '--feed', action='append', type='int',
 			help='A feed id to be updated. This option can be given multiple '
@@ -543,8 +553,8 @@ def main(optz=None):
 					try: v = float(vs.rstrip('sdh'))
 					except ValueError:
 						raise CommandError('Unrecognized interval parameter value: {}'.format(vs))
-				if vs.endswith('h'): v = v / float(24)
-				elif vs.endswith('s'): v = v / float(3600 * 24)
+				if vs.endswith('h'): v /= float(24)
+				elif vs.endswith('s'): v /= float(3600 * 24)
 				params[k] = v
 			optz.interval_parameters = params
 		if optz.commit_interval:
@@ -555,6 +565,13 @@ def main(optz=None):
 			else:
 				raise CommandError( 'Invalid'
 					' interval value: {}'.format(optz.commit_interval) )
+		if optz.report_after:
+			try: v = float(optz.report_after.rstrip('sdh'))
+			except ValueError:
+				raise CommandError('Unrecognized timespan value: {}'.format(optz.report_after))
+			if optz.report_after.endswith('h'): v /= float(24)
+			elif optz.report_after.endswith('s'): v /= float(3600 * 24)
+			optz.report_after = timedelta(v)
 	except CommandError as err:
 		if not parser: raise
 		parser.error(*err.args)
