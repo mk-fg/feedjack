@@ -8,6 +8,7 @@ from pprint import pformat
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.core.management.base import NoArgsCommand, CommandError
 from django.contrib.humanize.templatetags.humanize import naturaltime
+from django.conf import settings
 
 from feedjack import models
 
@@ -26,7 +27,10 @@ class Command(NoArgsCommand):
 
 	def p(self, *argz, **kwz):
 		kwz.setdefault('file', self.stdout)
-		return print(*argz, **kwz)
+		try: return print(*argz, **kwz)
+		except UnicodeEncodeError:
+			return print(*(( arg.encode(settings.DEFAULT_CHARSET)
+				if isinstance(arg, unicode) else arg ) for arg in argz), **kwz)
 
 	def dump(self, data, header=None, indent=''):
 		data = pformat(data)
