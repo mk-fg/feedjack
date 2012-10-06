@@ -208,7 +208,8 @@ class FeedProcessor(object):
 			ENTRY_SAME: 0,
 			ENTRY_ERR: 0 }
 		report_errors = not self.options.report_after\
-			or self.feed.last_checked + self.options.report_after < timezone.now()
+			or not self.feed.last_checked\
+			or (self.feed.last_checked + self.options.report_after < timezone.now())
 
 		try:
 			self.fpf = feedparser.parse(
