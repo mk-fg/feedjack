@@ -20,6 +20,10 @@ class Command(BaseCommand):
 			help='Name for the feed (default: fetch from feed).'),
 		make_option('-c', '--shortname',
 			help='Feed shortname (default: same as --name).'),
+		make_option('-d', '--field-data',
+			help='YAML (falling back to built-in JSON,'
+					' if unavailable) dict of arbitrary data to apply to feed model.'
+				' Example (YAML): "immutable: true".'),
 
 		make_option('-s', '--subscribe',
 			action='append', metavar='SITE', default=list(),
@@ -64,6 +68,11 @@ class Command(BaseCommand):
 		with transaction.commit_on_success():
 			feed = models.Feed( feed_url=url,
 				name=optz['name'], shortname=optz['shortname'] )
+			if optz.get('field_data'):
+				try: import yaml as s
+				except ImportError: import json as s
+				import io
+				for k, v in s.load(io.BytesIO(optz['field_data'])).viewitems(): setattr(feed, k, v)
 			feed.save()
 			for f in filters: feed.filters.add(f)
 			for site in subscribe:
