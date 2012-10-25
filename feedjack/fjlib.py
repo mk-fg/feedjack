@@ -22,7 +22,8 @@ import warnings
 try:
 	from lxml.html import fromstring as lxml_fromstring, tostring as lxml_tostring
 	from lxml.html.clean import Cleaner as lxml_Cleaner
-	from lxml.etree import XMLSyntaxError as lxml_SyntaxError
+	from lxml.etree import XMLSyntaxError as lxml_SyntaxError,\
+		ParserError as lxml_ParserError
 
 except ImportError:
 	warnings.warn( 'Failed to import "lxml" module, some'
@@ -49,7 +50,7 @@ else:
 	def lxml_soup(string):
 		'Safe processing of any tag soup (which is a norm on the internets).'
 		try: doc = lxml_fromstring(force_unicode(string))
-		except lxml_SyntaxError: # last resort for "tag soup"
+		except (lxml_SyntaxError, lxml_ParserError): # last resort for "tag soup"
 			from lxml.html.soupparser import fromstring as soup
 			doc = soup(force_unicode(string))
 		return doc
