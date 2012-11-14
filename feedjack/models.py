@@ -272,7 +272,7 @@ class Feed(models.Model):
 
 	title = models.CharField(_('title'), max_length=200, blank=True)
 	tagline = models.TextField(_('tagline'), blank=True)
-	link = models.URLField(_('link'), blank=True)
+	link = models.URLField(_('link'), max_length=511, blank=True)
 
 	filters = models.ManyToManyField('Filter', blank=True, related_name='feeds')
 	filters_logic = models.PositiveSmallIntegerField( 'Composition', choices=(
