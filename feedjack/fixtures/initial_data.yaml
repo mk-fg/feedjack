@@ -10,3 +10,9 @@
 - fields: {crossref: true, crossref_span: 14, handler_name: similar_title, name: Similar Title}
   model: feedjack.filterbase
   pk: 4
+- fields: {crossref: false, crossref_span: null, handler_name: regex_not_in_title, name: RegEx NOT in Title}
+  model: feedjack.filterbase
+  pk: 5
+- fields: {crossref: false, crossref_span: null, handler_name: regex_not_in_content, name: RegEx NOT in Content}
+  model: feedjack.filterbase
+  pk: 6
