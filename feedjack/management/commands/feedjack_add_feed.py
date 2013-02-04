@@ -72,7 +72,7 @@ class Command(BaseCommand):
 				try: import yaml as s
 				except ImportError: import json as s
 				import io
-				for k, v in s.load(io.BytesIO(optz['field_data'])).viewitems(): setattr(feed, k, v)
+				for k, v in s.load(io.BytesIO(optz['field_data'])).iteritems(): setattr(feed, k, v)
 			feed.save()
 			for f in filters: feed.filters.add(f)
 			for site in subscribe:

@@ -34,7 +34,7 @@ def hostcache_set(value):
 
 def feed_interval_key(feed_id, parameters):
 	return '{0}__{1}'.format( feed_id,
-		':'.join(it.starmap('{0}={1}'.format, sorted(parameters.viewitems()))) )
+		':'.join(it.starmap('{0}={1}'.format, sorted(parameters.iteritems()))) )
 
 def feed_interval_get(feed_id, parameters):
 	'Get adaptive interval between checks for a feed.'

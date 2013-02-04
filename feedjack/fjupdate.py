@@ -186,7 +186,7 @@ class FeedProcessor(object):
 		tsp = transaction.savepoint()
 		try:
 			ret_feed, ret_entries = self._process()
-			if ret_feed not in {FEED_OK, FEED_SAME}:
+			if ret_feed not in [FEED_OK, FEED_SAME]:
 				raise FeedValidationError()
 		except FeedValidationError: # no extra noise necessary
 			transaction.savepoint_rollback(tsp)
@@ -415,7 +415,7 @@ def bulk_update(optz):
 				if ts - time_delta_commit > optz.commit_interval:
 					transaction_commit()
 					time_delta_commit = ts
-			elif sum(feed_stats.viewvalues()) % optz.commit_interval == 0: transaction_commit()
+			elif sum(feed_stats.itervalues()) % optz.commit_interval == 0: transaction_commit()
 
 		if optz.delay:
 			log.debug('Waiting for {0}s (delay option)'.format(optz.delay))
@@ -486,7 +486,7 @@ def make_cli_option_list():
 						' "s" suffix for seconds.'
 					' Defaults: {1}' )\
 				.format( ', '.join(cli_defaults['interval_parameters']),
-					':'.join(it.starmap('{0}={1}'.format, cli_defaults['interval_parameters'].viewitems())) )),
+					':'.join(it.starmap('{0}={1}'.format, cli_defaults['interval_parameters'].iteritems())) )),
 
 		optparse.make_option('-t', '--timeout',
 			metavar='seconds', type='int', default=cli_defaults['timeout'],
@@ -495,7 +495,7 @@ def make_cli_option_list():
 		optparse.make_option('-d', '--delay',
 			metavar='seconds', type='int', default=cli_defaults['delay'],
 			help='Delay (in seconds) between'
-				' fetching the feeds (default: {1}).'.format(cli_defaults['delay'])),
+				' fetching the feeds (default: {0}).'.format(cli_defaults['delay'])),
 		optparse.make_option('-c', '--commit-interval',
 			metavar='feed_count/<seconds>s',
 			help='Interval between intermediate database transaction commits.'
