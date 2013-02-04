@@ -60,7 +60,7 @@ class Command(BaseCommand):
 			fpf = feedparser.parse(url, agent=fjupdate.USER_AGENT)
 			optz['name'] = fpf.feed.get('title', '')[:200]
 			if not optz['name']:
-				raise CommandError('Failed to acquire name from the feed ({})'.format(url))
+				raise CommandError('Failed to acquire name from the feed ({0})'.format(url))
 		if not optz.get('shortname'):
 			optz['shortname'] = optz['name'][:50]
 

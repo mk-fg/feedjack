@@ -94,10 +94,10 @@ class Site(models.Model):
 				Q(name__icontains=name) | Q(title__icontains=name) ) )
 		if len(site) > 1:
 			raise MultipleObjectsReturned( u'Unable to uniquely identify site by provided'
-				u' name part: {!r} (candidates: {})'.format(name, ', '.join(it.imap(unicode, site))) )
+				u' name part: {0!r} (candidates: {1})'.format(name, ', '.join(it.imap(unicode, site))) )
 		elif not len(site):
 			raise ObjectDoesNotExist(
-				u'Unable to find site by provided criteria: {!r}'.format(name) )
+				u'Unable to find site by provided criteria: {0!r}'.format(name) )
 		return site[0]
 
 	@property
@@ -134,7 +134,7 @@ class Site(models.Model):
 					tdef.default_site = False
 					tdef.save()
 		self.url = self.url.rstrip('/')
-		fjcache.hostcache_set({})
+		fjcache.hostcache_set(dict())
 		super(Site, self).save(*argz, **kwz)
 
 
@@ -221,8 +221,8 @@ class Filter(models.Model):
 	@property
 	def shortname(self): return self.__unicode__(short=True)
 	def __unicode__(self, short=False):
-		extra = ['id: {}'.format(self.id)]
-		if self.parameter: extra.append('param: {}'.format(self.parameter))
+		extra = ['id: {0}'.format(self.id)]
+		if self.parameter: extra.append('param: {0}'.format(self.parameter))
 		if not short:
 			binding = self.feeds.values_list('shortname', flat=True)
 			binding = u', '.join(binding) if len(binding) < 5 else '{0} feeds'.format(len(binding))
@@ -536,12 +536,12 @@ class PostQuerySet(models.query.QuerySet):
 		if site_ordering_id == SITE_ORDERING.created_day:
 			# Requires more handling than just raw attribute name
 			self = self.extra(dict(
-				date_created_day="date_trunc('day', {})".format(prime) ))
+				date_created_day="date_trunc('day', {0})".format(prime) ))
 			prime = '-date_created_day'
-		else: prime = '-{}'.format(prime)
+		else: prime = '-{0}'.format(prime)
 
 		if force == 'asc': prime = prime.lstrip('-')
-		elif force == 'desc' and prime[0] != '-': prime = '-{}'.format(prime)
+		elif force == 'desc' and prime[0] != '-': prime = '-{0}'.format(prime)
 
 		return self.order_by(prime, 'feed', '-date_created')
 

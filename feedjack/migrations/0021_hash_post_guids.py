@@ -9,7 +9,7 @@ from hashlib import sha256
 import hmac
 
 def guid_hash(guid, nid='feedjack:guid'):
-	return 'urn:{}:{}'.format( nid,
+	return 'urn:{0}:{1}'.format( nid,
 		hmac.new(nid, msg=guid, digestmod=sha256).hexdigest() )
 
 

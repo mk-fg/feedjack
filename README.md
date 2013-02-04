@@ -156,12 +156,13 @@ be created for you on the first request.
 
 ### Requirements
 
-* [Python 2.7](http://python.org)
+* [Python 2.6+](http://python.org)
 * [feedparser 4.1+](https://code.google.com/p/feedparser/)
 * [Django 1.4+](http://djangoproject.com)
 * (optional) [lxml](http://lxml.de) - used for html mangling in some themes (fern, plain)
 * (optional) [South](http://south.aeracode.org) - for automated database schema
 	migrations (when updating from older Feedjack versions)
+* (for python 2.6 only) [ordereddict](http://pypi.python.org/pypi/ordereddict)
 
 
 ### Updating from older versions

@@ -20,9 +20,9 @@ def specs_sets(tpl, specs, make_redirects=False):
 		for spec, pat in spec_set:
 			if not isinstance(pat, (StringTypes, NoneType)): pat_spec, pat = pat
 			else: pat_spec = spec
-			pat = '{}/(?P<{}>{})'.format(spec, pat_spec, pat)\
-				if pat is not None else '(?P<{}>{})'.format(pat_spec, spec)
-			if make_redirects: pat = (pat, '{}/%({})s'.format(spec, pat_spec))
+			pat = '{0}/(?P<{1}>{2})'.format(spec, pat_spec, pat)\
+				if pat is not None else '(?P<{0}>{1})'.format(pat_spec, spec)
+			if make_redirects: pat = (pat, '{0}/%({1})s'.format(spec, pat_spec))
 			url.append(pat)
 		yield tpl.format(urljoin(url)) if not make_redirects else\
 			( tpl.format(urljoin(it.imap(op.itemgetter(0), url))),

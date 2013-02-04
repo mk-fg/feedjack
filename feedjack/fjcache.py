@@ -16,11 +16,11 @@ def str2md5(key):
 
 def getkey(stype, site_id=None, key=None):
 	'Returns the cache key depending on its type.'
-	base = '{}.feedjack'.format(settings.CACHE_MIDDLEWARE_KEY_PREFIX)
-	if stype == T_HOST: return '{}.hostcache'.format(base)
-	elif stype == T_ITEM: return '{}.{}.item.{}'.format(base, site_id, str2md5(key))
-	elif stype == T_META: return '{}.{}.meta'.format(base, site_id)
-	elif stype == T_INTERVAL: return '{}.interval.{}'.format(base, str2md5(key))
+	base = '{0}.feedjack'.format(settings.CACHE_MIDDLEWARE_KEY_PREFIX)
+	if stype == T_HOST: return '{0}.hostcache'.format(base)
+	elif stype == T_ITEM: return '{0}.{1}.item.{2}'.format(base, site_id, str2md5(key))
+	elif stype == T_META: return '{0}.{1}.meta'.format(base, site_id)
+	elif stype == T_INTERVAL: return '{0}.interval.{1}'.format(base, str2md5(key))
 
 
 def hostcache_get():
@@ -33,8 +33,8 @@ def hostcache_set(value):
 
 
 def feed_interval_key(feed_id, parameters):
-	return '{}__{}'.format( feed_id,
-		':'.join(it.starmap('{}={}'.format, sorted(parameters.viewitems()))) )
+	return '{0}__{1}'.format( feed_id,
+		':'.join(it.starmap('{0}={1}'.format, sorted(parameters.viewitems()))) )
 
 def feed_interval_get(feed_id, parameters):
 	'Get adaptive interval between checks for a feed.'

@@ -58,11 +58,11 @@ class Command(NoArgsCommand):
 					and feed.subscriber_set.filter(site_id=site.id, is_active=False):
 				status.append('subscriber disabled')
 
-			self.p('  {} [{}] {}'.format(' '.join(it.imap( '({})'.format,
+			self.p('  {0} [{1}] {2}'.format(' '.join(it.imap( '({0})'.format,
 				status )) if int(optz['verbosity']) <= 1 else '', feed.id, feed))
 
 			if int(optz['verbosity']) > 1:
-				self.p('    Status: {}. Last check: {} ({}).'.format(
+				self.p('    Status: {0}. Last check: {1} ({2}).'.format(
 					', '.join(status) or 'active',
 					feed.last_checked, naturaltime(feed.last_checked) ))
 			if int(optz['verbosity']) > 2:
@@ -77,7 +77,7 @@ class Command(NoArgsCommand):
 			if site:
 				feeds = feeds.filter(subscriber__site_id=site.id)
 				if not feeds.count(): continue
-				self.p('Site: {} (id: {}, feeds: {})'.format(site, site.id, feeds.count()))
+				self.p('Site: {0} (id: {1}, feeds: {2})'.format(site, site.id, feeds.count()))
 			else:
 				feeds = list(f for f in feeds if f.subscriber_set.count() == 0)
 				if not feeds: continue

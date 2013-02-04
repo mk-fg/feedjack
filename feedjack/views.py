@@ -26,7 +26,7 @@ def cache_etag(request, *argz, **kwz):
 	response, site, cachekey = initview(request)
 	if not response: return None
 	return fjcache.str2md5(
-		'{}--{}--{}'.format( site.id if site else 'x', cachekey,
+		'{0}--{1}--{2}'.format( site.id if site else 'x', cachekey,
 			response[1].strftime('%Y-%m-%d %H:%M:%S%z') ) )
 
 def cache_last_modified(request, *argz, **kwz):
@@ -51,8 +51,8 @@ def initview(request, response_cache=True):
 			request.META.get('REQUEST_URI', request.META.get('PATH_INFO', '/')) ] )
 	query_string = request.META['QUERY_STRING']
 
-	url = '{}/{}'.format(http_host, path_info)
-	cachekey = u'{}?{}'.format(*it.imap(smart_unicode, (path_info, query_string)))
+	url = '{0}/{1}'.format(http_host, path_info)
+	cachekey = u'{0}?{1}'.format(*it.imap(smart_unicode, (path_info, query_string)))
 	hostdict = fjcache.hostcache_get() or dict()
 
 	if url in hostdict:
@@ -89,8 +89,8 @@ def initview(request, response_cache=True):
 				else: break
 			if site_url.netloc != http_host: # redirect to proper site hostname
 				response = HttpResponsePermanentRedirect(
-					'http://{}/{}{}'.format( site_url.netloc, path_info,
-						'?{}'.format(query_string) if query_string.strip() else '') )
+					'http://{0}/{1}{2}'.format( site_url.netloc, path_info,
+						'?{0}'.format(query_string) if query_string.strip() else '') )
 				return (response, timezone.now()), None, cachekey
 
 		hostdict[url] = site.id

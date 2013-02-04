@@ -14,9 +14,11 @@ from django.utils import timezone
 from feedjack import models, fjcache
 
 import itertools as it, operator as op, functools as ft
-from collections import OrderedDict
 from datetime import datetime, timedelta
 import warnings
+
+try: from collections import OrderedDict # py2.7
+except ImportError: from ordereddict import OrderedDict
 
 
 try:
@@ -86,7 +88,7 @@ def get_extra_content(site, ctx):
 	# media_url is set here for historical reasons,
 	#  please use static_url or STATIC_URL (from django context) in any new templates.
 	ctx['media_url'] = ctx['static_url'] =\
-		'{}feedjack/{}'.format(settings.STATIC_URL, site.template)
+		'{0}feedjack/{1}'.format(settings.STATIC_URL, site.template)
 
 
 def get_posts_tags(subscribers, object_list, feed, tag_name):
@@ -125,7 +127,7 @@ def get_posts_tags(subscribers, object_list, feed, tag_name):
 	return user_obj, tag_obj
 
 
-_since_formats = {'%Y-%m-%d', '%Y-%m-%d %H:%M', '%d.%m.%Y'}
+_since_formats = set(['%Y-%m-%d', '%Y-%m-%d %H:%M', '%d.%m.%Y'])
 _since_formats_vary = ('%Y', '%y'), ('%d', '%a'),\
 	('%d', '%A'), ('%m', '%b'), ('%m', '%B')
 _since_offsets = {

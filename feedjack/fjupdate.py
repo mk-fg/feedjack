@@ -16,7 +16,7 @@ from hashlib import sha256
 import os, sys, types, hmac
 
 
-USER_AGENT = 'Feedjack {} - {}'.format(feedjack.__version__, feedjack.__url__)
+USER_AGENT = 'Feedjack {0} - {1}'.format(feedjack.__version__, feedjack.__url__)
 SLOWFEED_WARNING = 10
 
 import logging
@@ -62,7 +62,7 @@ def print_exc(feed_id=None, _exc_frame='[{0}] ! ' + '-'*25 + '\n'):
 	sys.stderr.write(_exc_frame.format(feed_id))
 
 def guid_hash(guid, nid='feedjack:guid'):
-	return 'urn:{}:{}'.format( nid,
+	return 'urn:{0}:{1}'.format( nid,
 		hmac.new(nid, msg=guid, digestmod=sha256).hexdigest() )
 
 
@@ -101,7 +101,7 @@ class FeedProcessor(object):
 		if post.date_modified: post.date_modified = feedparser_ts(post.date_modified)
 		elif entry.get('modified'):
 			log.warn(
-				'Failed to parse post timestamp: {!r} (feed_id: {}, post_guid: {})'\
+				'Failed to parse post timestamp: {0!r} (feed_id: {1}, post_guid: {2})'\
 				.format(entry.modified, self.feed.id, post.guid) )
 
 		post.comments = entry.get('comments', '')
@@ -168,7 +168,7 @@ class FeedProcessor(object):
 					ts = self.fpf.feed.get('modified') or self.fpf.get('modified')
 					if ts:
 						log.warn( 'Failed to parse feed/http'
-							' timestamp: {!r} (feed_id: {})'.format(ts, self.feed.id) )
+							' timestamp: {0!r} (feed_id: {1})'.format(ts, self.feed.id) )
 			if not post.date_modified: post.date_modified = timezone.now()
 			if self.options.hidden: post.hidden = True
 			try: post.save()
@@ -346,7 +346,7 @@ def bulk_update(optz):
 	feed_stats, entry_stats = defaultdict(int), defaultdict(int)
 	for feed in feeds:
 		_exc_feed_id = feed.id
-		log.info('[{}] Processing feed: {}'.format(feed.id, feed.feed_url))
+		log.info('[{0}] Processing feed: {1}'.format(feed.id, feed.feed_url))
 
 		# Check if feed has to be fetched
 		if optz.adaptive_interval:
@@ -372,8 +372,8 @@ def bulk_update(optz):
 				time_delta_chk = (timezone.now() - time_delta) - check_interval_ts
 				if time_delta_chk < timedelta(0):
 					log.extra(
-						( '[{}] Skipping check for feed (url: {}) due to adaptive interval setting.'
-							' Minimal time until next check {} (calculated min interval: {}).' )\
+						( '[{0}] Skipping check for feed (url: {1}) due to adaptive interval setting.'
+							' Minimal time until next check {2} (calculated min interval: {3}).' )\
 						.format(feed.id, feed.feed_url, abs(time_delta_chk), abs(time_delta)) )
 					continue
 			else: check_interval, check_interval_ts = 0, None
@@ -383,7 +383,7 @@ def bulk_update(optz):
 		if not optz.dry_run:
 			ret_feed, ret_entries = FeedProcessor(feed, optz).process()
 		else:
-			log.debug('[{}] Not fetching feed, because dry-run flag is set'.format(feed.id))
+			log.debug('[{0}] Not fetching feed, because dry-run flag is set'.format(feed.id))
 			ret_feed, ret_entries = FEED_SAME, dict()
 		time_delta = timezone.now() - time_delta
 		# FEED_SAME or errors don't invalidate cache or generate "updated" signals
@@ -418,7 +418,7 @@ def bulk_update(optz):
 			elif sum(feed_stats.viewvalues()) % optz.commit_interval == 0: transaction_commit()
 
 		if optz.delay:
-			log.debug('Waiting for {}s (delay option)'.format(optz.delay))
+			log.debug('Waiting for {0}s (delay option)'.format(optz.delay))
 			sleep(optz.delay)
 
 	_exc_feed_id = None
@@ -479,23 +479,23 @@ def make_cli_option_list():
 			metavar='k1=v1:k2=v2:...', default=cli_defaults['interval_parameters'],
 			help=( 'Parameters for calculating per-feed update interval.'
 					' Specified as "key=value" pairs, separated by colons.'
-					' Accepted keys: {}.'
+					' Accepted keys: {0}.'
 					' Accepted values: bool ("true" or "false"), integers (days), floats (days);'
 						' for timespan values "0" or "none" meaning "no limit",'
 						' adding "h" suffix will interpret number before it as hours (instead of days),'
 						' "s" suffix for seconds.'
-					' Defaults: {}' )\
+					' Defaults: {1}' )\
 				.format( ', '.join(cli_defaults['interval_parameters']),
-					':'.join(it.starmap('{}={}'.format, cli_defaults['interval_parameters'].viewitems())) )),
+					':'.join(it.starmap('{0}={1}'.format, cli_defaults['interval_parameters'].viewitems())) )),
 
 		optparse.make_option('-t', '--timeout',
 			metavar='seconds', type='int', default=cli_defaults['timeout'],
 			help='Socket timeout (in seconds)'
-				' for connections (default: {}).'.format(cli_defaults['timeout'])),
+				' for connections (default: {0}).'.format(cli_defaults['timeout'])),
 		optparse.make_option('-d', '--delay',
 			metavar='seconds', type='int', default=cli_defaults['delay'],
 			help='Delay (in seconds) between'
-				' fetching the feeds (default: {}).'.format(cli_defaults['delay'])),
+				' fetching the feeds (default: {1}).'.format(cli_defaults['delay'])),
 		optparse.make_option('-c', '--commit-interval',
 			metavar='feed_count/<seconds>s',
 			help='Interval between intermediate database transaction commits.'
@@ -546,14 +546,14 @@ def main(optz=None):
 			for v in optz.interval_parameters.split(':'):
 				k, vs = v.split('=')
 				if k not in params:
-					raise CommandError('Unrecognized interval parameter: {}'.format(k))
+					raise CommandError('Unrecognized interval parameter: {0}'.format(k))
 				if vs.lower() == 'true': v = True
 				elif vs.lower() == 'false': v = False
 				elif vs.lower() == 'none': v = 0
 				else:
 					try: v = float(vs.rstrip('sdh'))
 					except ValueError:
-						raise CommandError('Unrecognized interval parameter value: {}'.format(vs))
+						raise CommandError('Unrecognized interval parameter value: {0}'.format(vs))
 				if vs.endswith('h'): v /= float(24)
 				elif vs.endswith('s'): v /= float(3600 * 24)
 				params[k] = v
@@ -565,11 +565,11 @@ def main(optz=None):
 				optz.commit_interval = timedelta(0, int(optz.commit_interval[:-1]))
 			else:
 				raise CommandError( 'Invalid'
-					' interval value: {}'.format(optz.commit_interval) )
+					' interval value: {0}'.format(optz.commit_interval) )
 		if optz.report_after:
 			try: v = float(optz.report_after.rstrip('sdh'))
 			except ValueError:
-				raise CommandError('Unrecognized timespan value: {}'.format(optz.report_after))
+				raise CommandError('Unrecognized timespan value: {0}'.format(optz.report_after))
 			if optz.report_after.endswith('h'): v /= float(24)
 			elif optz.report_after.endswith('s'): v /= float(3600 * 24)
 			optz.report_after = timedelta(v)
