@@ -31,13 +31,6 @@ def specs_sets(tpl, specs, make_redirects=False):
 
 urlpatterns = list()
 
-# Long-ago deprecated syndication links, now just a redirects
-urlpatterns.extend([
-	(r'^rss20.xml$', views.redirect, dict(url='/feed/rss/')),
-	(r'^feed/$', views.redirect, dict(url='/feed/atom/')) ])
-urlpatterns.extend( (src, views.redirect, dict(url='/feed/atom/{0}'.format(dst)))
-	for src,dst in specs_sets('^feed/{0}/?$', specs_deprecated, make_redirects=True) )
-
 # New-style syndication links
 urlpatterns.extend( (url, views.atomfeed)
 	for url in specs_sets('^syndication/atom/{0}/?$', specs) )
@@ -48,17 +41,6 @@ urlpatterns.extend([
 	(r'^syndication/rss/?$', views.rssfeed),
 	(r'^syndication/opml/?$', views.opml),
 	(r'^syndication/foaf/?$', views.foaf) ])
-
-# Deprecated syndication links
-urlpatterns.extend([
-	(r'^feed/atom/$', views.atomfeed),
-	(r'^feed/rss/$', views.rssfeed),
-	(r'^opml/$', views.opml),
-	(r'^foaf/$', views.foaf) ])
-urlpatterns.extend( (url, views.atomfeed)
-	for url in specs_sets('^feed/atom/{0}/?$', specs_deprecated) )
-urlpatterns.extend( (url, views.rssfeed)
-	for url in specs_sets('^feed/rss/{0}/?$', specs_deprecated) )
 
 # New-style pages
 urlpatterns.extend( (url, views.mainview)

@@ -6,7 +6,6 @@ from django.shortcuts import render_to_response
 from django.http import HttpResponse, Http404, HttpResponsePermanentRedirect
 from django.utils.cache import patch_vary_headers
 from django.template import Context, RequestContext, loader
-from django.views.generic.simple import redirect_to
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from django.utils.encoding import smart_unicode
