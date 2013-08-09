@@ -6,7 +6,7 @@ from django.shortcuts import render_to_response
 from django.http import HttpResponse, Http404, HttpResponsePermanentRedirect
 from django.utils.cache import patch_vary_headers
 from django.template import Context, RequestContext, loader
-from django.views.generic.simple import redirect_to
+from django.views.generic import RedirectView
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from django.utils.encoding import smart_unicode
@@ -103,12 +103,14 @@ def initview(request, response_cache=True):
 	return None, site, cachekey
 
 
-def redirect(request, url, **kwz):
-	'''Simple redirect, taking site prefix into account,
-		otherwise similar to redirect_to generic view.'''
-	response, site, cachekey = initview(request)
-	if response: return response[0]
-	return redirect_to(request, url=site.url + url, **kwz)
+class RedirectForSite(RedirectView):
+	'''Simple permanent redirect, taking site prefix
+		into account, otherwise similar to RedirectView.'''
+
+	def get(self, request, *args, **kwz):
+		response, site, cachekey = initview(request)
+		if response: return response[0]
+		return HttpResponsePermanentRedirect(site.url + self.url)
 
 
 def blogroll(request, btype):
