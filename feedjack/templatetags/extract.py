@@ -9,4 +9,4 @@ register = template.Library()
 
 @register.filter
 def site_ordering_date(item, site):
-	return item.date_on_site(site)
+    return item.date_on_site(site)
