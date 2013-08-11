@@ -70,6 +70,7 @@ def get_modified_date(parsed, raw):
         except ValueError: pass
     if not ts:
         # coreutils' "date" parses virtually everything, but is more expensive to use
+        from subprocess import Popen, PIPE
         with open(os.devnull, 'w') as devnull:
             proc = Popen(['date', '+%s', '-d', val], stdout=PIPE, stderr=devnull)
             val = proc.stdout.read()
