@@ -102,7 +102,10 @@ class FeedProcessor(object):
         self.feed, self.options = feed, options
         self.fpf = None
 
-    def _get_guid(self, fp_entry, nid='feedjack:guid'):
+    def _get_guid(self, fp_entry):
+        # Should probably include feed-id to be a proper *g*uid,
+        #  but current unique-index is on feed+guid, so it's not necessary.
+        # Changing algorithm here will make all posts on all feeds "new".
         guid = fp_entry.get('id', '') or fp_entry.get('title', '') or fp_entry.get('link', '')
         # Hashing fallback is necessary due to mysql field length limitations
         return guid if len(guid) <= 255 else guid_hash(guid)
@@ -193,7 +196,9 @@ class FeedProcessor(object):
 
         else: # new post, store it into database
             retval = ENTRY_NEW
-            log.extra('[{0}] Saving new post: {1}'.format(self.feed.id, post.guid))
+            log.extra( '[{0}] Saving new post: {1} (timestamp: {2})'\
+                .format(self.feed.id, post.guid, post.date_modified) )
+
             # Try hard to set date_modified: feed.modified, http.modified and now() as a last resort
             if not post.date_modified and self.fpf:
                 try:
@@ -203,7 +208,15 @@ class FeedProcessor(object):
                 except ValueError as err:
                     log.warn(( 'Failed to process feed/http timestamp: {0} (feed_id: {1},'
                         ' post_guid: {2}), falling back to "now"' ).format(err, self.feed.id, post.guid))
+                if not post.date_modified:
                     post.date_modified = timezone.now()
+                    log.debug(( '[{0}] Using current time for post'
+                        ' ({1}) timestamp' ).format(self.feed.id, post.guid))
+                else:
+                    log.debug(
+                        '[{0}] Using timestamp from feed/http for post ({1}): {2}'\
+                        .format(self.feed.id, post.guid, post.date_modified) )
+
             if self.options.hidden: post.hidden = True
             try: post.save()
             except IntegrityError:
