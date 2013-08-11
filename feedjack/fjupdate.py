@@ -96,6 +96,8 @@ def guid_hash(guid, nid='feedjack:guid'):
 
 class FeedProcessor(object):
 
+    post_timestamp_keys = 'modified', 'published', 'created'
+
     def __init__(self, feed, options):
         self.feed, self.options = feed, options
         self.fpf = None
@@ -125,15 +127,16 @@ class FeedProcessor(object):
         try: post.content = entry.content[0].value
         except: post.content = entry.get('summary', entry.get('description', ''))
 
-        try:
-            post.date_modified = get_modified_date(
-                entry.get('modified_parsed'), entry.get('modified') )
-            if not post.date_modified:
+        # Try to get the post date from "updated" then "published" then "created"
+        ts_parsed = ts_raw = None
+        for k in self.post_timestamp_keys:
+            try:
                 post.date_modified = get_modified_date(
-                    entry.get('published_parsed'), entry.get('published') )
-        except ValueError as err:
-            log.warn( 'Failed to process timestamp:'
-                ' {0} (feed_id: {1}, post_guid: {2})'.format(err, self.feed.id, post.guid) )
+                    entry.get('{0}_parsed'.format(k)), entry.get(k) )
+            except ValueError as err:
+                log.warn( 'Failed to process post timestamp:'
+                    ' {0} (feed_id: {1}, post_guid: {2})'.format(err, self.feed.id, post.guid) )
+            if post.date_modified: break
 
         post.comments = entry.get('comments', '')
         post.enclosures = entry.get('enclosures')
