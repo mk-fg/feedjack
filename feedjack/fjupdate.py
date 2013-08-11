@@ -54,13 +54,14 @@ class FeedValidationError(Exception): pass
 try: from dateutil import parser as dateutil_parser
 except ImportError: dateutil_parser = None
 
+def feedparser_ts(time_tuple):
+    # feedparser always returns time_tuple in UTC
+    return datetime(*time_tuple[:6] + (0, timezone.utc))
+
 def get_modified_date(parsed, raw):
     'Return best possible guess to post modification timestamp.'
-    if parsed:
-        # feedparser always returns time_tuple in UTC
-        return datetime(*parsed[:6] + (0, timezone.utc))
-    if not raw:
-        raise ValueError('No timestamp to process')
+    if parsed: return feedparser_ts(parsed)
+    if not raw: return None
 
     # Parse weird timestamps that feedparser can't handle, e.g.: July 30, 2013
     ts, val = None, raw.replace('_', ' ')
@@ -127,6 +128,9 @@ class FeedProcessor(object):
         try:
             post.date_modified = get_modified_date(
                 entry.get('modified_parsed'), entry.get('modified') )
+            if not post.date_modified:
+                post.date_modified = get_modified_date(
+                    entry.get('published_parsed'), entry.get('published') )
         except ValueError as err:
             log.warn( 'Failed to process timestamp:'
                 ' {0} (feed_id: {1}, post_guid: {2})'.format(err, self.feed.id, post.guid) )
