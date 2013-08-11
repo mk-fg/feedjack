@@ -50,6 +50,17 @@ urlpatterns.extend([
 	(r'^syndication/opml/?$', views.opml),
 	(r'^syndication/foaf/?$', views.foaf) ])
 
+# Deprecated syndication links
+urlpatterns.extend([
+	(r'^feed/atom/$', views.atomfeed),
+	(r'^feed/rss/$', views.rssfeed),
+	(r'^opml/$', views.opml),
+	(r'^foaf/$', views.foaf) ])
+urlpatterns.extend( (url, views.atomfeed)
+	for url in specs_sets('^feed/atom/{0}/?$', specs_deprecated) )
+urlpatterns.extend( (url, views.rssfeed)
+	for url in specs_sets('^feed/rss/{0}/?$', specs_deprecated) )
+
 # New-style pages
 urlpatterns.extend( (url, views.mainview)
 	for url in specs_sets('^{0}/?$', specs) )
