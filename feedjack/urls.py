@@ -31,6 +31,14 @@ def specs_sets(tpl, specs, make_redirects=False):
 
 urlpatterns = list()
 
+# Long-ago deprecated syndication links, now just a redirects
+urlpatterns.extend([
+	(r'^rss20.xml$', views.RedirectForSite.as_view(url='/feed/rss/')),
+	(r'^feed/$', views.RedirectForSite.as_view(url='/feed/atom/')) ])
+urlpatterns.extend(
+	(src, views.RedirectForSite.as_view(url='/feed/atom/{0}'.format(dst)))
+	for src,dst in specs_sets('^feed/{0}/?$', specs_deprecated, make_redirects=True) )
+
 # New-style syndication links
 urlpatterns.extend( (url, views.atomfeed)
 	for url in specs_sets('^syndication/atom/{0}/?$', specs) )
