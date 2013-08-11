@@ -51,7 +51,33 @@ feed_keys_dict = dict(feed_keys)
 class FeedValidationError(Exception): pass
 
 
-feedparser_ts = lambda ts: datetime(*ts[:6] + (0, timezone.utc))
+try: from dateutil import parser as dateutil_parser
+except ImportError: dateutil_parser = None
+
+def get_modified_date(parsed, raw):
+	'Return best possible guess to post modification timestamp.'
+	if parsed:
+		# feedparser always returns time_tuple in UTC
+		return datetime(*parsed[:6] + (0, timezone.utc))
+	if not raw:
+		raise ValueError('No timestamp to process')
+
+	# Parse weird timestamps that feedparser can't handle, e.g.: July 30, 2013
+	ts, val = None, raw.replace('_', ' ')
+	if dateutil_parser: # try dateutil module, if available
+		# dateutil fails to parse textual dates like "yesterday"
+		try: ts = dateutil_parser.parse(val)
+		except ValueError: pass
+	if not ts:
+		# coreutils' "date" parses virtually everything, but is more expensive to use
+		with open(os.devnull, 'w') as devnull:
+			proc = Popen(['date', '+%s', '-d', val], stdout=PIPE, stderr=devnull)
+			val = proc.stdout.read()
+			if not proc.wait():
+				ts = datetime.fromtimestamp(int(val.strip()), tz=timezone.utc)
+	if ts: return ts
+	raise ValueError('Unrecognized raw value format: {0!r}'.format(val))
+
 
 _exc_feed_id = None # to be available on any print_exc call
 def print_exc(feed_id=None, _exc_frame='[{0}] ! ' + '-'*25 + '\n'):
@@ -97,12 +123,12 @@ class FeedProcessor(object):
 		try: post.content = entry.content[0].value
 		except: post.content = entry.get('summary', entry.get('description', ''))
 
-		post.date_modified = entry.get('modified_parsed')
-		if post.date_modified: post.date_modified = feedparser_ts(post.date_modified)
-		elif entry.get('modified'):
-			log.warn(
-				'Failed to parse post timestamp: {0!r} (feed_id: {1}, post_guid: {2})'\
-				.format(entry.modified, self.feed.id, post.guid) )
+		try:
+			post.date_modified = get_modified_date(
+				entry.get('modified_parsed'), entry.get('modified') )
+		except ValueError as err:
+			log.warn( 'Failed to process timestamp:'
+				' {0} (feed_id: {1}, post_guid: {2})'.format(err, self.feed.id, post.guid) )
 
 		post.comments = entry.get('comments', '')
 		post.enclosures = entry.get('enclosures')
@@ -162,14 +188,14 @@ class FeedProcessor(object):
 			log.extra('[{0}] Saving new post: {1}'.format(self.feed.id, post.guid))
 			# Try hard to set date_modified: feed.modified, http.modified and now() as a last resort
 			if not post.date_modified and self.fpf:
-				ts = self.fpf.feed.get('modified_parsed') or self.fpf.get('modified_parsed')
-				if ts: post.date_modified = feedparser_ts(ts)
-				else:
-					ts = self.fpf.feed.get('modified') or self.fpf.get('modified')
-					if ts:
-						log.warn( 'Failed to parse feed/http'
-							' timestamp: {0!r} (feed_id: {1})'.format(ts, self.feed.id) )
-			if not post.date_modified: post.date_modified = timezone.now()
+				try:
+					post.date_modified = get_modified_date(
+						self.fpf.feed.get('modified_parsed') or self.fpf.get('modified_parsed'),
+						self.fpf.feed.get('modified') or self.fpf.get('modified') )
+				except ValueError as err:
+					log.warn(( 'Failed to process feed/http timestamp: {0} (feed_id: {1},'
+						' post_guid: {2}), falling back to "now"' ).format(err, self.feed.id, post.guid))
+					post.date_modified = timezone.now()
 			if self.options.hidden: post.hidden = True
 			try: post.save()
 			except IntegrityError:
