@@ -21,11 +21,11 @@ setup(
 	author = 'Gustavo Picón, Mike Kazantsev',
 	author_email = 'gpicon@gmail.com, mk.fraggod@gmail.com',
 	license = 'BSD',
-	keywords = ['feed', 'aggregator', 'planet',
-		'rss', 'atom', 'syndication', 'django', 'feedparser', 'news'],
+	keywords = [ 'feed', 'aggregator', 'planet',
+		'rss', 'atom', 'syndication', 'django', 'feedparser', 'news' ],
 	url = feedjack.__url__,
 
-	description = 'Multisite Feed Agregator (Planet)',
+	description = 'Multisite Feed Agregator (Planet) or personal feed reader',
 	long_description = readme,
 
 	classifiers = [
@@ -49,16 +49,17 @@ setup(
 		'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
 		'Topic :: Internet :: WWW/HTTP :: WSGI :: Application' ],
 
-	install_requires = ['feedparser', 'Django >= 1.4'],
+	install_requires = ['feedparser', 'Django >= 1.5'],
 	extras_require = {
 		'db_migration': ['South'],
+		'any_timestamps': ['python-dateutil'],
 		'themes.fern': ['lxml'],
 		'themes.plain': ['lxml'] },
 
 	zip_safe = False,
 	packages = find_packages(),
 	package_data = package_data,
-	exclude_package_data = {'': ['README.*']},
+	include_package_data = True,
 
 	entry_points = {
 		'console_scripts': ['feedjack_update = feedjack.fjupdate:main'] } )

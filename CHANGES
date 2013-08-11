@@ -1,4 +1,41 @@
-Feedjack 12.06.0
+
+Feedjack 13.09.0
+--------------------
+
+* Drop ad-hoc "X-Feedjack-Tracking" header usage - was a hack on "fern" theme
+  only.
+* Disable tagcloud by default.
+* Add new default "bootstrap" theme with remoteStorage (0.6) protocol
+  integration for tracking of read entries.
+* Fetch/update media enclosures, though not displayed on any of themes.
+
+* Added "feedjack_add_feed" django management command.
+* Added "feedjack_status" django management command.
+* Made "feedjack_update" into a django management command.
+* "--adaptive-interval" option in feedjack_update" to avoid polling
+  rarely-updated feeds often.
+* "--report-after" option for feedjack_update command to skip reporting
+  transient update errors.
+* Install update script as setuptools entry_point.
+
+* Python 2.6 compatibility. Not guaranteed to last long.
+* Django 1.4/1.5 compatibility changes, incompatible with pre-1.5.
+* Proper usage of STATIC_URL instead of MEDIA_URL, can be used with
+  django.contrib.staticfiles now.
+* Proper database migration info, using South module.
+* MySQL compatibility fixes - field/index length limitations, mostly.
+
+* Timestamp processing fixes. In particular, parse ones which feedparser failed
+  to process with dateutil module or coreutils "date" command (if either one is
+  available).
+* More robust "/since" urls handling.
+* Better reporing for database and transaction-related errors. Misc logging
+  improvements.
+* Better site detection from url.
+* Some internal/extensibility improvents - new signals, better interfaces.
+
+
+Feedjack 12.07.0
 --------------------
 
 * Updated versioning schema to be different from the original feedjack (to avoid

@@ -1,4 +1,4 @@
-Intro (original feedjack).
+Intro (original feedjack)
 --------------------
 
 Feedjack is a feed aggregator writen in Python using the Django web development
@@ -26,8 +26,8 @@ Original FeedJack also has some advantages:
 * Extensive use of Django’s cache system. Most of the time you will have no
   database hits when serving pages.
 
-[Original feedjack](http://www.feedjack.org/) project looks abandoned though -
-no real updates since 2008 (with quite a lively history before that).
+[Original feedjack](http://www.feedjack.org/) project ([github
+mirror](https://github.com/tabo/feedjack)) looks quite abandoned though.
 
 
 Fork
@@ -41,6 +41,8 @@ Fork
 	* Misc unicode handling fixes.
 
 * Features:
+
+	* New Django (1.4, 1.5) compatibility.
 
 	* Proper transactional updates, so single feed failure is guaranteed not to
 		produce inconsistency or crash the parser.
@@ -56,8 +58,8 @@ Fork
 		their results.
 
 	* Sane, configurable logging in feedjack_update, without re-inventing the
-		wheel via encode, prints and a tons of if's. feedjack_update command in
-		django-admin suite.
+		wheel via encode, prints and a tons of if's. feedjack_update, add_feed,
+		status and other management commands in django-admin interface.
 
 	* Ability to use adaptive feed-check interval, based on average feed activity,
 		so feeds that get updated once a year won't be polled every hour.
@@ -75,11 +77,14 @@ Fork
 	* Keeping track of already-read entries with client-side localStorage (only on
 		"bootstrap" and "fern*" themes") or server-side (on any compatible server,
 		not the feedjack instance,
-		[django-unhosted](https://github.com/mk-fg/django-unhosted) instance, for
-		example) [remoteStorage](http://remotestoragejs.com/) ("bootstrap" theme).
+		[django-remotestorage](https://github.com/remotestorage/django-remotestorage)
+		instance, for example) [remoteStorage](http://remotestorage.io/)
+		("bootstrap" theme).
 
-	* Quite a few code optimizations.
-	* ...and there's usually more stuff in the CHANGES file.
+	* A lot of code fixes and optimizations.
+
+Much more complete changelog (and in much more detail) can be found in
+[CHANGES](https://github.com/mk-fg/feedjack/blob/master/CHANGES) file.
 
 
 Installation
@@ -158,8 +163,11 @@ be created for you on the first request.
 
 * [Python 2.6+](http://python.org)
 * [feedparser 4.1+](https://code.google.com/p/feedparser/)
-* [Django 1.4+](http://djangoproject.com)
+* [Django 1.5+](http://djangoproject.com)
 * (optional) [lxml](http://lxml.de) - used for html mangling in some themes (fern, plain)
+* (optional) [python-dateutil](http://labix.org/python-dateutil) - for
+	processing of more free-form timestamps on feeds, if feedparser can't handle
+	these
 * (optional) [South](http://south.aeracode.org) - for automated database schema
 	migrations (when updating from older Feedjack versions)
 * (for python 2.6 only) [ordereddict](http://pypi.python.org/pypi/ordereddict)
@@ -261,10 +269,11 @@ Bugs, development, support
 All the issues with this fork should probably be reported to respective github
 project/fork, since code here can be quite different from the original project.
 
-Until 2012, fork was kept in [fossil](http://www.fossil-scm.org/) repo
+Until 2012, this fork was kept in [fossil](http://www.fossil-scm.org/) repo
 [here](http://fraggod.net/code/fossil/feedjack/).
 
-Original version is available at [feedjack site](http://www.feedjack.org/).
+Original version is available at [feedjack site](http://www.feedjack.org/) and
+there's also a [github mirror](https://github.com/tabo/feedjack) now.
 
 
 Links
@@ -272,6 +281,11 @@ Links
 
 * Original feedjack project: http://www.feedjack.org/
 
-* Other known non-github forks
-	* http://git.otfbot.org/feedjack.git/
+* Original project mirror: https://github.com/tabo/feedjack
+
+* Other known forks
+
+	* http://git.otfbot.org/feedjack.git/ (also
+		[on github](https://github.com/cato-/django-feedjack))
+
 	* http://code.google.com/p/feedjack-extension/
