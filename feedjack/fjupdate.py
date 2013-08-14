@@ -51,9 +51,6 @@ feed_keys_dict = dict(feed_keys)
 class FeedValidationError(Exception): pass
 
 
-try: from dateutil import parser as dateutil_parser
-except ImportError: dateutil_parser = None
-
 def feedparser_ts(time_tuple):
     # feedparser always returns time_tuple in UTC
     return datetime(*time_tuple[:6] + (0, timezone.utc))
@@ -65,10 +62,6 @@ def get_modified_date(parsed, raw):
 
     # Parse weird timestamps that feedparser can't handle, e.g.: July 30, 2013
     ts, val = None, raw.replace('_', ' ')
-    if dateutil_parser: # try dateutil module, if available
-        # dateutil fails to parse textual dates like "yesterday"
-        try: ts = dateutil_parser.parse(val)
-        except ValueError: pass
     if not ts:
         # coreutils' "date" parses virtually everything, but is more expensive to use
         from subprocess import Popen, PIPE

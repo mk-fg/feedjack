@@ -165,7 +165,6 @@ be created for you on the first request.
 * [feedparser 4.1+](https://code.google.com/p/feedparser/)
 * [Django 1.5+](http://djangoproject.com)
 * (optional) [lxml](http://lxml.de) - used for html mangling in some themes (fern, plain)
-* (optional) [python-dateutil](http://labix.org/python-dateutil) - for
 	processing of more free-form timestamps on feeds, if feedparser can't handle
 	these
 * (optional) [South](http://south.aeracode.org) - for automated database schema
