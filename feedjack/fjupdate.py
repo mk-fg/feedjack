@@ -2,7 +2,7 @@
 from __future__ import unicode_literals
 
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
-from django.utils import timezone
+from django.utils import timezone, encoding
 
 import feedparser, feedjack
 from feedjack.models import transaction_wrapper, transaction, IntegrityError,\
@@ -84,7 +84,8 @@ def print_exc(feed_id=None, _exc_frame='[{0}] ! ' + '-'*25 + '\n'):
 
 def guid_hash(guid, nid='feedjack:guid'):
 	return 'urn:{0}:{1}'.format( nid,
-		hmac.new(nid, msg=guid, digestmod=sha256).hexdigest() )
+		hmac.new( encoding.force_bytes(nid),
+			msg=encoding.force_bytes(guid), digestmod=sha256 ).hexdigest() )
 
 
 class FeedProcessor(object):
