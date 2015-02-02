@@ -5,8 +5,9 @@ from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.utils import timezone, encoding
 
 import feedparser, feedjack
-from feedjack.models import transaction_wrapper, transaction, IntegrityError,\
-	transaction_signaled_commit, transaction_signaled_rollback
+from feedjack.models import (
+	transaction_wrapper, transaction, IntegrityError,
+	transaction_signaled_commit, transaction_signaled_rollback )
 
 import itertools as it, operator as op, functools as ft
 from datetime import datetime, timedelta
@@ -252,10 +253,16 @@ class FeedProcessor(object):
 			or not self.feed.last_checked\
 			or (self.feed.last_checked + self.options.report_after < timezone.now())
 
+		feedparser_kws = dict()
+		if not self.feed.verify_tls_certs:
+			import urllib2, ssl
+			ctx = ssl.create_default_context()
+			ctx.check_hostname, ctx.verify_mode = False, ssl.CERT_NONE
+			feedparser_kws['handlers'] = [urllib2.HTTPSHandler(context=ctx)]
+
 		try:
-			self.fpf = feedparser.parse(
-				self.feed.feed_url, agent=USER_AGENT,
-				etag=self.feed.etag if not self.options.force else '' )
+			self.fpf = feedparser.parse( self.feed.feed_url, agent=USER_AGENT,
+				etag=self.feed.etag if not self.options.force else '', **feedparser_kws )
 		except KeyboardInterrupt: raise
 		except:
 			if report_errors:

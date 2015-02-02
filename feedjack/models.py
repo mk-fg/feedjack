@@ -269,8 +269,11 @@ class Feed(models.Model):
 
 	immutable = models.BooleanField( _('immutable'), default=False,
 		help_text=_('Do not update posts that were already fetched.') )
-	skip_errors = models.BooleanField( _('skip non-critical errors'),
-		default=False, help_text=_('Try to be as tolerant as possible during update.') )
+	skip_errors = models.BooleanField( _('skip non-critical errors'), default=False,
+		help_text=_('Try to be as tolerant to the feed contents as possible during update.') )
+	verify_tls_certs = models.BooleanField( _('verify TLS certificates, if any'), default=True,
+		help_text=_('If https connections are used,'
+			' this option allows to disable TLS certificate veritication.') )
 	is_active = models.BooleanField( _('is active'), default=True,
 		help_text=_('If disabled, this feed will not be further updated.') )
 
