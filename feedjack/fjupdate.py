@@ -254,7 +254,7 @@ class FeedProcessor(object):
 			or (self.feed.last_checked + self.options.report_after < timezone.now())
 
 		feedparser_kws = dict()
-		if not self.feed.verify_tls_certs:
+		if sys.hexversion >= 0x2070900 and not self.feed.verify_tls_certs:
 			import urllib2, ssl
 			ctx = ssl.create_default_context()
 			ctx.check_hostname, ctx.verify_mode = False, ssl.CERT_NONE

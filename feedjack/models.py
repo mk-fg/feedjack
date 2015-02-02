@@ -273,7 +273,8 @@ class Feed(models.Model):
 		help_text=_('Try to be as tolerant to the feed contents as possible during update.') )
 	verify_tls_certs = models.BooleanField( _('verify TLS certificates, if any'), default=True,
 		help_text=_('If https connections are used,'
-			' this option allows to disable TLS certificate veritication.') )
+				' this option allows to disable TLS certificate veritication.'
+			' Has no effect with python versions before 2.7.9, where TLS certs are never checked.') )
 	is_active = models.BooleanField( _('is active'), default=True,
 		help_text=_('If disabled, this feed will not be further updated.') )
 
