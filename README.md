@@ -151,52 +151,33 @@ See also "Configuration" section below.
 The only non-backwards-compatible changes should be in the database schema, thus
 requiring migration, but it's much easier (automatic even) than it sounds.
 
-Feedjack uses Django database migration features (or South module for older Django versions,
-[where it has to be installed](http://south.readthedocs.org/en/latest/installation.html)).
+Feedjack didn't have any automatic db migration features in the past, then used
+South module (in this fork), and now uses stock
+[Django database migration features](https://docs.djangoproject.com/en/1.7/topics/migrations/)
+(which only work with Django-1.7+).
 
-Django/South "migrate" command can be used to see current database schema
-version and which migrations are available/necessary:
+* To upgrade older installations where there were no migrations in use at all,
+	install and enable South app, backup "feedjack/migrations" (which now contains
+	Django-native migration info), then rename "feedjack/migrations.south" dir to
+	"feedjack/migrations".
 
-	% ./manage.py migrate --list
+	There is no automated way to determine schema version in current database, so
+	use South's `./manage.py migrate --list` command to list migrations, find the
+	one that matches current db state and run e.g. `./manage.py migrate feedjack
+	0013 --fake` to make South aware of it.
 
-	feedjack
-	  ...
-	  (*) 0013_auto__add_field_filterbase_crossref_rebuild__add_field_filterbase_cros
-	  ( ) 0014_auto__add_field_post_hidden
-	  ( ) 0015_auto__add_field_feed_skip_errors
-	  ( ) 0016_auto__chg_field_post_title__chg_field_post_link
-	  ( ) 0017_auto__chg_field_tag_name
+	In case of pre-fork Feedjack versions (0.9.16 and below), this would be very
+	first (0001) schema version.
 
-This output shows which version the current schema is and how far it's behind
-what code (models.py) expects it to be.
+* To upgrade from South to Django-1.7+ native migrations, temporarily restore
+	"migrations.south" dir to "migrations", as outlined above, run `./manage.py
+	migrate` to make sure all South migrations were applied, then restore Django's
+	"migrations" directory, replace "south" with "django.db.migrations" in INSTALLED_APPS
+	and run `./manage.py migrate` again to apply all these.
 
-If South or Django-1.7+ was just installed, it might be necessary to specify
-initial schema version manually, by using command like this:
-
-	% ./manage.py migrate feedjack 0013 --fake
-
-Best way to manually find which model version was used before is probably to
-inspect git history for models.py to find the first not-yet applied change to
-the model classes.
-In case of pre-fork Feedjack versions (0.9.16 and below), this would be very
-first (0001) schema version.
-
-All the necessary migrations can be applied with a single `./manage.py migrate
-feedjack` command:
-
-	% ./manage.py migrate feedjack
-
-	Running migrations for feedjack:
-	 - Migrating forwards to 0017_auto__chg_field_tag_name.
-	 > feedjack:0014_auto__add_field_post_hidden
-	 > feedjack:0015_auto__add_field_feed_skip_errors
-	 > feedjack:0016_auto__chg_field_post_title__chg_field_post_link
-	 > feedjack:0017_auto__chg_field_tag_name
-	 - Loading initial data for feedjack.
-	Installed 4 object(s) from 1 fixture(s)
-
-In case of any issues and for more advanced usage information, please refer to
-either Django or [South project documentation](http://south.readthedocs.org/en/latest/).
+	See also
+	[Upgrading from South](https://docs.djangoproject.com/en/1.7/topics/migrations/#upgrading-from-south)
+	section in Django docs on migrations.
 
 
 Configuration
