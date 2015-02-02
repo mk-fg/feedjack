@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from django.conf.urls.defaults import patterns
+from django.conf.urls import patterns
 from feedjack import views
 
 
