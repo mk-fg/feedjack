@@ -160,7 +160,7 @@ class FilterBase(models.Model):
 			' Should accept Post object and optional (or not) parameter (derived from'
 			' actual Filter field) and return boolean value, indicating whether post'
 			' should be displayed or not.' )
-	crossref = models.BooleanField( 'Cross-referencing',
+	crossref = models.BooleanField( 'Cross-referencing', default=False,
 		help_text='Indicates whether filtering results depend on other posts'
 			' (and possibly their filtering results) or not.<br />'
 			' Note that ordering in which these filters are applied to a posts,'
@@ -237,7 +237,7 @@ class Filter(models.Model):
 class FilterResult(models.Model):
 	filter = models.ForeignKey('Filter')
 	post = models.ForeignKey('Post', related_name='filtering_results')
-	result = models.BooleanField()
+	result = models.BooleanField(default=False)
 	timestamp = models.DateTimeField(auto_now=True)
 
 	def __unicode__(self):
