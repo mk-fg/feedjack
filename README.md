@@ -16,21 +16,21 @@ Installation
 ----------------------------------------
 
 
-### Python module (django app)
+### Python module (Django app)
 
 This feedjack fork is a regular package for Python 2.7 (not 3.X), but not in
-pypi, so can be installed from a checkout with something like that:
+pypi.
 
-	% python setup.py install
-
-That will install feedjack to a python site-path, so it can be used as a Django
-app.
-
-Better way would be to use [pip](http://pip-installer.org/)
-(see also [pip2014.com](http://pip2014.com/)) to install all the necessary
-dependencies as well:
+Best way to install it, would be to use [pip](http://pip-installer.org/) (see
+also [pip2014.com](http://pip2014.com/)):
 
 	% pip install 'git+https://github.com/mk-fg/feedjack.git#egg=feedjack'
+
+That will automatically fetch and install 'feedjack' Django app to a configured
+python site-path, along with all the required dependencies.
+
+Another way of installing from a git chechout would be running `python setup.py
+install`.
 
 Note that to install stuff in system-wide PATH and site-packages, elevated
 privileges are often required.
@@ -56,7 +56,7 @@ Feedjack can only be deployed as an "app" in such project, so it either has to
 be created, or app can be enabled in any existing one.
 
 
-### Enabling app in a django project
+### Enabling app in a Django project
 
 * First of all, 'feedjack' app must be enabled in settings.py under
 	[INSTALLED_APPS](http://docs.djangoproject.com/en/stable/ref/settings/#installed-apps).
@@ -122,9 +122,11 @@ be created, or app can be enabled in any existing one.
 	(of course, less trivial Django configurations should probably have way more
 	entries there)
 
-After all that, it might be worth checking out /admin section
+After all that, it might be worth checking out "/admin" section
 (if django.contrib.admin app was enabled) to create a feedjack site,
 otherwise sample default site will be created upon first request.
+
+See also "Configuration" section below.
 
 
 ### Requirements
@@ -135,17 +137,19 @@ otherwise sample default site will be created upon first request.
 
 * [Django 1.5+](http://djangoproject.com)
 
-* (optional) [lxml](http://lxml.de) - used for html mangling in some themes (fern, plain)
-	processing of more free-form timestamps on feeds, if feedparser can't handle these
+* (optional) [lxml](http://lxml.de) - used for html mangling in some themes
+	(fern, plain) processing of more free-form timestamps on feeds, if feedparser
+	can't handle these for whatever reason.
 
-* (optional, only for pre-1.7 Django versions) [South](http://south.aeracode.org)
-	- for automated database schema migrations (when updating from older Feedjack versions)
+* (optional, only for pre-1.7 Django versions)
+  [South](http://south.aeracode.org) - for automated database schema migrations
+  (when updating from older Feedjack versions).
 
 
 ### Updating from older versions
 
 The only non-backwards-compatible changes should be in the database schema, thus
-requiring migration, but it's much easier (automatic, even) than it sounds.
+requiring migration, but it's much easier (automatic even) than it sounds.
 
 Feedjack uses Django database migration features (or South module for older Django versions,
 [where it has to be installed](http://south.readthedocs.org/en/latest/installation.html)).
@@ -198,7 +202,7 @@ either Django or [South project documentation](http://south.readthedocs.org/en/l
 Configuration
 ----------------------------------------
 
-The first thing you want to do is add a Site.
+The first thing you want to do is to add a Site.
 
 To do this, open Django admin interface and create your first planet.
 You must use a valid address in the URL field, since it will be used to identify
@@ -215,7 +219,7 @@ Feedjack is designed to use
 to store database-intensive data like pages of posts and tagclouds, so it is highly
 recomended to
 [configure CACHES](http://docs.djangoproject.com/en/dev/topics/cache/#setting-up-the-cache)
-in django settings (memcached, db or file).
+in django settings (memcached, db, files, etc).
 
 Now that you have everything set up, run `./manage.py feedjack_update` (or
 something like `DJANGO_SETTINGS_MODULE=myproject.settings feedjack_update`)
@@ -240,7 +244,7 @@ Bugs, development, support
 All the issues with this fork should probably be reported to respective github
 project/fork, since code here can be quite different from the original project.
 
-Until 2012, this fork was kept in [fossil](http://www.fossil-scm.org/) repo
+Until 2012, this fork was kept in a [fossil](http://www.fossil-scm.org/) repo
 [here](http://fraggod.net/code/fossil/feedjack/).
 
 
