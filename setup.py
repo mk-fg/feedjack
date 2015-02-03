@@ -21,10 +21,12 @@ setup(
 	name='Feedjack',
 	version=feedjack.__version__,
 	author='Gustavo Picón, Mike Kazantsev',
-	author_email='gpicon@gmail.com, mk.fraggod@gmail.com',
+	author_email='mk.fraggod@gmail.com',
 	license='BSD',
-	keywords=[ 'feed', 'aggregator', 'planet',
-		'rss', 'atom', 'syndication', 'django', 'feedparser', 'news' ],
+	keywords=[
+		'feed', 'aggregator', 'reader', 'planet',
+		'syndication', 'subscribe', 'news', 'web',
+		'rss', 'atom', 'rdf', 'opml', 'django', 'feedparser' ],
 
 	url=feedjack.__url__,
 
@@ -32,7 +34,7 @@ setup(
 	long_description=readme,
 
 	classifiers=[
-		'Development Status :: 4 - Production/Stable',
+		'Development Status :: 5 - Production/Stable',
 		'Environment :: Console',
 		'Environment :: Web Environment',
 		'Framework :: Django',
@@ -40,9 +42,6 @@ setup(
 		'Intended Audience :: Information Technology',
 		'License :: OSI Approved :: BSD License',
 		'Natural Language :: English',
-		'Natural Language :: German',
-		'Natural Language :: Serbian',
-		'Natural Language :: Spanish',
 		'Operating System :: POSIX',
 		'Operating System :: Unix',
 		'Programming Language :: Python',
@@ -50,7 +49,8 @@ setup(
 		'Programming Language :: Python :: 2 :: Only',
 		'Topic :: Internet',
 		'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
-		'Topic :: Internet :: WWW/HTTP :: WSGI :: Application' ],
+		'Topic :: Internet :: WWW/HTTP :: WSGI :: Application',
+		'Topic :: Software Development :: Libraries :: Python Modules' ],
 
 	install_requires=['feedparser', 'Django >= 1.7'],
 	extras_require={
