@@ -161,13 +161,16 @@ def buildfeed(request, feedclass, **criterias):
 		description=site.description, feed_url=u'{0}/{1}'.format(site.url, '/feed/rss/') )
 	last_modified = datetime(1970, 1, 1, 0, 0, 0, 0, timezone.utc)
 	for post in object_list:
+		# Enclosures are not created here, as these have somewhat unpredictable format,
+		#  and don't always fit Django's url+length+type style - href+title links, for instance.
 		feed.add_item(
 			title = u'{0}: {1}'.format(post.feed.name, post.title),
 			link = post.link,
 			description = fjlib.html_cleaner(post.content),
 			author_email = post.author_email,
 			author_name = post.author,
-			pubdate = post.date_modified,
+			pubdate = post.date_created,
+			updateddate = post.date_modified,
 			unique_id = post.link,
 			categories = [tag.name for tag in post.tags.all()] )
 		if post.date_updated > last_modified: last_modified = post.date_updated

@@ -593,6 +593,8 @@ class Post(models.Model):
 
 	# Media enclosures data is stored as a opaque serializad data blob in db,
 	#  and should only be accessed through de-/serializing descriptor, never directly.
+	# XXX: lookup expression or transformation for enclosures
+	#  https://docs.djangoproject.com/en/1.7/ref/models/lookups/
 	_enclosures = models.TextField(
 		db_column='enclosures', blank=True, editable=False )
 	def _enclosures_set(self, data):
