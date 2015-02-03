@@ -79,9 +79,10 @@ be created, or app can be enabled in any existing one.
 	[INSTALLED_APPS](http://docs.djangoproject.com/en/stable/ref/settings/#installed-apps).
 
 * Running `./manage.py migrate`
-	(["migrate" command](http://docs.djangoproject.com/en/stable/ref/django-admin/#migrate-app-label-migrationname))
-	from the command line should then populate database (whichever is configured in
-	the same file) with feedjack-specific schema.
+	(["migrate" command](http://docs.djangoproject.com/en/stable/ref/django-admin/#migrate-app-label-migrationname),
+	supersedes "syncdb" in Django-1.7) from the command line should then populate
+	database (whichever is configured in the same file) with feedjack-specific
+	schema.
 
 * Feedjack "static files" directory should be setup to be reachable under
 	configured [STATIC_URL](http://docs.djangoproject.com/en/dev/ref/settings/#static-url)
