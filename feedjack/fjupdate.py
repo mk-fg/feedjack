@@ -633,5 +633,4 @@ def main(optz=None):
 
 	bulk_update(optz)
 
-if __name__ == '__main__':
-	main()
+if __name__ == '__main__': main()
