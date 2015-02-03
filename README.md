@@ -143,6 +143,12 @@ After all that, it might be worth checking out "/admin" section
 (if django.contrib.admin app was enabled) to create a feedjack site,
 otherwise sample default site will be created upon first request.
 
+Be sure to check out deployment section of Django docs and a checklist there
+before making project accessible from the internet:
+
+	https://docs.djangoproject.com/en/stable/howto/deployment/
+	https://docs.djangoproject.com/en/stable/howto/deployment/checklist/
+
 See also "Configuration" section below.
 
 
