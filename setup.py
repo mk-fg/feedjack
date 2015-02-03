@@ -6,14 +6,14 @@ from finddata import find_package_data
 import feedjack
 import os, sys
 
+package_data = find_package_data(where='feedjack', package='feedjack')
+
 # Error-handling here is to allow package to be built w/o README included
 try:
 	readme = open(os.path.join(
 		os.path.dirname(__file__), 'README.txt' )).read()
 except IOError: readme = ''
-
-package_data = find_package_data(where='feedjack', package='feedjack')
-package_data.setdefault('', list()).append('README.txt')
+else: package_data.setdefault('', list()).append('README.txt')
 
 setup(
 	name = 'Feedjack',
