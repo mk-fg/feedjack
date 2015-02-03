@@ -78,18 +78,10 @@ be created, or app can be enabled in any existing one.
 * First of all, 'feedjack' app must be enabled in settings.py under
 	[INSTALLED_APPS](http://docs.djangoproject.com/en/stable/ref/settings/#installed-apps).
 
-	Running `./manage.py syncdb`
-	(["syncdb" command](http://docs.djangoproject.com/en/stable/ref/django-admin/#syncdb))
+* Running `./manage.py migrate`
+	(["migrate" command](http://docs.djangoproject.com/en/stable/ref/django-admin/#migrate-app-label-migrationname))
 	from the command line should then populate database (whichever is configured in
 	the same file) with feedjack-specific schema.
-
-* If Django 1.7+ is used (highly recommended), or [South app](http://south.aeracode.org)
-	is available (with older Django versions), make sure to add it to INSTALLED_APPS
-	as well, so it'd be able to apply future database schema updates effortlessly.
-
-	`./manage.py migrate feedjack` should be run in addition to syncdb in that
-	case, both initially, and (ideally) on every "feedjack" app update (in case
-	there were any db schema changes).
 
 * Feedjack "static files" directory should be setup to be reachable under
 	configured [STATIC_URL](http://docs.djangoproject.com/en/dev/ref/settings/#static-url)
@@ -107,13 +99,13 @@ be created, or app can be enabled in any existing one.
 
 		% ln -s /usr/lib/python2.7/site-packages/feedjack/static/feedjack /var/www/htdocs/
 
-* Be sure to enable/add/uncomment "django.contrib.admin" app
+* Be sure to enable/add/uncomment/check "django.contrib.admin" app
 	([Django admin interface](https://docs.djangoproject.com/en/dev/ref/contrib/admin/))
 	as well, since it's the most convenient and supported way to configure and
 	control feedjack.
 
-	"syncdb" operation (same as after enabling feedjack itself) might be necessary
-	after that.
+	"migrate" operation (same as after enabling feedjack itself) might be
+	necessary after that.
 
 	Other ways to configure and control feedjack app after installation are:
 
@@ -139,7 +131,7 @@ be created, or app can be enabled in any existing one.
 	(of course, less trivial Django configurations should probably have way more
 	entries there)
 
-After all that, it might be worth checking out "/admin" section
+After all that, it might be worth checking out "/admin" interface
 (if django.contrib.admin app was enabled) to create a feedjack site,
 otherwise sample default site will be created upon first request.
 
@@ -154,11 +146,11 @@ See also "Configuration" section below.
 
 ### Requirements
 
-* [Python 2.7 (not 3.X)](http://python.org/)
-
-* [feedparser 4.1+](https://code.google.com/p/feedparser/)
+* [Python 2.7](http://python.org/) (not 3.X)
 
 * [Django 1.7+](http://djangoproject.com)
+
+* [feedparser 4.1+](https://code.google.com/p/feedparser/)
 
 * (optional) [lxml](http://lxml.de) - used for html mangling in some themes
 	(fern, plain) processing of more free-form timestamps on feeds, if feedparser
@@ -214,7 +206,7 @@ generate all the links.
 
 Then you should add Subscribers to your first planet.
 A Subscriber is a relation between a Feed and a Site, so when you add your first
-Subscriber, you must also add your first Feed by clicking in the “+” button at
+Subscriber, you should also add your first Feed by clicking in the “+” button at
 the right of the Feed combobox.
 
 Feedjack is designed to use
