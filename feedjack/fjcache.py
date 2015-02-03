@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from django.core.cache import cache
+from django.core.cache import (
+	cache as cache_default, caches, InvalidCacheBackendError )
 from django.conf import settings
 
 import itertools as it, operator as op, functools as ft
@@ -8,6 +9,16 @@ from hashlib import md5
 
 
 T_INTERVAL, T_HOST, T_ITEM, T_META = xrange(4)
+
+
+class lazy_cache(object):
+	def __getattr__(self, k):
+		global cache # replaces itself with proper cache on first invocation
+		try: cache = caches['feedjack']
+		except InvalidCacheBackendError: cache = cache_default
+		return getattr(cache, k)
+
+cache = lazy_cache()
 
 
 def str2md5(key):

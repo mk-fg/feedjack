@@ -215,6 +215,8 @@ to store database-intensive data like pages of posts and tagclouds, so it is hig
 recomended to
 [configure CACHES](http://docs.djangoproject.com/en/dev/topics/cache/#setting-up-the-cache)
 in django settings (memcached, db, files, etc).
+Feedjack will try to use cache with "feedjack" alias, falling back to "default"
+if that one is not defined.
 
 Now that you have everything set up, run `./manage.py feedjack_update` (or
 something like `DJANGO_SETTINGS_MODULE=myproject.settings feedjack_update`)
