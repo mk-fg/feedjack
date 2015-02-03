@@ -172,7 +172,7 @@ def buildfeed(request, feedclass, **criterias):
 			categories = [tag.name for tag in post.tags.all()] )
 		if post.date_updated > last_modified: last_modified = post.date_updated
 
-	response = HttpResponse(mimetype=feed.mime_type)
+	response = HttpResponse(content_type=feed.mime_type)
 
 	# Per-host caching
 	patch_vary_headers(response, ['Host'])

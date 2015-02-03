@@ -135,15 +135,14 @@ See also "Configuration" section below.
 
 * [feedparser 4.1+](https://code.google.com/p/feedparser/)
 
-* [Django 1.5+](http://djangoproject.com)
+* [Django 1.7+](http://djangoproject.com)
 
 * (optional) [lxml](http://lxml.de) - used for html mangling in some themes
 	(fern, plain) processing of more free-form timestamps on feeds, if feedparser
 	can't handle these for whatever reason.
 
-* (optional, only for pre-1.7 Django versions)
-  [South](http://south.aeracode.org) - for automated database schema migrations
-  (when updating from older Feedjack versions).
+* (optional, only for updating from older Feedjack/Django versions)
+  [South](http://south.aeracode.org)
 
 
 ### Updating from older versions
