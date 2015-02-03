@@ -18,19 +18,34 @@ Installation
 
 ### Python module (Django app)
 
-This feedjack fork is a regular package for Python 2.7 (not 3.X), but not in
-pypi.
+This feedjack fork is a regular package for Python 2.7 (not 3.X).
 
-Best way to install it, would be to use [pip](http://pip-installer.org/) (see
-also [pip2014.com](http://pip2014.com/)):
+Best way to install it (from [PyPI](https://pypi.python.org/pypi/Feedjack/))
+would be to use [pip](http://pip-installer.org/):
 
-	% pip install 'git+https://github.com/mk-fg/feedjack.git#egg=feedjack'
+	% pip install Feedjack
 
-That will automatically fetch and install 'feedjack' Django app to a configured
-python site-path, along with all the required dependencies.
+If you don't have it, use:
+
+	% easy_install pip
+	% pip install Feedjack
+
+Alternatively (see also
+[pip2014.com](http://pip2014.com/) and
+[install guide](http://www.pip-installer.org/en/latest/installing.html)):
+
+	% curl https://raw.github.com/pypa/pip/master/contrib/get-pip.py | python
+	% pip install Feedjack
+
+Current-git version can be installed like this:
+
+	% pip install 'git+https://github.com/mk-fg/feedjack.git#egg=Feedjack'
+
+All of these will automatically fetch and install 'feedjack' Django app to a
+configured python site-path, along with all the required dependencies.
 
 Another way of installing from a git chechout would be running `python setup.py
-install`.
+install` in the dir.
 
 Note that to install stuff in system-wide PATH and site-packages, elevated
 privileges are often required.
@@ -231,6 +246,8 @@ Until 2012, this fork was kept in a [fossil](http://www.fossil-scm.org/) repo
 Links
 ----------------------------------------
 
+* PyPI page: https://pypi.python.org/pypi/Feedjack/
+
 * Original feedjack project links
 
 	* Bitbucket repository: http://code.tabo.pe/feedjack/
@@ -239,7 +256,6 @@ Links
 
 * Other known forks
 
-	* https://pypi.python.org/pypi/Feedjack/
 	* https://github.com/cato-/django-feedjack
 	* https://github.com/squarepegsys/feedjack
 	* https://code.google.com/p/feedjack-extension/
