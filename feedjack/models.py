@@ -48,6 +48,7 @@ SITE_ORDERING = namedtuple( 'SiteOrdering',
 	'modified created created_day' )(*xrange(1, 4))
 
 class Site(models.Model):
+
 	name = models.CharField(_('name'), max_length=100)
 	url = models.CharField( _('url'),
 		max_length=100, unique=True,
@@ -208,6 +209,7 @@ class FilterBase(models.Model):
 
 
 class Filter(models.Model):
+
 	base = models.ForeignKey('FilterBase', related_name='filters')
 	# feeds (reverse m2m relation from Feed)
 	parameter = models.CharField( max_length=512, blank=True, null=True,
@@ -235,6 +237,7 @@ class Filter(models.Model):
 
 
 class FilterResult(models.Model):
+
 	filter = models.ForeignKey('Filter')
 	post = models.ForeignKey('Post', related_name='filtering_results')
 	result = models.BooleanField(default=False)
@@ -250,17 +253,16 @@ FEED_FILTERING_LOGIC = namedtuple('FilterLogic', 'all any')(*xrange(2))
 
 
 class FeedQuerySet(models.query.QuerySet):
+
 	@property
 	def timestamps(self):
 		return dict(it.izip( ('modified', 'checked'), self.filter(last_checked__isnull=False)\
 			.aggregate(Max('last_modified'), Max('last_checked')).itervalues() ))
 
-class Feeds(models.Manager):
-	def get_queryset(self): return FeedQuerySet(self.model)
-
 
 class Feed(models.Model):
-	objects = Feeds()
+
+	objects = FeedQuerySet.as_manager()
 
 	feed_url = models.URLField(_('feed url'), unique=True)
 
@@ -491,6 +493,7 @@ signals.post_save.connect(Feed._filters_update_handler, sender=Feed)
 
 
 class Tag(models.Model):
+
 	name = models.CharField(_('name'), max_length=255, unique=True)
 
 	class Meta:
@@ -504,6 +507,7 @@ class Tag(models.Model):
 
 
 class PostQuerySet(models.query.QuerySet):
+
 	# Limit on a string length (in bytes!) to match with levenshtein function
 	# It's hardcoded in fuzzymatch.c as 255, by default, so this
 	#  setting should not be higher than that or you'll get runtime errors.
@@ -555,11 +559,6 @@ class PostQuerySet(models.query.QuerySet):
 
 
 class Posts(models.Manager):
-	def get_queryset(self): return PostQuerySet(self.model)
-
-	@ft.wraps(PostQuerySet.similar)
-	def similar(self, *argz, **kwz):
-		return self.get_queryset().similar(*argz, **kwz)
 
 	def filtered(self, site=None, for_display=True, **criterias):
 		# Check is "not False" because there can be NULLs for
@@ -571,8 +570,11 @@ class Posts(models.Manager):
 			posts = posts.filter(feed__subscriber__is_active=True)
 		return posts.with_criterias(site, **criterias) if site else posts
 
+Posts = Posts.from_queryset(PostQuerySet)
+
 
 class Post(models.Model):
+
 	objects = Posts()
 
 	feed = models.ForeignKey(Feed, verbose_name=_('feed'), related_name='posts')
@@ -699,6 +701,7 @@ signals.post_delete.connect(ft.partial(Post._update_handler, delete=True), sende
 
 
 class Subscriber(models.Model):
+
 	site = models.ForeignKey(Site, verbose_name=_('site'))
 	feed = models.ForeignKey(Feed, verbose_name=_('feed'))
 
