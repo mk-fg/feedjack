@@ -256,7 +256,7 @@ class FeedQuerySet(models.query.QuerySet):
 			.aggregate(Max('last_modified'), Max('last_checked')).itervalues() ))
 
 class Feeds(models.Manager):
-	def get_query_set(self): return FeedQuerySet(self.model)
+	def get_queryset(self): return FeedQuerySet(self.model)
 
 
 class Feed(models.Model):
@@ -555,17 +555,17 @@ class PostQuerySet(models.query.QuerySet):
 
 
 class Posts(models.Manager):
-	def get_query_set(self): return PostQuerySet(self.model)
+	def get_queryset(self): return PostQuerySet(self.model)
 
 	@ft.wraps(PostQuerySet.similar)
 	def similar(self, *argz, **kwz):
-		return self.get_query_set().similar(*argz, **kwz)
+		return self.get_queryset().similar(*argz, **kwz)
 
 	def filtered(self, site=None, for_display=True, **criterias):
 		# Check is "not False" because there can be NULLs for
 		#  feeds with no filters (also provided there never was any filters).
 		# TODO: make this field pure-bool?
-		posts = self.get_query_set().exclude(filtering_result=False)
+		posts = self.get_queryset().exclude(filtering_result=False)
 		if for_display:
 			posts = posts.exclude(hidden=True)
 			posts = posts.filter(feed__subscriber__is_active=True)
