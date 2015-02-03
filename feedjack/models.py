@@ -782,22 +782,27 @@ def transaction_wrapper(func, logger=None, print_exc=None):
 		instead of just replacing them by non-meaningful no-commit django exceptions'''
 	if (func is not None and logger is not None)\
 			or not (isinstance(func, logging.Logger) or func is logging):
-		@transaction.commit_manually
 		@ft.wraps(func)
 		def _transaction_wrapper(*argz, **kwz):
-			transaction_start.send(sender=func.func_name)
-			try: result = func(*argz, **kwz)
-			except Exception as err:
-				transaction_finish.send(sender=func.func_name, error=err)
-				if print_exc: print_exc() # used in fjupdate to add feed data to error msg
+			# XXX: not sure if most uses can't be replaced with "atomic" decorator
+			autocommit_global = transaction.get_autocommit()
+			if autocommit_global: transaction.set_autocommit(False)
+			try:
+				transaction_start.send(sender=func.func_name)
+				try: result = func(*argz, **kwz)
+				except Exception as err:
+					transaction_finish.send(sender=func.func_name, error=err)
+					if print_exc: print_exc() # used in fjupdate to add feed data to error msg
+					else:
+						import sys, traceback
+						(logger or log).error(( u'Unhandled exception: {0},'
+							' traceback:\n {1}' ).format( err,
+								smart_unicode(''.join(traceback.format_tb(sys.exc_info()[2]))) ))
+					raise
 				else:
-					import sys, traceback
-					(logger or log).error(( u'Unhandled exception: {0},'
-						' traceback:\n {1}' ).format( err,
-							smart_unicode(''.join(traceback.format_tb(sys.exc_info()[2]))) ))
-				raise
-			else:
-				transaction_finish.send(sender=func.func_name, error=None)
+					transaction_finish.send(sender=func.func_name, error=None)
+			finally:
+				if autocommit_global: transaction.set_autocommit(True)
 			return result
 		return _transaction_wrapper
 	else:
