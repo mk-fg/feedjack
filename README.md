@@ -248,6 +248,8 @@ Until 2012, this fork was kept in a [fossil](http://www.fossil-scm.org/) repo
 Links
 ----------------------------------------
 
+* Github page (home): https://github.com/mk-fg/feedjack
+
 * PyPI page: https://pypi.python.org/pypi/Feedjack/
 
 * Original feedjack project links
