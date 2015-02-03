@@ -2,13 +2,15 @@ Feedjack
 ----------------------------------------
 
 Feedjack is a feed aggregator, allowing to aggregate multiple rss/atom feeds
-into multiple "sites", somewhat like "planet" aggregator does, but better.
+into multiple "sites", accessible as regular web pages, somewhat like "planet"
+aggregator does, but better.
 
-This project is a fork of the original feedjack project, which seem to be
-abandoned for a while now.
+It is intended to be useful as a multisite feed aggregator (planet, e.g. "planet
+python"), as well as a personal feed reader app with web interface.
+It's also a Django app, which can be integrated into larger Django projects.
 
-Unlike the original, it is somewhat maintained and extended upon, latter might
-be a good or a bad thing, depending on how you look at it.
+This project is a fork of the original Feedjack project by Gustavo Picón, which
+seem to be abandoned for a while now.
 See CHANGES file for more details on what happened here over time.
 
 
