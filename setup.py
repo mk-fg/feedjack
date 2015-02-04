@@ -2,19 +2,15 @@
 # -*- coding: utf-8 -*-
 
 from setuptools import setup, find_packages
-from finddata import find_package_data # XXX: drop this
 import os, sys, runpy
 
 pkg_root = os.path.dirname(__file__)
 feedjack = type( 'ModuleVars', (object,),
 	runpy.run_path(os.path.join(pkg_root, 'feedjack', '__init__.py')) )
 
-package_data = find_package_data(where='feedjack', package='feedjack')
-
 # Error-handling here is to allow package to be built w/o README included
 try: readme = open(os.path.join(pkg_root, 'README.txt')).read()
 except IOError: readme = ''
-else: package_data.setdefault('', list()).append('README.txt')
 
 setup(
 
@@ -60,8 +56,7 @@ setup(
 
 	zip_safe=False,
 	packages=find_packages(),
-	package_data=package_data,
-	include_package_data=True,
+	include_package_data=True, # uses git and MANIFEST.in
 
 	entry_points={
 		'console_scripts': ['feedjack_update=feedjack.fjupdate:main'] } )

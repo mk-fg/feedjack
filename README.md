@@ -154,7 +154,7 @@ See also "Configuration" section below.
 * [feedparser 4.1+](https://code.google.com/p/feedparser/)
 
 * (optional, recommended) [pytz](http://pythonhosted.org/pytz/) - required by
-	Django in some cases, facilitates correct handling/interpretation of the
+	Django in some cases, facilitates correct handling/interpretation of
 	timezones.
 
 * (optional) [lxml](http://lxml.de) - used for html mangling in some themes
