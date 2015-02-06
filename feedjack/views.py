@@ -123,7 +123,7 @@ def blogroll(request, btype):
 	fjlib.get_extra_content(site, ctx)
 	ctx = Context(ctx)
 	response = HttpResponse(
-		template.render(ctx), mimetype='text/xml; charset=utf-8' )
+		template.render(ctx), content_type='text/xml; charset=utf-8' )
 
 	patch_vary_headers(response, ['Host'])
 	fjcache.cache_set(
