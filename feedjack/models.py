@@ -22,10 +22,6 @@ except ImportError:
 	try: import simplejson as json
 	except ImportError: import json
 
-def total_seconds(delta): # for py2.6 compatibility
-	return float(delta.microseconds
-		+ (delta.seconds + delta.days * 24 * 3600) * 10**6) / 10**6
-
 
 signal_sender_empty = object()
 
@@ -341,16 +337,16 @@ class Feed(models.Model):
 						.order_by('-date_modified')[0].date_modified
 				except (ObjectDoesNotExist, IndexError): return 0 # no previous timestamp available
 			timestamps.append(add_partial)
-			if total_seconds(add_partial - ewma_ts) < ewma:
+			if (add_partial - ewma_ts).total_seconds() < ewma:
 				# It doesn't make sense to lower interval due to frequent check attempts.
 				return ewma
 		for ts in timestamps:
 			if ewma_ts is None: # first post
 				ewma_ts = ts
 				continue
-			ewma_ts, interval = ts, total_seconds(ts - ewma_ts)
+			ewma_ts, interval = ts, (ts - ewma_ts).total_seconds()
 			ewma = ewma_factor * interval + (1 - ewma_factor) * ewma
-		return min(total_seconds(timedelta(max_interval)), ewma)
+		return min(timedelta(max_interval).total_seconds(), ewma)
 
 
 	@staticmethod
