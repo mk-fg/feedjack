@@ -1,6 +1,12 @@
+# Generic python/setuptools cruft
 /*.egg-info
 /build
 /dist
-/README.txt
 *.pyc
 *.pyo
+
+# Auto-generated from md by pandoc
+/README.txt
+
+# Local script to deploy/test changes
+/sync.sh
