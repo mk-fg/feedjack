@@ -2,11 +2,12 @@
 from __future__ import unicode_literals
 
 import itertools as it, operator as op, functools as ft
+import re, types
 
 
 
 ### Simple regex-based filters
-import re
+
 def _regex_search(post, parameter, dissector, invert=False):
 	return invert ^ bool(re.search(parameter, dissector(post).strip()))
 
@@ -31,7 +32,6 @@ regex_not_in_content.__doc__ = 'Match only posts with RegEx'\
 ### Similarity cross-referencing filters
 from datetime import timedelta
 from django.utils import timezone
-import types
 
 DEFAULT_SIMILARITY_THRESHOLD = 0.85
 DEFAULT_SIMILARITY_TIMESPAN = 7 * 24 * 3600
@@ -75,3 +75,18 @@ def similar_title(post, parameter=None):
 
 similar_title.__doc__ = similar_title.__doc__.format(
 	DEFAULT_SIMILARITY_THRESHOLD, default_span_hr )
+
+
+
+### Content processors
+
+def pick_enclosure_link(post, parameter=''):
+	'''Override URL of the Post to point to url of the first enclosure with
+			href attribute non-empty and type matching specified regexp parameter (empty=any).
+		Missing "type" attribute for enclosure will be matched as an empty string.
+		If none of the enclosures match, link won't be updated.'''
+	for e in (post.enclosures or list()):
+		href = e.get('href')
+		if not href: continue
+		if parameter and not re.search(parameter, e.get('type', '')): continue
+		return dict(link=href)

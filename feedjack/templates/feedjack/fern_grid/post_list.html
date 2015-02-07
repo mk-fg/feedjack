@@ -77,7 +77,7 @@
 {% if item.content %}
 		<a class="entry" href="{{ item.link }}"
 			data-timestamp="{{ date_site|date:"U" }}"
-			title="&quot;{% firstof item.title item.subscriber.name %}&quot;: {{ item.content|tag_pick_text }}">
+			title="&quot;{% firstof item.title feed.subscriber.name %}&quot;: {{ item.content|tag_pick_text }}">
 			{{ item.content|tag_pick:"//img[not(@alt='thumbnail')]||//img"|safe }}
 		</a>
 {% endif %}

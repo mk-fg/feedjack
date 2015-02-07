@@ -14,11 +14,9 @@ from django.utils import timezone
 from feedjack import models, fjcache
 
 import itertools as it, operator as op, functools as ft
+from collections import OrderedDict
 from datetime import datetime, timedelta
 import warnings
-
-try: from collections import OrderedDict # py2.7
-except ImportError: from ordereddict import OrderedDict
 
 
 try:
@@ -167,7 +165,9 @@ def get_page(site, page=1, **criterias):
 	order_force = criterias.pop('asc', None)
 
 	posts = models.Post.objects.filtered(site, **criterias)\
-		.sorted(site.order_posts_by, force=order_force).select_related()
+		.sorted(site.order_posts_by, force=order_force)\
+		.select_related( 'feed', 'tags',
+			'processing_results', 'feed__post_processor_tags' )
 
 	paginator = Paginator(posts, site.posts_per_page)
 	try: return paginator.page(page)
@@ -181,7 +181,7 @@ def page_context(request, site, **criterias):
 
 	feed, tag = criterias.get('feed'), criterias.get('tag')
 	if feed:
-		try: feed = models.Feed.objects.get(id=feed)
+		try: feed = models.Feed.objects.get(pk=feed)
 		except ObjectDoesNotExist: raise Http404
 
 	page = get_page(site, page=page, **criterias)
@@ -190,9 +190,8 @@ def page_context(request, site, **criterias):
 	if site.show_tagcloud and page.object_list:
 		from feedjack import fjcloud
 		# This will hit the DB once per page instead of once for every post in
-		# a page. To take advantage of this the template designer must call
-		# the qtags property in every item, instead of the default tags
-		# property.
+		#  a page. To take advantage of this the template designer must call
+		#  the qtags property in every item, instead of the default tags property.
 		user_obj, tag_obj = get_posts_tags(
 			subscribers, page.object_list, feed, tag )
 		tag_cloud = fjcloud.getcloud(site, feed and feed.id)
@@ -203,13 +202,20 @@ def page_context(request, site, **criterias):
 				.get(site=site, feed=feed) if feed else None
 		except ObjectDoesNotExist: raise Http404
 
+	# XXX: huge database hit, should be optimized
+	site_proc_tags = site.processing_tags.strip()
+	if site_proc_tags != 'none':
+		site_proc_tags = filter( None,
+			map(op.methodcaller('strip'), site.processing_tags.split(',')) )
+		for obj in page.object_list: obj.apply_processing(site_proc_tags)
+
 	ctx = dict(
 		last_modified = max(it.imap(
 				op.attrgetter('date_updated'), page.object_list ))\
 			if len(page.object_list) else datetime(1970, 1, 1, 0, 0, 0, 0, timezone.utc),
 
 		object_list = page.object_list,
-		subscribers = subscribers,
+		subscribers = subscribers.select_related('feed'),
 		tag = tag_obj,
 		tagcloud = tag_cloud,
 

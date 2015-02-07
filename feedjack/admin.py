@@ -12,6 +12,10 @@ class SiteAdmin(admin.ModelAdmin):
 admin.site.register(models.Site, SiteAdmin)
 
 
+class PostProcessorTagInline(admin.TabularInline):
+	model = models.PostProcessorTag
+	extra = 1
+
 class FeedAdmin(admin.ModelAdmin):
 	list_display = 'name', 'feed_url',\
 		'title', 'last_modified', 'immutable', 'is_active'
@@ -22,11 +26,10 @@ class FeedAdmin(admin.ModelAdmin):
 				'immutable', 'skip_errors', 'is_active')}),
 		('Filtering',
 			{'classes':('collapse',), 'fields': ('filters_logic', 'filters')}),
-		('Post-processing',
-			{'classes':('collapse',), 'fields': ('post_processors',)}),
 		(_('Fields updated automatically by Feedjack'),
 			{'classes':('collapse',), 'fields':
 				('title', 'tagline', 'link', 'etag', 'last_modified', 'last_checked') }) )
+	inlines = (PostProcessorTagInline,) # always at the end in stock admin templates
 	search_fields = 'feed_url', 'name', 'title'
 	list_filter= 'last_modified',
 	date_hierarchy = 'last_modified'

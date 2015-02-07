@@ -137,7 +137,16 @@ class FeedProcessor(object):
 			if post.date_modified: break
 
 		post.comments = entry.get('comments', '')
-		post.enclosures = entry.get('enclosures')
+
+		enclosures = entry.get('enclosures', list())
+		if 'media_content' in entry:
+			for mc in entry.media_content:
+				if 'url' in mc: e = dict(href=mc['url'], medium=mc.get('medium', 'image'))
+				else: e = entry.media_content
+				e['type'] = 'application/x-media-content' # special ct for these things
+				enclosures.append(e)
+			assert enclosures, enclosures
+		post.enclosures = enclosures
 
 		## Get a list of tag objects from an entry
 		# Note that these objects can't go into m2m field until properly saved

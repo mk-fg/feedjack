@@ -3,7 +3,7 @@
 from django.core.exceptions import ObjectDoesNotExist,\
 	ValidationError, MultipleObjectsReturned
 from django.db.models import signals, Avg, Max, Min, Count, Q
-from django.db import models, connection
+from django.db import models, connection, transaction, IntegrityError
 from django.utils.translation import ugettext_lazy as _
 from django.utils.encoding import smart_unicode
 from django.utils import timezone
@@ -76,10 +76,20 @@ class Site(models.Model):
 
 	links = models.ManyToManyField(Link, verbose_name=_('links'),
 		null=True, blank=True)
-	template = models.CharField(_('template'), max_length=100, null=True,
-		blank=True,
-		help_text=_('This template must be a directory in your feedjack '
-		'templates directory. Leave blank to use the default template.') )
+	template = models.CharField( _('template'),
+		max_length=100, null=True, blank=True,
+		help_text=_( 'This template must be a directory in your feedjack'
+			' templates directory. Leave blank to use the default template.' ) )
+
+	processing_tags = models.CharField( _('processing tags'),
+		blank=True, max_length=256, help_text=_(
+			'Comma-separated list of tags for Feeds post-processing on this Site, if defined.<br>'
+			' Used to pick which Post Processor objects added'
+				' to feeds (with specified priority/tag) to apply to Posts displayed on this Site.<br>'
+			' With this empty, or if none of the tags here match,'
+				' attached processors are picked in lowest-first priority order, if any.<br>'
+			' Special value "none" can be specified to'
+				' completely disable such processing on this site.' ) )
 
 	class Meta:
 		verbose_name = _('site')
@@ -124,12 +134,10 @@ class Site(models.Model):
 		return self.signal_updated.send(sender=sender, instance=self)
 
 	def save(self, *argz, **kwz):
-		if not self.template:
-			self.template = 'default'
+		if not self.template: self.template = 'default'
 		# there must be only ONE default site
 		defs = Site.objects.filter(default_site=True)
-		if not defs:
-			self.default_site = True
+		if not defs: self.default_site = True
 		elif self.default_site:
 			for tdef in defs:
 				if tdef.id != self.id:
@@ -175,9 +183,9 @@ class ProcessingThing(models.Model):
 	base = None # should be overidden, e.g.: models.ForeignKey('ProcessingThingBase')
 	# feeds (reverse m2m relation from Feed)
 	parameter = models.CharField( max_length=512, blank=True, null=True,
-		help_text='Parameter keyword to pass to a processing function.<br />'
+		help_text='Parameter keyword to pass to a processing function.<br>'
 			'Allows to define generic processing alghorithms in code (like "regex_filter") and'
-				' actual filters/processors in db itself (specifying regex to filter/process by).<br />'
+				' actual filters/processors in db itself (specifying regex to filter/process by).<br>'
 			'Empty value would mean that "parameter" keyword'
 				' wont be passed to handler at all. See selected base for handler description.' )
 
@@ -214,14 +222,14 @@ class FilterBase(ProcessingThingBase):
 	handler_name = models.CharField( max_length=256, blank=True,
 		help_text='Processing function as and import-name, like'
 				' "myapp.filters.some_filter" or just a name if its a built-in filter'
-				' (contained in feedjack.filters), latter is implied if this field is omitted.<br />'
+				' (contained in feedjack.filters), latter is implied if this field is omitted.<br>'
 			' Should accept Post object and optional (or not) parameter (derived from'
 				' actual Filter field) and return boolean value, indicating whether post'
 				' should be displayed or not.' )
 
 	crossref = models.BooleanField( 'Cross-referencing', default=False,
 		help_text='Indicates whether filtering results depend on other posts'
-				' (and possibly their filtering results) or not.<br />'
+				' (and possibly their filtering results) or not.<br>'
 			' Note that ordering in which these filters are applied to a posts,'
 				' as well as "update condition" should match for any'
 				' cross-referenced feeds. This restriction might go away in the future.' )
@@ -268,34 +276,59 @@ class PostProcessorBase(ProcessingThingBase):
 	handler_name = models.CharField( max_length=256, blank=True,
 		help_text='Processing function as and import-name, like'
 				' "myapp.filters.some_filter" or just a name if its a built-in processor'
-				' (contained in feedjack.filters), latter is implied if this field is omitted.<br />'
-			' Should accept Post object and optional (or not) parameter (derived from'
-				' actual PostProcessor field) and return a dict of fields of Post object to override.' )
+				' (contained in feedjack.filters), latter is implied if this field is omitted.<br>'
+			' Should accept Post object and optional (or not) parameter (derived from actual'
+				' PostProcessor field) and return a dict of fields of Post object to override or None.' )
 
 
 class PostProcessor(ProcessingThing):
 
-	base = models.ForeignKey('PostProcessorBase', related_name='postprocessors')
+	base = models.ForeignKey('PostProcessorBase', related_name='post_processors')
+
+	def get_overlay_for_post(self, post, only_if_cached=False):
+		try: res = PostProcessorResult.objects.get(processor=self, post=post)
+		except PostProcessorResult.DoesNotExist:
+			if only_if_cached: raise
+		else: return res.overlay
+		overlay = self.handler(post)
+		try: PostProcessorResult.objects.create(processor=self, post=post, overlay=overlay)
+		except IntegrityError: pass
+		else: return overlay
+		return self.get_overlay_for_post(post, only_if_cached=True)
 
 
 class PostProcessorTag(models.Model):
 
-	processor = models.ForeignKey('PostProcessor')
-	feed = models.ForeignKey('Feed')
+	processor = models.ForeignKey('PostProcessor', related_name='feed_tags')
+	feed = models.ForeignKey('Feed', related_name='post_processor_tags')
 
-	tag = models.PositiveSmallIntegerField(
+	tag = models.CharField( blank=True, max_length=128,
 		help_text='Can be used to pick specific processor in the templates.' )
-	priority = models.PositiveSmallIntegerField( help_text='Lowest-first logic.'
-		' Affects which of the attached processing hooks will be picked'
-			' by default in the template, unless some specific one is specified (and exists).' )
+	priority = models.PositiveSmallIntegerField( default=100,
+		help_text='Lowest-first logic.'
+			' Affects which of the attached processing hooks will be picked'
+				' by default in the template, unless some specific one is specified (and exists).' )
+
+	def get_overlay_for_post(self, post):
+		return self.processor.get_overlay_for_post(post)
 
 
 class PostProcessorResult(models.Model):
 
-	processor = models.ForeignKey('PostProcessor')
+	processor = models.ForeignKey('PostProcessor', related_name='results')
 	post = models.ForeignKey('Post', related_name='processing_results')
-	overlay = models.TextField(blank=True, null=True, editable=False)
 	timestamp = models.DateTimeField(auto_now=True)
+
+	_overlay = models.TextField(db_column='overlay', blank=True, null=True, editable=False)
+	@property
+	def overlay(self):
+		if not self._overlay: return None
+		return json.loads(self._overlay)
+	@overlay.setter
+	def overlay(self, data): self._overlay = json.dumps(data) if data else None
+
+	class Meta:
+		unique_together = ('processor', 'post'),
 
 
 
@@ -667,7 +700,9 @@ class Post(models.Model):
 	filtering_result = models.NullBooleanField()
 	# filtering_results (reverse fk from FilterResult)
 
-	# processing_results (reverse fk from ContentProcessor)
+	# processing_results (reverse fk from PostProcessorResult)
+
+	_immutable = False # to disable "save" for Post copies
 
 	class Meta:
 		verbose_name = _('post')
@@ -734,9 +769,37 @@ class Post(models.Model):
 			self.save()
 
 
+	def apply_processing(self, tags=None, default_fallback=False):
+		'''Applies post-processing overlay parameters and makes object immutable,
+				so that it won't be accidentally saved with these modifications.
+			Only one PostProcessorResult is applied,
+				picked by the first matching tag among the ones specified (if any).
+			If there are multiple matching PostProcessor objects
+				attached to Feed, "priority" is used to pick one (lowest first).
+			If no tags are specified, only priority is used,
+				same as with default_fallback=True if no tags match.'''
+		# XXX: really inefficient - makes few queries for every single Post displayed
+		if tags is None: tags, default_fallback = list(), True
+		proc_tags_all = self.feed.post_processor_tags.all().select_related('processor')
+		for tag in tags:
+			proc_tags = proc_tags_all.filter(tag=tag)
+			if proc_tags.exists(): break
+		else:
+			proc_tags = proc_tags_all
+			if not proc_tags.exists(): return
+		overlay = proc_tags.order_by('priority').first().get_overlay_for_post(self)
+		if overlay is None: return
+		self.pk, self._immutable = None, True
+		for k, v in overlay.viewitems(): setattr(self, k, v)
+
 	def __unicode__(self): return self.title
 	def get_absolute_url(self): return self.link
 
+
+	def save(self, *argz, **kwz):
+		if self._immutable:
+			raise RuntimeError('Attempt to save Post object, marked as immutable')
+		super(Post, self).save(*argz, **kwz)
 
 	@staticmethod
 	def _update_handler(sender, instance, delete=False, **kwz):
@@ -806,9 +869,6 @@ signals.pre_save.connect(Subscriber._update_handler_check, sender=Subscriber)
 signals.post_save.connect(Subscriber._update_handler, sender=Subscriber)
 
 
-
-
-from django.db import transaction, IntegrityError
 
 # Following signals are only used in feedjack transactions,
 #  signaled from following transaction.{commit,rollback} wrappers.
