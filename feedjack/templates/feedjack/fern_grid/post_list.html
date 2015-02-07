@@ -1,4 +1,5 @@
 {% load i18n html extract %}
+{% load firstof from future %}
 <!DOCTYPE html>
 <html
 	data-url_site="{{ site.url }}"
@@ -77,7 +78,7 @@
 		<a class="entry" href="{{ item.link }}"
 			data-timestamp="{{ date_site|date:"U" }}"
 			title="&quot;{% firstof item.title item.subscriber.name %}&quot;: {{ item.content|tag_pick_text }}">
-			{{ item.content|tag_pick:"//img[not(@alt='thumbnail')]||//img"|tag_attr_add:"align=center" }}
+			{{ item.content|tag_pick:"//img[not(@alt='thumbnail')]||//img"|safe }}
 		</a>
 {% endif %}
 

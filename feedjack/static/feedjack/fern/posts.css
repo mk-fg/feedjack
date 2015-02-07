@@ -79,10 +79,7 @@ cite {
 }
 
 #center .entry {
-	width: 95%;
-	border-left: 1px solid #DDD;
 	padding: 10px;
-	float: right;
 }
 
 .entry h1, .entry h2, .entry h3 { color: #000; }
@@ -154,4 +151,3 @@ div.ttag {
 div.ttag img { border:0;margin:0;padding:0; }
 div.ttag a { color:#BBB; }
 div.ttag a:hover { color:#999;}
-
