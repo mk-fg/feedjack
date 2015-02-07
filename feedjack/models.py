@@ -153,18 +153,18 @@ class ProcessingThingBase(models.Model):
 	def handler(self):
 		'Handler function'
 		from feedjack import filters # shouldn't be imported globally, as they may depend on models
-		filter_func = getattr(filters, self.handler_name or self.name, None)
-		if filter_func is None:
+		proc_func = getattr(filters, self.handler_name or self.name, None)
+		if proc_func is None:
 			if '.' not in self.handler_name:
-				raise ImportError('Filter function not found: {0}'.format(self.handler_name))
-			filter_module, filter_func = it.imap(str, self.handler_name.rsplit('.', 1))
-			filter_func = getattr(__import__(filter_module, fromlist=[filter_func]), filter_func)
-		return filter_func
+				raise ImportError('Processing function not available: {0}'.format(self.handler_name))
+			proc_module, proc_func = it.imap(str, self.handler_name.rsplit('.', 1))
+			proc_func = getattr(__import__(proc_module, fromlist=[proc_func]), proc_func)
+		return proc_func
 
 	@property
 	def handler_description(self):
 		try: doc = self.handler.__doc__
-		except ImportError: doc = '<Failed to import handler>'
+		except ImportError: doc = '<Handler is unavailable>'
 		return smart_unicode(doc or '')
 
 	def __unicode__(self): return u'{0.name} ({0.handler_name})'.format(self)
@@ -176,8 +176,8 @@ class ProcessingThing(models.Model):
 	# feeds (reverse m2m relation from Feed)
 	parameter = models.CharField( max_length=512, blank=True, null=True,
 		help_text='Parameter keyword to pass to a processing function.<br />'
-			'Allows to define generic processing alghorithms in code (like "regex_filter")'
-				' and actual filters in db itself (specifying regex to filter by).<br />'
+			'Allows to define generic processing alghorithms in code (like "regex_filter") and'
+				' actual filters/processors in db itself (specifying regex to filter/process by).<br />'
 			'Empty value would mean that "parameter" keyword'
 				' wont be passed to handler at all. See selected base for handler description.' )
 
