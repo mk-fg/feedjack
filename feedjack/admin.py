@@ -15,13 +15,15 @@ admin.site.register(models.Site, SiteAdmin)
 class FeedAdmin(admin.ModelAdmin):
 	list_display = 'name', 'feed_url',\
 		'title', 'last_modified', 'immutable', 'is_active'
-	filter_horizontal = 'filters',
+	filter_horizontal = 'filters', 'post_processors'
 	fieldsets = (
 		(None,
 			{'fields': ('feed_url', 'name', 'shortname',
 				'immutable', 'skip_errors', 'is_active')}),
 		('Filtering',
 			{'classes':('collapse',), 'fields': ('filters_logic', 'filters')}),
+		('Post-processing',
+			{'classes':('collapse',), 'fields': ('post_processors',)}),
 		(_('Fields updated automatically by Feedjack'),
 			{'classes':('collapse',), 'fields':
 				('title', 'tagline', 'link', 'etag', 'last_modified', 'last_checked') }) )
@@ -58,6 +60,17 @@ admin.site.register(models.FilterBase, FilterBaseAdmin)
 class FilterAdmin(admin.ModelAdmin):
 	list_display = '__unicode__', 'parameter'
 admin.site.register(models.Filter, FilterAdmin)
+
+
+class PostProcessorBaseAdmin(admin.ModelAdmin):
+	list_display = 'name', 'handler_name'
+	ordering = 'name',
+admin.site.register(models.PostProcessorBase, PostProcessorBaseAdmin)
+
+
+class PostProcessorAdmin(admin.ModelAdmin):
+	list_display = '__unicode__', 'parameter'
+admin.site.register(models.PostProcessor, PostProcessorAdmin)
 
 
 admin.site.register(models.Link)

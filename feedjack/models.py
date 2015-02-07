@@ -26,6 +26,7 @@ except ImportError:
 signal_sender_empty = object()
 
 
+
 class Link(models.Model):
 	name = models.CharField(_('name'), max_length=100, unique=True)
 	link = models.URLField(_('link'))
@@ -140,48 +141,13 @@ class Site(models.Model):
 
 
 
-FILTER_CR_REBUILD = namedtuple(
-	'CrossrefRebuild', 'new all' )(*xrange(2))
-FILTER_CR_TIMELINE_MAP = 'created', 'modified' # used to get column name
-FILTER_CR_TIMELINE = namedtuple( 'CrossrefTimeline',
-	' '.join(FILTER_CR_TIMELINE_MAP) )(*xrange(2))
-
-class FilterBase(models.Model):
-	# I had to resist the urge to call it FilterClass or FilterModel
+class ProcessingThingBase(models.Model):
 
 	name = models.CharField(max_length=64, unique=True)
-	handler_name = models.CharField( max_length=256, blank=True,
-		help_text='Processing function as and import-name, like'
-			' "myapp.filters.some_filter" or just a name if its a built-in filter'
-			' (contained in feedjack.filters), latter is implied if this field is omitted.<br />'
-			' Should accept Post object and optional (or not) parameter (derived from'
-			' actual Filter field) and return boolean value, indicating whether post'
-			' should be displayed or not.' )
-	crossref = models.BooleanField( 'Cross-referencing', default=False,
-		help_text='Indicates whether filtering results depend on other posts'
-			' (and possibly their filtering results) or not.<br />'
-			' Note that ordering in which these filters are applied to a posts,'
-			' as well as "update condition" should match for any'
-			' cross-referenced feeds. This restriction might go away in the future.' )
-	crossref_rebuild = models.PositiveSmallIntegerField(
-		choices=(
-			( FILTER_CR_REBUILD.new,
-				'Rebuild newer results, starting from the changed point, but not older than crossref_span' ),
-			( FILTER_CR_REBUILD.all,
-				'Rebuild last results on any changes to the last posts inside crossref_span' ) ),
-		help_text="Neighbor posts' filtering results update condition.",
-		default=FILTER_CR_REBUILD.new )
-	crossref_timeline = models.PositiveSmallIntegerField(
-		choices=(
-			(FILTER_CR_TIMELINE.created, 'Time the post was first fetched'),
-			( FILTER_CR_TIMELINE.modified,
-				'Time of last modification to the post, according to the source' ) ),
-		help_text="Which time to use for timespan calculations on rebuild.",
-		default=FILTER_CR_TIMELINE.created )
-	crossref_span = models.PositiveSmallIntegerField( blank=True, null=True,
-		help_text='How many days of history should be re-referenced on post '
-			'changes to keep this results conclusive. Performance-quality knob, since'
-			' ideally this should be an infinity (indicated by NULL value).' )
+	handler_name = None # should be overidden, e.g.: CharField(max_length=256, blank=True)
+
+	class Meta:
+		abstract = True
 
 	@property
 	def handler(self):
@@ -204,15 +170,19 @@ class FilterBase(models.Model):
 	def __unicode__(self): return u'{0.name} ({0.handler_name})'.format(self)
 
 
-class Filter(models.Model):
+class ProcessingThing(models.Model):
 
-	base = models.ForeignKey('FilterBase', related_name='filters')
+	base = None # should be overidden, e.g.: models.ForeignKey('ProcessingThingBase')
 	# feeds (reverse m2m relation from Feed)
 	parameter = models.CharField( max_length=512, blank=True, null=True,
-		help_text='Parameter keyword to pass to a filter function.<br />Allows to define generic'
-			' filtering alghorithms in code (like "regex_filter") and actual filters in db itself'
-			' (specifying regex to filter by).<br />Null value would mean that "parameter" keyword'
-			' wont be passed to handler at all. See selected filter base for handler description.' )
+		help_text='Parameter keyword to pass to a processing function.<br />'
+			'Allows to define generic processing alghorithms in code (like "regex_filter")'
+				' and actual filters in db itself (specifying regex to filter by).<br />'
+			'Empty value would mean that "parameter" keyword'
+				' wont be passed to handler at all. See selected base for handler description.' )
+
+	class Meta:
+		abstract = True
 
 	@property
 	def handler(self):
@@ -232,6 +202,55 @@ class Filter(models.Model):
 		return u'{0.base.name}{1}'.format(self, u' ({0})'.format(u', '.join(extra)) if extra else '')
 
 
+FILTER_CR_REBUILD = namedtuple(
+	'CrossrefRebuild', 'new all' )(*xrange(2))
+FILTER_CR_TIMELINE_MAP = 'created', 'modified' # used to get column name
+FILTER_CR_TIMELINE = namedtuple( 'CrossrefTimeline',
+	' '.join(FILTER_CR_TIMELINE_MAP) )(*xrange(2))
+
+class FilterBase(ProcessingThingBase):
+	# I had to resist the urge to call it FilterClass or FilterModel
+
+	handler_name = models.CharField( max_length=256, blank=True,
+		help_text='Processing function as and import-name, like'
+				' "myapp.filters.some_filter" or just a name if its a built-in filter'
+				' (contained in feedjack.filters), latter is implied if this field is omitted.<br />'
+			' Should accept Post object and optional (or not) parameter (derived from'
+				' actual Filter field) and return boolean value, indicating whether post'
+				' should be displayed or not.' )
+
+	crossref = models.BooleanField( 'Cross-referencing', default=False,
+		help_text='Indicates whether filtering results depend on other posts'
+				' (and possibly their filtering results) or not.<br />'
+			' Note that ordering in which these filters are applied to a posts,'
+				' as well as "update condition" should match for any'
+				' cross-referenced feeds. This restriction might go away in the future.' )
+	crossref_rebuild = models.PositiveSmallIntegerField(
+		choices=(
+			( FILTER_CR_REBUILD.new,
+				'Rebuild newer results, starting from the changed point, but not older than crossref_span' ),
+			( FILTER_CR_REBUILD.all,
+				'Rebuild last results on any changes to the last posts inside crossref_span' ) ),
+		help_text="Neighbor posts' filtering results update condition.",
+		default=FILTER_CR_REBUILD.new )
+	crossref_timeline = models.PositiveSmallIntegerField(
+		choices=(
+			(FILTER_CR_TIMELINE.created, 'Time the post was first fetched'),
+			( FILTER_CR_TIMELINE.modified,
+				'Time of last modification to the post, according to the source' ) ),
+		help_text="Which time to use for timespan calculations on rebuild.",
+		default=FILTER_CR_TIMELINE.created )
+	crossref_span = models.PositiveSmallIntegerField( blank=True, null=True,
+		help_text='How many days of history should be re-referenced on post '
+			'changes to keep this results conclusive. Performance-quality knob, since'
+			' ideally this should be an infinity (indicated by empty value).' )
+
+
+class Filter(ProcessingThing):
+
+	base = models.ForeignKey('FilterBase', related_name='filters')
+
+
 class FilterResult(models.Model):
 
 	filter = models.ForeignKey('Filter')
@@ -242,6 +261,41 @@ class FilterResult(models.Model):
 	def __unicode__(self):
 		return u'{0.result} ("{0.post}", {0.filter.shortname} on'\
 			u' {0.post.feed.shortname}, {0.timestamp})'.format(self)
+
+
+class PostProcessorBase(ProcessingThingBase):
+
+	handler_name = models.CharField( max_length=256, blank=True,
+		help_text='Processing function as and import-name, like'
+				' "myapp.filters.some_filter" or just a name if its a built-in processor'
+				' (contained in feedjack.filters), latter is implied if this field is omitted.<br />'
+			' Should accept Post object and optional (or not) parameter (derived from'
+				' actual PostProcessor field) and return a dict of fields of Post object to override.' )
+
+
+class PostProcessor(ProcessingThing):
+
+	base = models.ForeignKey('PostProcessorBase', related_name='postprocessors')
+
+
+class PostProcessorTag(models.Model):
+
+	processor = models.ForeignKey('PostProcessor')
+	feed = models.ForeignKey('Feed')
+
+	tag = models.PositiveSmallIntegerField(
+		help_text='Can be used to pick specific processor in the templates.' )
+	priority = models.PositiveSmallIntegerField( help_text='Lowest-first logic.'
+		' Affects which of the attached processing hooks will be picked'
+			' by default in the template, unless some specific one is specified (and exists).' )
+
+
+class PostProcessorResult(models.Model):
+
+	processor = models.ForeignKey('PostProcessor')
+	post = models.ForeignKey('Post', related_name='processing_results')
+	overlay = models.TextField(blank=True, null=True, editable=False)
+	timestamp = models.DateTimeField(auto_now=True)
 
 
 
@@ -281,10 +335,13 @@ class Feed(models.Model):
 	link = models.URLField(_('link'), max_length=511, blank=True)
 
 	filters = models.ManyToManyField('Filter', blank=True, related_name='feeds')
-	filters_logic = models.PositiveSmallIntegerField( 'Composition', choices=(
+	filters_logic = models.PositiveSmallIntegerField( _('composition'), choices=(
 		(FEED_FILTERING_LOGIC.all, 'Should pass ALL filters (AND logic)'),
 		(FEED_FILTERING_LOGIC.any, 'Should pass ANY of the filters (OR logic)') ),
 		default=FEED_FILTERING_LOGIC.all )
+
+	post_processors = models.ManyToManyField( 'PostProcessor',
+		blank=True, related_name='feeds', through='PostProcessorTag' )
 
 	# http://feedparser.org/docs/http-etag.html
 	etag = models.CharField(_('etag'), max_length=127, blank=True)
@@ -609,6 +666,8 @@ class Post(models.Model):
 	# This one is an aggregate of filtering_results, for performance benefit
 	filtering_result = models.NullBooleanField()
 	# filtering_results (reverse fk from FilterResult)
+
+	# processing_results (reverse fk from ContentProcessor)
 
 	class Meta:
 		verbose_name = _('post')
