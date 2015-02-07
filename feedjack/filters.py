@@ -19,11 +19,11 @@ regex_in_content.__doc__ = 'Match only posts with RegEx'\
 
 regex_not_in_title = ft.partial(
 	_regex_search, dissector=op.attrgetter('title'), invert=True )
-regex_in_title.__doc__ = 'Match only posts with RegEx'\
+regex_not_in_title.__doc__ = 'Match only posts with RegEx'\
 	' NOT found in title. Parameter: RegEx (python style, mandatory).'
 regex_not_in_content = ft.partial(
 	_regex_search, dissector=op.attrgetter('content'), invert=True )
-regex_in_content.__doc__ = 'Match only posts with RegEx'\
+regex_not_in_content.__doc__ = 'Match only posts with RegEx'\
 	' NOT found in content. Parameter: RegEx (python style, mandatory).'
 
 

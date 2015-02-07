@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # Re-used in setup.py and fjupdate user-agent data
-__version__ = '15.02.35'
+__version__ = '15.02.36'
 __url__ = 'https://github.com/mk-fg/feedjack'
 
 # For django.apps
