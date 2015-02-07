@@ -1,0 +1,10 @@
+[
+  {
+    "fields": {
+      "handler_name": "pick_enclosure_link",
+      "name": "Pick post URL from matching enclosure"
+    },
+    "model": "feedjack.postprocessorbase",
+    "pk": 1
+  }
+]
