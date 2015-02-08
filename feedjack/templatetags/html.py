@@ -39,7 +39,7 @@ else:
 	@stringfilter
 	def tag_pick_text(soup):
 		'Strip all tags from passed html fragment, returning only text they contain.'
-		return mark_safe(lxml_soup(soup).text_content())
+		return lxml_soup(soup).text_content()
 
 	@register.filter
 	@stringfilter
