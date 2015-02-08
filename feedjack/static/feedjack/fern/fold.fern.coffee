@@ -11,9 +11,9 @@ $(document).ready ->
 	# css class to mark folded entries with
 	fold_css = 'folded'
 
-	Object::get_length = ->
+	get_length = (obj) ->
 		len = 0
-		len += 1 for own k,v of this
+		len += 1 for own k,v of obj
 		len
 
 	get_ts = -> Math.round((new Date()).getTime() / 1000)
@@ -44,7 +44,7 @@ $(document).ready ->
 			[folds_lru, folds_lru_gc] = [
 				folds_lru[(len_lru - limit_lru)..len_lru],
 				folds_lru[0...(len_lru - limit_lru)] ]
-			len_folds = folds.get_length() - limit
+			len_folds = get_length(folds) - limit
 			for [key,val] in folds_lru_gc
 				break if len_folds <= 0
 				if folds[key] == val
@@ -57,6 +57,12 @@ $(document).ready ->
 
 	# (un)fold everything under the specified day-header
 	fold_entries = (h1, fold=null, unfold=false) ->
+		try
+			_fold_entries(h1, fold, unfold)
+		catch err
+			console.log(err)
+
+	_fold_entries = (h1, fold=null, unfold=false) ->
 		h1 = $(h1)
 		ts_day = h1.data('timestamp')
 		ts_entry_max = 0
@@ -119,7 +125,7 @@ $(document).ready ->
 	$('.day>h1')
 		.append(
 			"""<img title="fold page" class="button_fold_all" src="#{url_static}/fold_all.png" />
-			<img title="fold day" class="button_fold" src="#{url_static}/fold.png" />""" )
+			<img title="fold day" class="button_fold" src="#{url_static}/fold.png" />""" ) #"
 		.each (idx, el) -> fold_entries(el)
 
 	# Fold day button
