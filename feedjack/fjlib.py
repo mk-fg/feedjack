@@ -62,31 +62,25 @@ else:
 		return lxml_tostring(doc)
 
 
-def getquery(query):
-	'Performs a query and get the results.'
-	try:
-		conn = connection.cursor()
-		conn.execute(query)
-		data = conn.fetchall()
-		conn.close()
-	except: data = list()
-	return data
-
-
 def get_extra_content(site, ctx):
 	'Returns extra data useful to the templates.'
-	# Get the subscribers' feeds.
-	feeds = site.active_feeds
-	ctx['feeds'] = feeds.order_by('name')
-	# Get the last_modified/checked time.
-	mod, chk = op.itemgetter('modified', 'checked')(feeds.timestamps)
-	chk = chk or datetime(1970, 1, 1, 0, 0, 0, 0, timezone.utc)
-	ctx['last_modified'], ctx['last_checked'] = mod or chk, chk
+	# XXX: clean this up from obsolete stuff
 	ctx['site'] = site
+	ctx['feeds'] = feeds = site.active_feeds.order_by('name')
+
+	def get_mod_chk(k):
+		mod, chk = (max(it.ifilter( None,
+			it.imap(op.attrgetter(k), feeds) )) for k in ['last_modified', 'last_checked'])
+		chk = chk or datetime(1970, 1, 1, 0, 0, 0, 0, timezone.utc)
+		ctx['last_modified'], ctx['last_checked'] = mod or chk, chk
+		return ctx[k]
+	for k in 'last_modified', 'last_checked':
+		ctx[k] = lambda: get_mod_chk(k)
+
 	# media_url is set here for historical reasons,
-	#  please use static_url or STATIC_URL (from django context) in any new templates.
+	#  use static_url or STATIC_URL (from django context) in any new templates.
 	ctx['media_url'] = ctx['static_url'] =\
-		'{0}feedjack/{1}'.format(settings.STATIC_URL, site.template)
+		'{}feedjack/{}'.format(settings.STATIC_URL, site.template)
 
 
 def get_posts_tags(subscribers, object_list, feed, tag_name):
@@ -202,12 +196,13 @@ def page_context(request, site, **criterias):
 				.get(site=site, feed=feed) if feed else None
 		except ObjectDoesNotExist: raise Http404
 
-	# XXX: huge database hit, should be optimized
 	site_proc_tags = site.processing_tags.strip()
 	if site_proc_tags != 'none':
 		site_proc_tags = filter( None,
 			map(op.methodcaller('strip'), site.processing_tags.split(',')) )
-		for obj in page.object_list: obj.apply_processing(site_proc_tags)
+		# XXX: database hit that can be cached
+		for feed, posts in it.groupby(page.object_list, key=op.attrgetter('feed')):
+			feed.processor_for_tags(site_proc_tags).apply_overlay_to_posts(posts)
 
 	ctx = dict(
 		last_modified = max(it.imap(

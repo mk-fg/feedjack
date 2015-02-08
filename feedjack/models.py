@@ -285,16 +285,27 @@ class PostProcessor(ProcessingThing):
 
 	base = models.ForeignKey('PostProcessorBase', related_name='post_processors')
 
-	def get_overlay_for_post(self, post, only_if_cached=False):
-		try: res = PostProcessorResult.objects.get(processor=self, post=post)
-		except PostProcessorResult.DoesNotExist:
-			if only_if_cached: raise
-		else: return res.overlay
+	def apply_overlay_to_posts(self, posts):
+		# This tie-it-all-together method is pure query-count optimization
+		# Despite this, resulting query here is still kinda ugly, with the list of id inside
+		posts = dict((post.pk, post) for post in posts)
+		for post_id, overlay_dump in PostProcessorResult.objects\
+				.filter(processor=self, post__in=posts.values()).values_list('post__pk', 'overlay_dump'):
+			posts.pop(post_id).apply_overlay(
+				PostProcessorResult.overlay_decode(overlay_dump) )
+		for post in posts.viewvalues():
+			post.apply_overlay(self.get_overlay_for_post(post, stored_check=False))
+
+	def get_overlay_for_post(self, post, stored_check=True, stored_only=False):
+		if stored_check:
+			try: res = PostProcessorResult.objects.get(processor=self, post=post)
+			except PostProcessorResult.DoesNotExist:
+				if stored_only: raise
+			else: return res.overlay
 		overlay = self.handler(post)
 		try: PostProcessorResult.objects.create(processor=self, post=post, overlay=overlay)
-		except IntegrityError: pass
-		else: return overlay
-		return self.get_overlay_for_post(post, only_if_cached=True)
+		except IntegrityError: pass # assuming that it was already inserted
+		return overlay
 
 
 class PostProcessorTag(models.Model):
@@ -309,9 +320,6 @@ class PostProcessorTag(models.Model):
 			' Affects which of the attached processing hooks will be picked'
 				' by default in the template, unless some specific one is specified (and exists).' )
 
-	def get_overlay_for_post(self, post):
-		return self.processor.get_overlay_for_post(post)
-
 
 class PostProcessorResult(models.Model):
 
@@ -319,13 +327,16 @@ class PostProcessorResult(models.Model):
 	post = models.ForeignKey('Post', related_name='processing_results')
 	timestamp = models.DateTimeField(auto_now=True)
 
-	_overlay = models.TextField(db_column='overlay', blank=True, null=True, editable=False)
+	@classmethod
+	def overlay_decode(self, data):
+		if not data: return None
+		return json.loads(data)
+
+	overlay_dump = models.TextField(db_column='overlay', blank=True, null=True, editable=False)
 	@property
-	def overlay(self):
-		if not self._overlay: return None
-		return json.loads(self._overlay)
+	def overlay(self): return self.overlay_decode(self.overlay_dump)
 	@overlay.setter
-	def overlay(self, data): self._overlay = json.dumps(data) if data else None
+	def overlay(self, data): self.overlay_dump = json.dumps(data) if data else None
 
 	class Meta:
 		unique_together = ('processor', 'post'),
@@ -437,6 +448,18 @@ class Feed(models.Model):
 			ewma_ts, interval = ts, (ts - ewma_ts).total_seconds()
 			ewma = ewma_factor * interval + (1 - ewma_factor) * ewma
 		return min(timedelta(max_interval).total_seconds(), ewma)
+
+
+	def processor_for_tags(self, tags=None, default_fallback=True):
+		if tags is None: tags, default_fallback = list(), True
+		proc_tags_all = self.post_processor_tags.all().select_related('processor')
+		for tag in tags:
+			proc_tags = proc_tags_all.filter(tag=tag)
+			if proc_tags.exists(): break
+		else:
+			proc_tags = proc_tags_all
+			if not proc_tags.exists(): return
+		return proc_tags.order_by('priority').first().processor
 
 
 	@staticmethod
@@ -769,25 +792,9 @@ class Post(models.Model):
 			self.save()
 
 
-	def apply_processing(self, tags=None, default_fallback=False):
-		'''Applies post-processing overlay parameters and makes object immutable,
-				so that it won't be accidentally saved with these modifications.
-			Only one PostProcessorResult is applied,
-				picked by the first matching tag among the ones specified (if any).
-			If there are multiple matching PostProcessor objects
-				attached to Feed, "priority" is used to pick one (lowest first).
-			If no tags are specified, only priority is used,
-				same as with default_fallback=True if no tags match.'''
-		# XXX: really inefficient - makes few queries for every single Post displayed
-		if tags is None: tags, default_fallback = list(), True
-		proc_tags_all = self.feed.post_processor_tags.all().select_related('processor')
-		for tag in tags:
-			proc_tags = proc_tags_all.filter(tag=tag)
-			if proc_tags.exists(): break
-		else:
-			proc_tags = proc_tags_all
-			if not proc_tags.exists(): return
-		overlay = proc_tags.order_by('priority').first().get_overlay_for_post(self)
+	def apply_overlay(self, overlay):
+		if isinstance(overlay, PostProcessor):
+			overlay = overlay.get_overlay_for_post(self)
 		if overlay is None: return
 		self.pk, self._immutable = None, True
 		for k, v in overlay.viewitems(): setattr(self, k, v)

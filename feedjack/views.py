@@ -23,7 +23,7 @@ from urlparse import urlparse
 def cache_etag(request, *argz, **kwz):
 	'''Produce etag value for a cached page.
 		Intended for usage in conditional views (@condition decorator).'''
-	response, site, cachekey = initview(request)
+	response, site, cachekey = kwz.get('_view_data') or initview(request)
 	if not response: return None
 	return fjcache.str2md5(
 		'{0}--{1}--{2}'.format( site.id if site else 'x', cachekey,
@@ -32,7 +32,7 @@ def cache_etag(request, *argz, **kwz):
 def cache_last_modified(request, *argz, **kwz):
 	'''Last modification date for a cached page.
 		Intended for usage in conditional views (@condition decorator).'''
-	response, site, cachekey = initview(request)
+	response, site, cachekey = kwz.get('_view_data') or initview(request)
 	if not response: return None
 	return response[1]
 
@@ -199,12 +199,22 @@ def atomfeed(request, **criterias):
 	return buildfeed(request, feedgenerator.Atom1Feed, **criterias)
 
 
-@condition( etag_func=cache_etag,
-	last_modified_func=cache_last_modified )
+def ctx_get(ctx, k):
+	v = ctx[k]
+	if callable(v): v = ctx[k]()
+	return v
+
 def mainview(request, **criterias):
 	'View that handles all page requests.'
-	response, site, cachekey = initview(request)
+	view_data = initview(request)
+	wrap = lambda func: ft.partial(func, _view_data=view_data, **criterias)
+	return condition(
+			etag_func=wrap(cache_etag),
+			last_modified_func=wrap(cache_last_modified) )\
+		(_mainview)(request, view_data, **criterias)
 
+def _mainview(request, view_data, **criterias):
+	response, site, cachekey = view_data
 	if not response:
 		ctx = fjlib.page_context(request, site, **criterias)
 		response = render_to_response(
@@ -213,8 +223,7 @@ def mainview(request, **criterias):
 		# per host caching, in case the cache middleware is enabled
 		patch_vary_headers(response, ['Host'])
 		if site.use_internal_cache:
-			fjcache.cache_set(
-				site, cachekey, (response, ctx['last_modified']) )
+			fjcache.cache_set( site, cachekey,
+				(response, ctx_get(ctx, 'last_modified')) )
 	else: response = response[0]
-
 	return response

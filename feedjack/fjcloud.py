@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+# XXX: almost unchanged from the original pre-fork feedjack, likely broken
+
 import math
 
 from feedjack import fjlib, fjcache
@@ -37,11 +39,22 @@ def build(site, tagdata):
 		tags.append({'tagname':tagname, 'count':tagcount, 'weight':weight})
 	return tags
 
+def getquery(query):
+	'Performs a query and get the results.'
+	try:
+		conn = connection.cursor()
+		conn.execute(query)
+		data = conn.fetchall()
+		conn.close()
+	except: data = list()
+	return data
+
 def cloudata(site):
 	""" Returns a dictionary with all the tag clouds related to a site.
 	"""
 
-	tagdata = fjlib.getquery("""
+	# XXX: this looks like it can be done via ORM
+	tagdata = getquery("""
 		SELECT feedjack_post.feed_id, feedjack_tag.name, COUNT(*)
 		FROM feedjack_post, feedjack_subscriber, feedjack_tag,
 		feedjack_post_tags
