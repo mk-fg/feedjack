@@ -55,10 +55,13 @@ def initview(request, response_cache=True):
 	cachekey = u'{0}?{1}'.format(*it.imap(smart_unicode, (path_info, query_string)))
 	hostdict = fjcache.hostcache_get() or dict()
 
-	if url in hostdict:
-		site = models.Site.objects.get(pk=hostdict[url])
+	site_id = hostdict[url] if url in hostdict else None
+	if site_id and response_cache:
+		response = fjcache.cache_get(site_id, cachekey)
+		if response: return response, None, cachekey
 
-	else:
+	if site_id: site = models.Site.objects.get(pk=site_id)
+	else: # match site from all of them
 		sites = list(models.Site.objects.all())
 
 		if not sites:
@@ -93,11 +96,11 @@ def initview(request, response_cache=True):
 						'?{0}'.format(query_string) if query_string.strip() else '') )
 				return (response, timezone.now()), None, cachekey
 
-		hostdict[url] = site.id
+		hostdict[url] = site_id = site.id
 		fjcache.hostcache_set(hostdict)
 
 	if response_cache:
-		response = fjcache.cache_get(site.id, cachekey)
+		response = fjcache.cache_get(site_id, cachekey)
 		if response: return response, None, cachekey
 
 	return None, site, cachekey
