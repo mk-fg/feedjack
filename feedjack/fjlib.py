@@ -202,7 +202,8 @@ def page_context(request, site, **criterias):
 			map(op.methodcaller('strip'), site.processing_tags.split(',')) )
 		# XXX: database hit that can be cached
 		for feed, posts in it.groupby(page.object_list, key=op.attrgetter('feed')):
-			feed.processor_for_tags(site_proc_tags).apply_overlay_to_posts(posts)
+			proc = feed.processor_for_tags(site_proc_tags)
+			if proc: proc.apply_overlay_to_posts(posts)
 
 	ctx = dict(
 		last_modified = max(it.imap(
