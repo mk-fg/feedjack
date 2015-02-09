@@ -69,8 +69,10 @@ def get_extra_context(site, ctx):
 	ctx['feeds'] = feeds = site.active_feeds.order_by('name')
 
 	def get_mod_chk(k):
-		mod, chk = (max(it.ifilter( None,
-			it.imap(op.attrgetter(k), feeds) )) for k in ['last_modified', 'last_checked'])
+		mod, chk = (
+			(max(vals) if vals else None) for vals in (
+				filter(None, it.imap(op.attrgetter(k), feeds))
+				for k in ['last_modified', 'last_checked'] ) )
 		chk = chk or datetime(1970, 1, 1, 0, 0, 0, 0, timezone.utc)
 		ctx['last_modified'], ctx['last_checked'] = mod or chk, chk
 		return ctx[k]
