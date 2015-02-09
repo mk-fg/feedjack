@@ -20,6 +20,11 @@ from collections import defaultdict
 from urlparse import urlparse
 
 
+def ctx_get(ctx, k):
+	v = ctx[k]
+	if callable(v): v = ctx[k]()
+	return v
+
 def cache_etag(request, *argz, **kwz):
 	'''Produce etag value for a cached page.
 		Intended for usage in conditional views (@condition decorator).'''
@@ -129,27 +134,30 @@ def blogroll(request, btype):
 		template.render(ctx), content_type='text/xml; charset=utf-8' )
 
 	patch_vary_headers(response, ['Host'])
-	fjcache.cache_set(
-		site, cachekey, (response, ctx['last_modified']) )
+	fjcache.cache_set(site, cachekey, (response, ctx_get(ctx, 'last_modified')))
 	return response
-
 
 def foaf(request):
 	'View that handles the generation of the FOAF blogroll.'
 	return blogroll(request, 'foaf')
-
 
 def opml(request):
 	'View that handles the generation of the OPML blogroll.'
 	return blogroll(request, 'opml')
 
 
-@condition( etag_func=cache_etag,
-	last_modified_func=cache_last_modified )
 def buildfeed(request, feedclass, **criterias):
 	'View that handles the feeds.'
-	# TODO: quite a mess, can't it be handled with a default feed-vews?
-	response, site, cachekey = initview(request)
+	view_data = initview(request)
+	wrap = lambda func: ft.partial(func, _view_data=view_data, **criterias)
+	return condition(
+			etag_func=wrap(cache_etag),
+			last_modified_func=wrap(cache_last_modified) )\
+		(_buildfeed)(request, feedclass, view_data, **criterias)
+
+def _buildfeed(request, feedclass, view_data, **criterias):
+	# TODO: quite a mess, can't it be handled with a default feed-views?
+	response, site, cachekey = view_data
 	if response: return response[0]
 
 	feed_title = site.title
@@ -198,11 +206,6 @@ def atomfeed(request, **criterias):
 	'Generates the Atom 1.0 feed.'
 	return buildfeed(request, feedgenerator.Atom1Feed, **criterias)
 
-
-def ctx_get(ctx, k):
-	v = ctx[k]
-	if callable(v): v = ctx[k]()
-	return v
 
 def mainview(request, **criterias):
 	'View that handles all page requests.'
