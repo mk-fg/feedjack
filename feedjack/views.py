@@ -128,7 +128,7 @@ def blogroll(request, btype):
 
 	template = loader.get_template('feedjack/{0}.xml'.format(btype))
 	ctx = dict()
-	fjlib.get_extra_content(site, ctx)
+	fjlib.get_extra_context(site, ctx)
 	ctx = Context(ctx)
 	response = HttpResponse(
 		template.render(ctx), content_type='text/xml; charset=utf-8' )

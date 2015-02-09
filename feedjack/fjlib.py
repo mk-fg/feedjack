@@ -62,7 +62,7 @@ else:
 		return lxml_tostring(doc)
 
 
-def get_extra_content(site, ctx):
+def get_extra_context(site, ctx):
 	'Returns extra data useful to the templates.'
 	# XXX: clean this up from obsolete stuff
 	ctx['site'] = site
@@ -201,8 +201,8 @@ def page_context(request, site, **criterias):
 		site_proc_tags = filter( None,
 			map(op.methodcaller('strip'), site.processing_tags.split(',')) )
 		# XXX: database hit that can be cached
-		for feed, posts in it.groupby(page.object_list, key=op.attrgetter('feed')):
-			proc = feed.processor_for_tags(site_proc_tags)
+		for site_feed, posts in it.groupby(page.object_list, key=op.attrgetter('feed')):
+			proc = site_feed.processor_for_tags(site_proc_tags)
 			if proc: proc.apply_overlay_to_posts(posts)
 
 	ctx = dict(
@@ -245,6 +245,6 @@ def page_context(request, site, **criterias):
 		pages = page.paginator.num_pages,
 		hits = page.paginator.count )
 
-	get_extra_content(site, ctx)
+	get_extra_context(site, ctx)
 
 	return ctx
