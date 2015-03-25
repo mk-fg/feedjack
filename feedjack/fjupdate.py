@@ -17,7 +17,8 @@ from hashlib import sha256
 import os, sys, types, hmac
 
 
-USER_AGENT = 'Feedjack {0} - {1}'.format(feedjack.__version__, feedjack.__url__)
+USER_AGENT = 'Feedjack/{} ({}) feedparser/{}'.format(
+	feedjack.__version__, feedjack.__url__, feedparser.__version__ )
 SLOWFEED_WARNING = 10
 
 import logging
