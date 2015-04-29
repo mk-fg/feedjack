@@ -1,9 +1,17 @@
 
+Feedjack current
+--------------------
+
+This list is not maintained beyond 144397e due to extra effort required.
+
+See git-log for complete and up-to-date (albeit less comprehensible and more
+noisy) list of changes.
+
+
 Feedjack 13.09.0
 --------------------
 
-* Drop ad-hoc "X-Feedjack-Tracking" header usage - was a hack on "fern" theme
-  only.
+* Drop ad-hoc "X-Feedjack-Tracking" header usage - was a hack on "fern" theme only.
 * Disable tagcloud by default.
 * Add new default "bootstrap" theme with remoteStorage (0.6) protocol
   integration for tracking of read entries.
