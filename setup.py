@@ -48,7 +48,7 @@ setup(
 		'Topic :: Internet :: WWW/HTTP :: WSGI :: Application',
 		'Topic :: Software Development :: Libraries :: Python Modules' ],
 
-	install_requires=['feedparser', 'Django >= 1.7'],
+	install_requires=['feedparser', 'Django >= 1.8'],
 	extras_require={
 		'old_db_migration': ['South'],
 		'themes.fern': ['lxml'],
