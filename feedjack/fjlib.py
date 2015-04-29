@@ -162,8 +162,7 @@ def get_page(site, page=1, **criterias):
 
 	posts = models.Post.objects.filtered(site, **criterias)\
 		.sorted(site.order_posts_by, force=order_force)\
-		.select_related( 'feed', 'tags',
-			'processing_results', 'feed__post_processor_tags' )
+		.select_related('feed')
 
 	paginator = Paginator(posts, site.posts_per_page)
 	try: return paginator.page(page)
