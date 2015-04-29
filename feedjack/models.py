@@ -74,8 +74,7 @@ class Site(models.Model):
 	cache_duration = models.PositiveIntegerField(_('cache duration'), default=60*60*24,
 		help_text=_('Duration in seconds of the cached pages and data.') )
 
-	links = models.ManyToManyField(Link, verbose_name=_('links'),
-		null=True, blank=True)
+	links = models.ManyToManyField(Link, verbose_name=_('links'), blank=True)
 	template = models.CharField( _('template'),
 		max_length=100, null=True, blank=True,
 		help_text=_( 'This template must be a directory in your feedjack'
