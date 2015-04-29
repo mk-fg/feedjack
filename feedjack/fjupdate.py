@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
+from __future__ import print_function, unicode_literals
 
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.core.management.base import CommandError
@@ -579,6 +579,11 @@ def argparse_add_args(parser):
 	parser.add_argument('--verbose', action='store_true', help='Verbose output.')
 	parser.add_argument('--debug', action='store_true', help='Even more verbose output.')
 
+	parser.add_argument('--django-logging', action='store_true',
+		help='Do not touch logging settings, as they might be configured in Django settings.py.'
+			' Default is to try overriding these to provide requested/expected console output.'
+			' This flag overrides --quiet, --verbose, --debug and django-admin --verbosity options.')
+
 
 def main(opts=None, cli_args=None):
 	import argparse
@@ -593,12 +598,21 @@ def main(opts=None, cli_args=None):
 		if not isinstance(opts, argparse.Namespace):
 			opts = argparse.Namespace(**opts)
 
-	# Set console logging level
-	verbosity = int(vars(opts).get('verbosity', 1)) # from django-admin
-	if opts.debug or verbosity >= 3: logging.basicConfig(level=logging.DEBUG)
-	elif opts.verbose or verbosity >= 2: logging.basicConfig(level=logging.EXTRA)
-	elif opts.quiet or verbosity < 1: logging.basicConfig(level=logging.WARNING)
-	else: logging.basicConfig(level=logging.INFO)
+	if not opts.django_logging:
+		verbosity = int(getattr(opts, 'verbosity', 1)) # option from django-admin
+		if opts.debug or verbosity >= 3: verbosity = logging.DEBUG
+		elif opts.verbose or verbosity >= 2: verbosity = logging.EXTRA
+		elif opts.quiet or verbosity < 1: verbosity = logging.WARNING
+		else: verbosity = logging.INFO
+		logging.basicConfig(level=verbosity)
+
+		# Adjust logger for Django-standard "--verbosity" option, add console-output handler
+		# This can unexpectedly clash with logging config in settings.py
+		log.setLevel(verbosity)
+		log_handler = logging.StreamHandler(sys.stdout)
+		log_handler.setFormatter(
+			logging.Formatter('%(asctime)s :: %(levelname)s :: %(message)s') )
+		log.addHandler(log_handler)
 
 	# Process --interval-parameters, --commit-interval
 	try:
