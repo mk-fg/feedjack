@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
+from django.core.management.base import CommandError
 from django.utils import timezone, encoding
 
 import feedparser, feedjack
@@ -359,14 +360,14 @@ class FeedProcessor(object):
 
 
 @transaction_wrapper(logging, print_exc=print_exc)
-def bulk_update(optz):
+def bulk_update(opts):
 	global _exc_feed_id # updated to be available on uncaught errors
 
 	from feedjack.models import Feed, Site
 	from feedjack import fjcache
 
 	import socket
-	socket.setdefaulttimeout(optz.timeout)
+	socket.setdefaulttimeout(opts.timeout)
 
 
 	affected_feeds = set() # for post-transaction signals
@@ -382,17 +383,17 @@ def bulk_update(optz):
 		transaction_signaled_commit() # in case of any immediate changes from signals
 
 
-	if optz.feed:
-		feeds = list(Feed.objects.filter(pk__in=optz.feed)) # no is_active check
-		for feed_id in set(optz.feed).difference(it.imap(op.attrgetter('id'), feeds)):
+	if opts.feed:
+		feeds = list(Feed.objects.filter(pk__in=opts.feed)) # no is_active check
+		for feed_id in set(opts.feed).difference(it.imap(op.attrgetter('id'), feeds)):
 			log.warn('Unknown feed id: {0}'.format(feed_id))
 
-	if optz.site:
-		sites = list(Site.get_by_string(unicode(name)) for name in optz.site)
+	if opts.site:
+		sites = list(Site.get_by_string(unicode(name)) for name in opts.site)
 		feeds = Feed.objects.filter( is_active=True,
 			subscriber__site__pk__in=map(op.attrgetter('id'), sites) )
 
-	if not optz.feed and not optz.site: # fetches even unbound feeds
+	if not opts.feed and not opts.site: # fetches even unbound feeds
 		feeds = Feed.objects.filter(is_active=True)
 
 
@@ -407,21 +408,21 @@ def bulk_update(optz):
 		log.info('[{0}] Processing feed: {1}'.format(feed.id, feed.feed_url))
 
 		# Check if feed has to be fetched
-		if optz.adaptive_interval:
-			check_optz = optz.interval_parameters.copy()
-			check_clc = check_optz.pop('consider_last_check') or False
+		if opts.adaptive_interval:
+			check_opts = opts.interval_parameters.copy()
+			check_clc = check_opts.pop('consider_last_check') or False
 			if feed.last_checked:
 				check_interval, check_interval_ts =\
-					fjcache.feed_interval_get(feed.id, check_optz)
+					fjcache.feed_interval_get(feed.id, check_opts)
 				if check_interval is None: # calculate and cache it
-					check_interval = feed.calculate_check_interval(**check_optz)
+					check_interval = feed.calculate_check_interval(**check_opts)
 					fjcache.feed_interval_set( feed.id,
-						check_optz, check_interval, check_interval_ts )
+						check_opts, check_interval, check_interval_ts )
 				# With "consider_last_check", interval to feed.last_checked is added to average
 				time_delta = timedelta( 0,
 					feed.calculate_check_interval(
 						ewma=check_interval, ewma_ts=check_interval_ts,
-						add_partial=feed.last_checked, **check_optz )\
+						add_partial=feed.last_checked, **check_opts )\
 					if check_clc else check_interval )
 				if not check_interval_ts:
 					# Cache miss, legacy case or first post on the feed
@@ -438,8 +439,8 @@ def bulk_update(optz):
 
 		# Fetch new/updated stuff from the feed to db
 		time_delta = timezone.now()
-		if not optz.dry_run:
-			ret_feed, ret_entries = FeedProcessor(feed, optz).process()
+		if not opts.dry_run:
+			ret_feed, ret_entries = FeedProcessor(feed, opts).process()
 		else:
 			log.debug('[{0}] Not fetching feed, because dry-run flag is set'.format(feed.id))
 			ret_feed, ret_entries = FEED_SAME, dict()
@@ -448,14 +449,14 @@ def bulk_update(optz):
 		if ret_feed == FEED_OK: affected_feeds.add(feed)
 
 		# Update check_interval ewma if feed had updates
-		if optz.adaptive_interval and any(it.imap(
+		if opts.adaptive_interval and any(it.imap(
 				ret_entries.get, [ENTRY_NEW, ENTRY_UPDATED, ENTRY_ERR] )):
 			if not check_interval_ts:
 				assert feed.last_checked
 				check_interval_ts = feed.last_checked
 			check_interval = feed.calculate_check_interval(
-				ewma=check_interval, ewma_ts=check_interval_ts, **check_optz )
-			fjcache.feed_interval_set(feed.id, check_optz, check_interval, check_interval_ts)
+				ewma=check_interval, ewma_ts=check_interval_ts, **check_opts )
+			fjcache.feed_interval_set(feed.id, check_opts, check_interval, check_interval_ts)
 
 		# Feedback, stats, commit, delay
 		log.info('[{0}] Processed {1} in {2}s [{3}] [{4}]{5}'.format(
@@ -467,17 +468,17 @@ def bulk_update(optz):
 		feed_stats[ret_feed] += 1
 		for k,v in ret_entries.iteritems(): entry_stats[k] += v
 
-		if optz.commit_interval:
-			if isinstance(optz.commit_interval, timedelta):
+		if opts.commit_interval:
+			if isinstance(opts.commit_interval, timedelta):
 				ts = timezone.now()
-				if ts - time_delta_commit > optz.commit_interval:
+				if ts - time_delta_commit > opts.commit_interval:
 					transaction_commit()
 					time_delta_commit = ts
-			elif sum(feed_stats.itervalues()) % optz.commit_interval == 0: transaction_commit()
+			elif sum(feed_stats.itervalues()) % opts.commit_interval == 0: transaction_commit()
 
-		if optz.delay:
-			log.debug('Waiting for {0}s (delay option)'.format(optz.delay))
-			sleep(optz.delay)
+		if opts.delay:
+			log.debug('Waiting for {0}s (delay option)'.format(opts.delay))
+			sleep(opts.delay)
 
 	_exc_feed_id = None
 
@@ -491,117 +492,119 @@ def bulk_update(optz):
 
 # Can't be specified in options because django doesn't interpret "%(default)s"
 #  in option help strings, and interval_parameters can be partially overidden.
-cli_defaults = dict( timeout=20, delay=0,
+cli_defaults = dict(
+	timeout=20, delay=0,
 	interval_parameters=dict(
 		ewma_factor=0.3, max_interval=0.5,
 		max_days=14, max_updates=20, consider_last_check=True ) )
 
-def make_cli_option_list():
-	import optparse
-	return [
-		optparse.make_option('--force', action='store_true',
-			help='Do not use stored modification time or etag when fetching feed updates.'),
-		optparse.make_option('--hidden', action='store_true',
-			help='Mark all fetched (new) posts as "hidden". Intended'
-				' usage is initial fetching of large (number of) feeds.'),
+def argparse_get_description():
+	return 'Fetch updates for active (or specified via options) sites/feeds.'
 
-		optparse.make_option('--max-feed-difference', action='store', dest='max_diff', type='int',
-			help='Maximum percent of new posts to consider feed valid.'
-				' Intended for broken feeds, which sometimes return seemingly-random content.'),
-		optparse.make_option('-r', '--report-after', metavar='timespan', action='store',
-			help="Report feed fetch errors only if it's unchecked for at least"
-					' specified amount of time, i.e. to avoid extra noise on transient errors.'
-				' Number (can be float) is interpreted as days, "s", "h" or "d" suffix can be used'
-					' to explicitly indicate seconds, hours or days, respectively.'),
+def argparse_add_args(parser):
+	parser.add_argument('--force', action='store_true',
+		help='Do not use stored modification time or etag when fetching feed updates.')
+	parser.add_argument('--hidden', action='store_true',
+		help='Mark all fetched (new) posts as "hidden". Intended'
+			' usage is initial fetching of large (number of) feeds.')
 
-		optparse.make_option('-f', '--feed', action='append', type='int',
-			help='A feed id to be updated. This option can be given multiple '
-				'times to update several feeds at the same time (-f 1 -f 4 -f7).'),
-		optparse.make_option('-s', '--site', action='append',
-			help='A site id or name/title part to update. Can be specified multiple times.'),
+	parser.add_argument('--max-feed-difference',
+		dest='max_diff', type=float, metavar='percents',
+		help='Maximum percent of new posts to consider feed valid.'
+			' Intended for broken feeds, which sometimes return seemingly-random content.')
+	parser.add_argument('-r', '--report-after',
+		metavar='timespan',
+		help="Report feed fetch errors only if it's unchecked for at least"
+				' specified amount of time, i.e. to avoid extra noise on transient errors.'
+			' Number (can be float) is interpreted as days, "s", "h" or "d" suffix can be used'
+				' to explicitly indicate seconds, hours or days, respectively.')
 
-		optparse.make_option('-a', '--adaptive-interval', action='store_true',
-			help=( 'Skip fetching feeds, depending on adaptive'
-					' per-feed update interval, depending on average update intervals.'
-				' This means that rarely-updated feeds will be skipped,'
-					' if time since last check is greater than average (ewma) interval between'
-					' feed updates for some period (default: '
-						'{0[max_days]} day(s) or {0[max_updates]} last updates),'
-					' but lesser than defined maximum (default: {0[max_interval]}d).'
-				' consider_last_check flag (default: {0[consider_last_check]}), if set,'
-					' also adds interval between last seen post and last feed check to'
-					' calculation, but only if its larger than average interval between posts'
-					' (i.e. make checks less frequent with each subsequent "nothing new" result).' )\
-				.format(cli_defaults['interval_parameters'])),
-		optparse.make_option('-i', '--interval-parameters',
-			metavar='k1=v1:k2=v2:...', default=cli_defaults['interval_parameters'],
-			help=( 'Parameters for calculating per-feed update interval.'
-					' Specified as "key=value" pairs, separated by colons.'
-					' Accepted keys: {0}.'
-					' Accepted values: bool ("true" or "false"), integers (days), floats (days);'
-						' for timespan values "0" or "none" meaning "no limit",'
-						' adding "h" suffix will interpret number before it as hours (instead of days),'
-						' "s" suffix for seconds.'
-					' Defaults: {1}' )\
-				.format( ', '.join(cli_defaults['interval_parameters']),
-					':'.join(it.starmap('{0}={1}'.format, cli_defaults['interval_parameters'].iteritems())) )),
+	parser.add_argument('-f', '--feed',
+		action='append', type=int, metavar='feed-id',
+		help='Feed id to update. This option can be specified multiple times.')
+	parser.add_argument('-s', '--site',
+		action='append', metavar='site-spec',
+		help='Site id (or unambiguous name/title part), feeds of which to update.'
+			' Can be specified multiple times.')
 
-		optparse.make_option('-t', '--timeout',
-			metavar='seconds', type='int', default=cli_defaults['timeout'],
-			help='Socket timeout (in seconds)'
-				' for connections (default: {0}).'.format(cli_defaults['timeout'])),
-		optparse.make_option('-d', '--delay',
-			metavar='seconds', type='int', default=cli_defaults['delay'],
-			help='Delay (in seconds) between'
-				' fetching the feeds (default: {0}).'.format(cli_defaults['delay'])),
-		optparse.make_option('-c', '--commit-interval',
-			metavar='feed_count/<seconds>s',
-			help='Interval between intermediate database transaction commits.'
-				' Can be specified as feed_count (example: 5) to commit after each N processed feeds,'
-					' or as a time interval in seconds (example: 600s).'
-				' Default behavior is to make db commit only after all requested feeds/sites'
-					' were processed (with savepoints after each individual feed,'
-					' to rollback feed processing errors).'
-				' Should only be useful for sufficiently large processing'
-					' jobs, large --delay values or very slow feeds.'),
+	parser.add_argument('-a', '--adaptive-interval', action='store_true',
+		help=( 'Skip fetching feeds, depending on adaptive'
+				' per-feed update interval, depending on average update intervals.'
+			' This means that rarely-updated feeds will be skipped,'
+				' if time since last check is greater than average (ewma) interval between'
+				' feed updates for some period (default: '
+					'{0[max_days]} day(s) or {0[max_updates]} last updates),'
+				' but lesser than defined maximum (default: {0[max_interval]}d).'
+			' consider_last_check flag (default: {0[consider_last_check]}), if set,'
+				' also adds interval between last seen post and last feed check to'
+				' calculation, but only if its larger than average interval between posts'
+				' (i.e. make checks less frequent with each subsequent "nothing new" result).' )\
+			.format(cli_defaults['interval_parameters']))
+	parser.add_argument('-i', '--interval-parameters',
+		metavar='k1=v1:k2=v2:...', default=cli_defaults['interval_parameters'],
+		help=( 'Parameters for calculating per-feed update interval.'
+				' Specified as "key=value" pairs, separated by colons.'
+				' Accepted keys: {}.'
+				' Accepted values: bool ("true" or "false"), integers (days), floats (days);'
+					' for timespan values "0" or "none" meaning "no limit",'
+					' adding "h" suffix will interpret number before it as hours (instead of days),'
+					' "s" suffix for seconds.'
+				' Defaults: {}' )\
+			.format( ', '.join(cli_defaults['interval_parameters']),
+				':'.join(it.starmap('{}={}'.format, cli_defaults['interval_parameters'].viewitems())) ))
 
-		optparse.make_option('-q', '--quiet', action='store_true',
-			help='Report only severe errors, no info or warnings.'),
-		optparse.make_option('--dry-run', action='store_true',
-			help='Dont do the actual fetching, reporting feeds as unchanged.'),
-		optparse.make_option('--verbose', action='store_true', help='Verbose output.'),
-		optparse.make_option('--debug', action='store_true', help='Even more verbose output.') ]
+	parser.add_argument('-t', '--timeout',
+		type=float, metavar='seconds', default=cli_defaults['timeout'],
+		help='Socket timeout (in seconds)'
+			' for connections (default: %(default)s).')
+	parser.add_argument('-d', '--delay',
+		type=float, metavar='seconds', default=cli_defaults['delay'],
+		help='Delay (in seconds) between'
+			' fetching the feeds (default: %(default)s).')
+	parser.add_argument('-c', '--commit-interval',
+		metavar='feed_count/<seconds>s',
+		help='Interval between intermediate database transaction commits.'
+			' Can be specified as feed_count (example: 5) to commit after each N processed feeds,'
+				' or as a time interval in seconds (example: 600s).'
+			' Default behavior is to make db commit only after all requested feeds/sites'
+				' were processed (with savepoints after each individual feed,'
+				' to rollback feed processing errors).'
+			' Should only be useful for sufficiently large processing'
+				' jobs, large --delay values or very slow feeds.')
+
+	parser.add_argument('-q', '--quiet', action='store_true',
+		help='Report only severe errors, no info or warnings.')
+	parser.add_argument('--dry-run', action='store_true',
+		help='Dont do the actual fetching, reporting feeds as unchanged.')
+	parser.add_argument('--verbose', action='store_true', help='Verbose output.')
+	parser.add_argument('--debug', action='store_true', help='Even more verbose output.')
 
 
-def main(optz=None):
-	from django.core.management.base import CommandError
-	import optparse
-
-	if optz is None:
-		parser = optparse.OptionParser(
+def main(opts=None, cli_args=None):
+	import argparse
+	if opts is None:
+		parser = argparse.ArgumentParser(
 			usage='%prog [options]', version=USER_AGENT,
-			option_list=make_cli_option_list() )
-		optz, argz = parser.parse_args()
-		if argz: parser.error('This command takes no arguments')
-
+			description=argparse_get_description() )
+		argparse_add_args(parser)
+		opts = parser.parse_args(sys.argv[1:] if cli_args is None else cli_args)
 	else:
 		parser = None # to check and re-raise django CommandError
-		if not isinstance(optz, optparse.Values):
-			optz, optz_dict = optparse.Values(), optz
-			optz._update(optz_dict, 'loose')
+		if not isinstance(opts, argparse.Namespace):
+			opts = argparse.Namespace(**opts)
 
 	# Set console logging level
-	verbosity = int(vars(optz).get('verbosity', 1)) # from django-admin
-	if optz.debug or verbosity >= 3: logging.basicConfig(level=logging.DEBUG)
-	elif optz.verbose or verbosity >= 2: logging.basicConfig(level=logging.EXTRA)
-	elif optz.quiet or verbosity < 1: logging.basicConfig(level=logging.WARNING)
+	verbosity = int(vars(opts).get('verbosity', 1)) # from django-admin
+	if opts.debug or verbosity >= 3: logging.basicConfig(level=logging.DEBUG)
+	elif opts.verbose or verbosity >= 2: logging.basicConfig(level=logging.EXTRA)
+	elif opts.quiet or verbosity < 1: logging.basicConfig(level=logging.WARNING)
 	else: logging.basicConfig(level=logging.INFO)
 
 	# Process --interval-parameters, --commit-interval
 	try:
-		if isinstance(optz.interval_parameters, types.StringTypes):
+		if isinstance(opts.interval_parameters, types.StringTypes):
 			params = cli_defaults['interval_parameters'].copy()
-			for v in optz.interval_parameters.split(':'):
+			for v in opts.interval_parameters.split(':'):
 				k, vs = v.split('=')
 				if k not in params:
 					raise CommandError('Unrecognized interval parameter: {0}'.format(k))
@@ -615,22 +618,22 @@ def main(optz=None):
 				if vs.endswith('h'): v /= float(24)
 				elif vs.endswith('s'): v /= float(3600 * 24)
 				params[k] = v
-			optz.interval_parameters = params
-		if optz.commit_interval:
-			if optz.commit_interval.isdigit():
-				optz.commit_interval = int(optz.commit_interval)
-			elif optz.commit_interval.endswith('s'):
-				optz.commit_interval = timedelta(0, int(optz.commit_interval[:-1]))
+			opts.interval_parameters = params
+		if opts.commit_interval:
+			if opts.commit_interval.isdigit():
+				opts.commit_interval = int(opts.commit_interval)
+			elif opts.commit_interval.endswith('s'):
+				opts.commit_interval = timedelta(0, int(opts.commit_interval[:-1]))
 			else:
 				raise CommandError( 'Invalid'
-					' interval value: {0}'.format(optz.commit_interval) )
-		if optz.report_after:
-			try: v = float(optz.report_after.rstrip('sdh'))
+					' interval value: {0}'.format(opts.commit_interval) )
+		if opts.report_after:
+			try: v = float(opts.report_after.rstrip('sdh'))
 			except ValueError:
-				raise CommandError('Unrecognized timespan value: {0}'.format(optz.report_after))
-			if optz.report_after.endswith('h'): v /= float(24)
-			elif optz.report_after.endswith('s'): v /= float(3600 * 24)
-			optz.report_after = timedelta(v)
+				raise CommandError('Unrecognized timespan value: {0}'.format(opts.report_after))
+			if opts.report_after.endswith('h'): v /= float(24)
+			elif opts.report_after.endswith('s'): v /= float(3600 * 24)
+			opts.report_after = timedelta(v)
 	except CommandError as err:
 		if not parser: raise
 		parser.error(*err.args)
@@ -641,6 +644,6 @@ def main(optz=None):
 	sys.stdout = codec(sys.stdout)
 	sys.stderr = codec(sys.stderr)
 
-	bulk_update(optz)
+	bulk_update(opts)
 
-if __name__ == '__main__': main()
+if __name__ == '__main__': sys.exit(main())

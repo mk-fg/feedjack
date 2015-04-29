@@ -1,21 +1,16 @@
 # -*- coding: utf-8 -*-
 
-'''
-Management command to update feeds
-	(avoids problems with Django not finding settings.py).
-
-@author: chrisv <me@cv.gd>
-'''
-
-from django.core.management.base import NoArgsCommand, CommandError
+from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
 
 from feedjack import fjupdate
 
-class Command(NoArgsCommand):
-	help = 'Updates active feeds to cache.'
-	option_list = NoArgsCommand.option_list\
-		+ tuple(fjupdate.make_cli_option_list())
 
-	def handle_noargs(self, **optz):
-		fjupdate.main(optz)
+class Command(BaseCommand):
+	help = fjupdate.argparse_get_description()
+
+	def add_arguments(self, parser):
+		return fjupdate.argparse_add_args(parser)
+
+	def handle(self, **opts):
+		return fjupdate.main(opts)
