@@ -236,19 +236,15 @@ class FeedProcessor(object):
 
 
 	def process(self):
-		tsp = transaction.savepoint()
 		try:
-			ret_feed, ret_entries = self._process()
-			if ret_feed not in [FEED_OK, FEED_SAME]:
-				raise FeedValidationError()
-		except FeedValidationError: # no extra noise necessary
-			transaction.savepoint_rollback(tsp)
+			with transaction.atomic():
+				ret_feed, ret_entries = self._process()
+				if ret_feed not in [FEED_OK, FEED_SAME]:
+					raise FeedValidationError()
+		except FeedValidationError: pass # no extra noise necessary
 		except:
 			print_exc(self.feed.id)
 			ret_feed, ret_entries = FEED_ERREXC, dict()
-			transaction.savepoint_rollback(tsp)
-		else:
-			transaction.savepoint_commit(tsp)
 		return ret_feed, ret_entries
 
 
@@ -338,14 +334,11 @@ class FeedProcessor(object):
 		self.feed.save() # etag/mtime aren't updated yet
 
 		for entry in self.fpf.entries:
-			tsp = transaction.savepoint()
-			try: ret_entry = self.process_entry(entry)
+			try:
+				with transaction.atomic(): ret_entry = self.process_entry(entry)
 			except:
 				print_exc(self.feed.id)
 				ret_entry = ENTRY_ERR
-				transaction.savepoint_rollback(tsp)
-			else:
-				transaction.savepoint_commit(tsp)
 			ret_values[ret_entry] += 1
 
 		if not ret_values[ENTRY_ERR]: # etag/mtime updated only if there's no errors

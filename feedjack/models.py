@@ -903,33 +903,25 @@ def transaction_signaled_rollback(using=None):
 transaction_start = Signal(providing_args=list())
 transaction_finish = Signal(providing_args=['error']) # error holds exception or None
 
-def transaction_wrapper(func, logger=None, print_exc=None):
-	'''Traps exceptions in transaction.commit_manually blocks,
-		instead of just replacing them by non-meaningful no-commit django exceptions'''
+def transaction_wrapper(func, logger=None, print_exc=None): # XXX: not needed anymore!!!
 	if (func is not None and logger is not None)\
 			or not (isinstance(func, logging.Logger) or func is logging):
 		@ft.wraps(func)
 		def _transaction_wrapper(*argz, **kwz):
-			# XXX: not sure if most uses can't be replaced with "atomic" decorator
-			autocommit_global = transaction.get_autocommit()
-			if autocommit_global: transaction.set_autocommit(False)
-			try:
-				transaction_start.send(sender=func.func_name)
-				try: result = func(*argz, **kwz)
-				except Exception as err:
-					transaction_finish.send(sender=func.func_name, error=err)
-					if print_exc: print_exc() # used in fjupdate to add feed data to error msg
-					else:
-						import sys, traceback
-						(logger or log).error(( u'Unhandled exception: {0},'
-							' traceback:\n {1}' ).format( err,
-								smart_unicode(''.join(traceback.format_tb(sys.exc_info()[2]))) ))
-					raise
+			transaction_start.send(sender=func.func_name)
+			try: result = func(*argz, **kwz)
+			except Exception as err:
+				transaction_finish.send(sender=func.func_name, error=err)
+				if print_exc: print_exc() # used in fjupdate to add feed data to error msg
 				else:
-					transaction_finish.send(sender=func.func_name, error=None)
-			finally:
-				if autocommit_global: transaction.set_autocommit(True)
-			return result
+					import sys, traceback
+					(logger or log).error(( u'Unhandled exception: {0},'
+						' traceback:\n {1}' ).format( err,
+							smart_unicode(''.join(traceback.format_tb(sys.exc_info()[2]))) ))
+				raise
+			else:
+				transaction_finish.send(sender=func.func_name, error=None)
+				return result
 		return _transaction_wrapper
 	else:
 		return ft.partial(transaction_wrapper, logger=func, print_exc=print_exc)
