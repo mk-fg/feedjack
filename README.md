@@ -149,7 +149,7 @@ See also "Configuration" section below.
 
 * [Python 2.7](http://python.org/) (not 3.X)
 
-* [Django 1.7+](http://djangoproject.com)
+* [Django 1.8+](http://djangoproject.com)
 
 * [feedparser 4.1+](https://code.google.com/p/feedparser/)
 
