@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, unicode_literals
 
-import os, sys, logging
+from django.utils import timezone, encoding
+
+import itertools as it, operator as op, functools as ft
+from datetime import datetime, timedelta
+import os, sys, math, logging
 
 
 def command_logger_setup( logger, opts,
@@ -24,3 +28,37 @@ def command_logger_setup( logger, opts,
 	log_handler.setFormatter(
 		logging.Formatter('%(asctime)s :: %(levelname)s :: %(message)s') )
 	logger.addHandler(log_handler)
+
+
+# Somewhat like django.contrib.humanize.templatetags.humanize.naturaltime
+# Except shorter, more precise, and can be parsed back easily
+
+def naturaltime_diff( ts, ts0=None, ext=None,
+		_units_days=dict(y=365.25, mo=30.5, w=7, d=0),
+		_units_s=dict(h=3600, m=60, s=0) ):
+	delta = abs(
+		(ts - (ts0 or timezone.now()))
+		if not isinstance(ts, timedelta) else ts )
+
+	res, days = list(), delta.days
+	for unit, unit_days in sorted(
+			_units_days.iteritems(), key=op.itemgetter(1), reverse=True):
+		if days > unit_days or res:
+			res.append('{0:.0f}{1}'.format(
+				math.floor(days / unit_days) if unit_days else days, unit ))
+			if len(res) >= 2 or not unit_days: break
+			days = delta.days % unit_days
+
+	if len(res) < 2:
+		s = delta.seconds
+		for unit, unit_s in sorted(
+				_units_s.iteritems(), key=op.itemgetter(1), reverse=True):
+			if s > unit_s or res:
+				res.append('{0:.0f}{1}'.format(s / unit_s if unit_s else s, unit))
+				if len(res) >= 2 or not unit_s: break
+				s = delta.seconds % unit_s
+
+	if not res: return 'now'
+	else:
+		if ext: res.append(ext)
+		return ' '.join(res)

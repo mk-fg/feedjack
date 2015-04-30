@@ -2,10 +2,10 @@
 from __future__ import print_function, unicode_literals
 
 from django.core.management.base import BaseCommand, CommandError
-from django.utils import timezone, encoding
+from django.utils import timezone
 
 from feedjack import models
-from feedjack.utils import command_logger_setup
+from feedjack.utils import command_logger_setup, naturaltime_diff
 
 import itertools as it, operator as op, functools as ft
 from datetime import datetime, timedelta
@@ -45,7 +45,7 @@ def parse_timestamp(ts_str):
 				except IndexError: continue
 				val += n * v
 			delta.append(val)
-		return timezone.now() - timedelta(*delta)
+		return timezone.localtime(timezone.now()) - timedelta(*delta)
 
 	# Fallback to other generic formats
 	ts = None
@@ -75,37 +75,6 @@ def parse_timestamp(ts_str):
 
 	if ts: return ts
 	raise ValueError('Unable to parse date/time string: {0}'.format(ts_str))
-
-
-def naturaltime_diff( ts, ts0=None, ext=None,
-		_units_days=dict(y=365.25, mo=30.5, w=7, d=0),
-		_units_s=dict(h=3600, m=60, s=0) ):
-	delta = abs(
-		(ts - (ts0 or datetime.now()))
-		if not isinstance(ts, timedelta) else ts )
-
-	res, days = list(), delta.days
-	for unit, unit_days in sorted(
-			_units_days.iteritems(), key=op.itemgetter(1), reverse=True):
-		if days > unit_days or res:
-			res.append('{0:.0f}{1}'.format(
-				math.floor(days / unit_days) if unit_days else days, unit ))
-			if len(res) >= 2 or not unit_days: break
-			days = delta.days % unit_days
-
-	if len(res) < 2:
-		s = delta.seconds
-		for unit, unit_s in sorted(
-				_units_s.iteritems(), key=op.itemgetter(1), reverse=True):
-			if s > unit_s or res:
-				res.append('{0:.0f}{1}'.format(s / unit_s if unit_s else s, unit))
-				if len(res) >= 2 or not unit_s: break
-				s = delta.seconds % unit_s
-
-	if not res: return 'now'
-	else:
-		if ext: res.append(ext)
-		return ' '.join(res)
 
 
 class Command(BaseCommand):
@@ -181,7 +150,7 @@ class Command(BaseCommand):
 					log.info('Number of affected feeds: %s (listed with more verbose logging)', len(feeds))
 
 		if opts.type == 'by-age':
-			ts0, ts = timezone.now(), parse_timestamp(opts.time_spec)
+			ts0, ts = timezone.localtime(timezone.now()), parse_timestamp(opts.time_spec)
 			log.info(
 				'Parsed time spec %r as %s (delta: %s)',
 				opts.time_spec, ts, naturaltime_diff(ts, ts0) )
