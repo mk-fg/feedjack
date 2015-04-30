@@ -49,7 +49,7 @@ class Command(BaseCommand):
 			try: site_names.remove('none')
 			except KeyError: pass
 			else: sites.append(None)
-			try: sites.extend(models.Site.get_by_string(name) for name in site_names)
+			try: sites.extend(models.Site.objects.get_by_string(name) for name in site_names)
 			except (models.ObjectDoesNotExist, models.MultipleObjectsReturned) as err:
 				raise CommandError(err.args[0])
 		else: sites.extend(models.Site.objects.all())

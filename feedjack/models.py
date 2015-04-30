@@ -25,6 +25,24 @@ except ImportError:
 
 signal_sender_empty = object()
 
+def get_by_string(cls, fields, query):
+	'''Get object by numeric id or exact
+		and unique part of specified attrs (name, title, etc).'''
+	try: pk = int(query)
+	except ValueError: pass
+	else: return cls.objects.get(pk=pk)
+	obj = list(cls.objects.filter(reduce( op.or_,
+		list(Q(**{'{}__icontains'.format(f): query}) for f in fields) )))
+	if len(obj) > 1:
+		raise cls.MultipleObjectsReturned((
+			u'Unable to uniquely identify {}'
+				' by provided criteria: {!r} (candidates: {})' )\
+			.format(cls.__name__, query, ', '.join(it.imap(unicode, obj))) )
+	elif not len(obj):
+		raise cls.DoesNotExist(
+			u'Unable to find site by provided criteria: {!r}'.format(query) )
+	return obj[0]
+
 
 
 class Link(models.Model):
@@ -44,7 +62,18 @@ class Link(models.Model):
 SITE_ORDERING = namedtuple( 'SiteOrdering',
 	'modified created created_day' )(*xrange(1, 4))
 
+
+class Sites(models.Manager):
+
+	@classmethod
+	def get_by_string(self, query):
+		'Get Site object by numeric site_id or exact (and unique) part of site name or title.'
+		return get_by_string(Site, ['name', 'title'], query)
+
+
 class Site(models.Model):
+
+	objects = Sites()
 
 	name = models.CharField(_('name'), max_length=100)
 	url = models.CharField( _('url'),
@@ -95,21 +124,6 @@ class Site(models.Model):
 		verbose_name_plural = _('sites')
 		ordering = 'name',
 
-
-	@classmethod
-	def get_by_string(cls, name):
-		'Get Site object by numeric site_id or exact (and unique) part of site name or title.'
-		site = list(
-			cls.objects.filter(id=int(name)) if name.isdigit()\
-			else cls.objects.filter(
-				Q(name__icontains=name) | Q(title__icontains=name) ) )
-		if len(site) > 1:
-			raise MultipleObjectsReturned( u'Unable to uniquely identify site by provided'
-				u' name part: {0!r} (candidates: {1})'.format(name, ', '.join(it.imap(unicode, site))) )
-		elif not len(site):
-			raise ObjectDoesNotExist(
-				u'Unable to find site by provided criteria: {0!r}'.format(name) )
-		return site[0]
 
 	@property
 	def feeds(self):
@@ -357,9 +371,19 @@ class FeedQuerySet(models.query.QuerySet):
 			.aggregate(Max('last_modified'), Max('last_checked')).itervalues() ))
 
 
+class Feeds(models.Manager):
+
+	@classmethod
+	def get_by_string(self, query):
+		'Get Feed object by numeric feed_id or exact (and unique) part of feed name or shortname.'
+		return get_by_string(Feed, ['name', 'shortname'], query)
+
+Feeds = Feeds.from_queryset(FeedQuerySet)
+
+
 class Feed(models.Model):
 
-	objects = FeedQuerySet.as_manager()
+	objects = Feeds()
 
 	feed_url = models.URLField(_('feed url'), unique=True)
 
@@ -399,22 +423,6 @@ class Feed(models.Model):
 		verbose_name = _('feed')
 		verbose_name_plural = _('feeds')
 		ordering = ('name', 'feed_url')
-
-
-	@classmethod
-	def get_by_string(cls, name):
-		'Get Feed object by numeric feed_id or exact (and unique) part of feed name or shortname.'
-		feed = list(
-			cls.objects.filter(id=int(name)) if name.isdigit()\
-			else cls.objects.filter(
-				Q(name__icontains=name) | Q(shortname__icontains=name) ) )
-		if len(feed) > 1:
-			raise MultipleObjectsReturned( u'Unable to uniquely identify feed by provided'
-				u' name part: {0!r} (candidates: {1})'.format(name, ', '.join(it.imap(unicode, feed))) )
-		elif not len(feed):
-			raise ObjectDoesNotExist(
-				u'Unable to find feed by provided criteria: {0!r}'.format(name) )
-		return feed[0]
 
 
 	def __unicode__(self):

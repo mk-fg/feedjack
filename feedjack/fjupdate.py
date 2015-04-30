@@ -381,9 +381,9 @@ def bulk_update(opts):
 	else:
 		feeds = set()
 		if opts.feed: # no is_active check if specified explicitly
-			feeds.update(Feed.get_by_string(spec) for spec in opts.feed)
+			feeds.update(Feed.objects.get_by_string(spec) for spec in opts.feed)
 		if opts.site:
-			sites = list(Site.get_by_string(unicode(spec)) for spec in opts.site)
+			sites = list(Site.objects.get_by_string(unicode(spec)) for spec in opts.site)
 			for site in sites: feeds.update(site.active_feeds)
 
 	feeds = list(feeds)

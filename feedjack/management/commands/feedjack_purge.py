@@ -134,11 +134,11 @@ class Command(BaseCommand):
 		else:
 			feeds = set()
 			if opts.feed:
-				try: feeds.update(models.Feed.get_by_string(name) for name in opts.feed)
+				try: feeds.update(models.Feed.objects.get_by_string(name) for name in opts.feed)
 				except (models.ObjectDoesNotExist, models.MultipleObjectsReturned) as err:
 					raise CommandError(unicode(err))
 			if opts.site:
-				try: sites = list(models.Site.get_by_string(name) for name in opts.site)
+				try: sites = list(models.Site.objects.get_by_string(name) for name in opts.site)
 				except (models.ObjectDoesNotExist, models.MultipleObjectsReturned) as err:
 					raise CommandError(unicode(err))
 				for site in sites: feeds.update(site.feeds)

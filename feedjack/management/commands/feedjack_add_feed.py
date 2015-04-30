@@ -14,9 +14,10 @@ import feedparser
 class Command(BaseCommand):
 
 	help = 'Add new feed.'
-	args = 'feed_url'
 
 	def add_arguments(self, parser):
+		parser.add_argument('feed_url', help='URL of the feed to add.')
+
 		parser.add_argument('-n', '--name', metavar='text',
 			help='Name for the feed (default: fetch from feed).')
 		parser.add_argument('-c', '--shortname', metavar='text',
@@ -41,15 +42,14 @@ class Command(BaseCommand):
 			help='Mark initially fetched posts as "hidden",'
 				' so they wont appear in syndication. Only used with --initial-fetch.')
 
-	def handle(self, feed_url, **opts):
+	def handle(self, **opts):
 		opts = type(b'Opts', (object,), dict((k.replace('-', '_'), v) for k,v in opts.viewitems()))
-		opts.feed_url = feed_url
 
 		# Check if subscriber sites and filters can be found
 		if opts.subscribe:
 			try:
 				subscribe = list(
-					models.Site.get_by_string(name) for name in opts.subscribe )
+					models.Site.objects.get_by_string(name) for name in opts.subscribe )
 			except (ObjectDoesNotExist, MultipleObjectsReturned) as err:
 				raise CommandError(unicode(err))
 		else: subscribe = list()
