@@ -16,8 +16,7 @@ from datetime import datetime, timedelta
 from time import struct_time, sleep
 from collections import defaultdict
 from hashlib import sha256
-import os, sys, types, hmac
-
+import os, sys, types, hmac, argparse
 
 USER_AGENT = 'Feedjack/{} ({}) feedparser/{}'.format(
 	feedjack.__version__, feedjack.__url__, feedparser.__version__ )
@@ -578,18 +577,21 @@ def argparse_add_args(parser):
 			' Default is to try overriding these to provide requested/expected console output.'
 			' This flag overrides --quiet, --verbose, --debug and django-admin --verbosity options.')
 
+def argparse_get_parser(parser):
+	parser = argparse.ArgumentParser(
+		version=USER_AGENT, description=argparse_get_description() )
+	argparse_add_args(parser)
+	return parser
+
 
 def main(opts=None, cli_args=None, log_stream=sys.stdout):
-	import argparse
 	if opts is None:
-		parser = argparse.ArgumentParser(
-			version=USER_AGENT, description=argparse_get_description() )
-		argparse_add_args(parser)
-		opts = parser.parse_args(sys.argv[1:] if cli_args is None else cli_args)
+		opts = argparse_get_parser()\
+			.parse_args(sys.argv[1:] if cli_args is None else cli_args)
 	else:
 		parser = None # to check and re-raise django CommandError
-		if not isinstance(opts, argparse.Namespace):
-			opts = argparse.Namespace(**opts)
+		if not isinstance(opts, argparse.Namespace): opts = argparse.Namespace(**opts)
+		assert cli_args is None, cli_args
 
 	command_logger_setup( log, opts,
 		stream=log_stream, verbose_level=logging.EXTRA )
