@@ -9,7 +9,7 @@ feedjack = type( 'ModuleVars', (object,),
 	runpy.run_path(os.path.join(pkg_root, 'feedjack', '__init__.py')) )
 
 # Error-handling here is to allow package to be built w/o README included
-try: readme = open(os.path.join(pkg_root, 'README.txt')).read()
+try: readme = open(os.path.join(pkg_root, 'README.rst')).read()
 except IOError: readme = ''
 
 setup(

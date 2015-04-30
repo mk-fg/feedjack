@@ -5,8 +5,5 @@
 *.pyc
 *.pyo
 
-# Auto-generated from md by pandoc
-/README.txt
-
 # Local script to deploy/test changes
 /sync.sh

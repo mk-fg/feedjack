@@ -2,4 +2,4 @@ recursive-include feedjack/templates *
 recursive-include feedjack/static *
 recursive-include feedjack/locale *
 recursive-include feedjack/fixtures *
-include LICENSE AUTHORS CHANGES README.txt requirements.txt
+include LICENSE AUTHORS CHANGES README.rst requirements.txt
