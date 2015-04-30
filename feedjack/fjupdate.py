@@ -376,19 +376,15 @@ def bulk_update(opts):
 		transaction_signaled_commit() # in case of any immediate changes from signals
 
 
-	if opts.feed:
-		feeds = list(Feed.objects.filter(pk__in=opts.feed)) # no is_active check
-		for feed_id in set(opts.feed).difference(it.imap(op.attrgetter('id'), feeds)):
-			log.warn('Unknown feed id: {0}'.format(feed_id))
-
-	if opts.site:
-		sites = list(Site.get_by_string(unicode(name)) for name in opts.site)
-		feeds = Feed.objects.filter( is_active=True,
-			subscriber__site__pk__in=map(op.attrgetter('id'), sites) )
-
 	if not opts.feed and not opts.site: # fetches even unbound feeds
 		feeds = Feed.objects.filter(is_active=True)
-
+	else:
+		feeds = set()
+		if opts.feed: # no is_active check if specified explicitly
+			feeds.update(Feed.get_by_string(spec) for spec in opts.feed)
+		if opts.site:
+			sites = list(Site.get_by_string(unicode(spec)) for spec in opts.site)
+			for site in sites: feeds.update(site.active_feeds)
 
 	feeds = list(feeds)
 	time_delta_global = time_delta_commit = timezone.now()
@@ -423,7 +419,7 @@ def bulk_update(opts):
 					check_interval_ts = feed.last_checked
 				time_delta_chk = (timezone.now() - time_delta) - check_interval_ts
 				if time_delta_chk < timedelta(0):
-					log.extra(
+					log.info(
 						( '[{0}] Skipping check for feed (url: {1}) due to adaptive interval setting.'
 							' Minimal time until next check {2} (calculated min interval: {3}).' )\
 						.format(feed.id, feed.feed_url, abs(time_delta_chk), abs(time_delta)) )
@@ -513,12 +509,13 @@ def argparse_add_args(parser):
 				' to explicitly indicate seconds, hours or days, respectively.')
 
 	parser.add_argument('-f', '--feed',
-		action='append', type=int, metavar='feed-id',
-		help='Feed id to update. This option can be specified multiple times.')
+		action='append', metavar='feed-spec',
+		help='Feed to update. Either id ot exact/unique name part.'
+			' Can be specified multiple times, all specified feeds will be affected.')
 	parser.add_argument('-s', '--site',
 		action='append', metavar='site-spec',
-		help='Site id (or unambiguous name/title part), feeds of which to update.'
-			' Can be specified multiple times.')
+		help='Site, feeds of which to update. Either id ot exact/unique name part.'
+			' Can be specified multiple times, all specified sites will be affected.')
 
 	parser.add_argument('-a', '--adaptive-interval', action='store_true',
 		help=( 'Skip fetching feeds, depending on adaptive'
@@ -577,7 +574,7 @@ def argparse_add_args(parser):
 			' Default is to try overriding these to provide requested/expected console output.'
 			' This flag overrides --quiet, --verbose, --debug and django-admin --verbosity options.')
 
-def argparse_get_parser(parser):
+def argparse_get_parser():
 	parser = argparse.ArgumentParser(
 		version=USER_AGENT, description=argparse_get_description() )
 	argparse_add_args(parser)
