@@ -112,6 +112,10 @@ class Site(models.Model):
 		return site[0]
 
 	@property
+	def feeds(self):
+		return Feed.objects.filter(subscriber__site=self)
+
+	@property
 	def active_subscribers(self):
 		return self.subscriber_set.filter(is_active=True)
 
@@ -397,9 +401,28 @@ class Feed(models.Model):
 		ordering = ('name', 'feed_url')
 
 
+	@classmethod
+	def get_by_string(cls, name):
+		'Get Feed object by numeric feed_id or exact (and unique) part of feed name or shortname.'
+		feed = list(
+			cls.objects.filter(id=int(name)) if name.isdigit()\
+			else cls.objects.filter(
+				Q(name__icontains=name) | Q(shortname__icontains=name) ) )
+		if len(feed) > 1:
+			raise MultipleObjectsReturned( u'Unable to uniquely identify feed by provided'
+				u' name part: {0!r} (candidates: {1})'.format(name, ', '.join(it.imap(unicode, feed))) )
+		elif not len(feed):
+			raise ObjectDoesNotExist(
+				u'Unable to find feed by provided criteria: {0!r}'.format(name) )
+		return feed[0]
+
+
 	def __unicode__(self):
 		return u'{0} ({1})'.format( self.name, self.feed_url
 			if len(self.feed_url) <= 50 else '{0}...'.format(self.feed_url[:47]) )
+
+	def is_active_on_site(self, site):
+		return self in site.active_feeds
 
 	# Indicates that at least one linked Post was added or modified
 	#  (and update is comitted, in case of transaction).
@@ -625,6 +648,7 @@ class PostQuerySet(models.query.QuerySet):
 	def similar(self, threshold, **criterias):
 		'''Find text-based field matches with similarity (1-levenshtein/length)
 			higher than specified threshold (0 to 1, 1 being an exact match)'''
+		# XXX: use F from https://docs.djangoproject.com/en/1.8/ref/models/expressions/
 		meta = self.model._meta
 		funcs, params = list(), list()
 		for name,val in criterias.iteritems():

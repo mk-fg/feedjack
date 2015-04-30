@@ -47,12 +47,12 @@ class Command(BaseCommand):
 				subscribe = list(
 					models.Site.get_by_string(name) for name in optz['subscribe'] )
 			except (ObjectDoesNotExist, MultipleObjectsReturned) as err:
-				raise CommandError(err.message)
+				raise CommandError(unicode(err))
 		else: subscribe = list()
 		if optz.get('filter'):
 			try: filters = list(models.Filter.objects.get(id=fid) for fid in optz['filter'])
 			except ObjectDoesNotExist as err:
-				raise CommandError(err.message)
+				raise CommandError(unicode(err))
 		else: filters = list()
 
 		# Fill in missing feed name fields

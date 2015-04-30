@@ -9,6 +9,7 @@ import feedparser, feedjack
 from feedjack.models import (
 	transaction_wrapper, transaction, IntegrityError,
 	transaction_signaled_commit, transaction_signaled_rollback )
+from feedjack.utils import command_logger_setup
 
 import itertools as it, operator as op, functools as ft
 from datetime import datetime, timedelta
@@ -25,7 +26,7 @@ SLOWFEED_WARNING = 10
 import logging
 logging.EXTRA = (logging.DEBUG + logging.INFO) // 2
 logging.addLevelName(logging.EXTRA, 'EXTRA')
-log = logging.getLogger(os.path.basename(__file__))
+log = logging.getLogger('feedjack.update')
 log.extra = ft.partial(log.log, logging.EXTRA) # should only be used here
 
 
@@ -565,10 +566,10 @@ def argparse_add_args(parser):
 			' Should only be useful for sufficiently large processing'
 				' jobs, large --delay values or very slow feeds.')
 
-	parser.add_argument('-q', '--quiet', action='store_true',
-		help='Report only severe errors, no info or warnings.')
 	parser.add_argument('--dry-run', action='store_true',
 		help='Dont do the actual fetching, reporting feeds as unchanged.')
+	parser.add_argument('-q', '--quiet', action='store_true',
+		help='Report only severe errors, no info or warnings.')
 	parser.add_argument('--verbose', action='store_true', help='Verbose output.')
 	parser.add_argument('--debug', action='store_true', help='Even more verbose output.')
 
@@ -582,8 +583,7 @@ def main(opts=None, cli_args=None):
 	import argparse
 	if opts is None:
 		parser = argparse.ArgumentParser(
-			usage='%prog [options]', version=USER_AGENT,
-			description=argparse_get_description() )
+			version=USER_AGENT, description=argparse_get_description() )
 		argparse_add_args(parser)
 		opts = parser.parse_args(sys.argv[1:] if cli_args is None else cli_args)
 	else:
@@ -591,21 +591,7 @@ def main(opts=None, cli_args=None):
 		if not isinstance(opts, argparse.Namespace):
 			opts = argparse.Namespace(**opts)
 
-	if not opts.django_logging:
-		verbosity = int(getattr(opts, 'verbosity', 1)) # option from django-admin
-		if opts.debug or verbosity >= 3: verbosity = logging.DEBUG
-		elif opts.verbose or verbosity >= 2: verbosity = logging.EXTRA
-		elif opts.quiet or verbosity < 1: verbosity = logging.WARNING
-		else: verbosity = logging.INFO
-		logging.basicConfig(level=verbosity)
-
-		# Adjust logger for Django-standard "--verbosity" option, add console-output handler
-		# This can unexpectedly clash with logging config in settings.py
-		log.setLevel(verbosity)
-		log_handler = logging.StreamHandler(sys.stdout)
-		log_handler.setFormatter(
-			logging.Formatter('%(asctime)s :: %(levelname)s :: %(message)s') )
-		log.addHandler(log_handler)
+	command_logger_setup(log, opts, verbose_level=logging.EXTRA)
 
 	# Process --interval-parameters, --commit-interval
 	try:

@@ -240,6 +240,52 @@ To do that, add following code to Django's settings.py:
 	logging.captureWarnings(True)
 
 
+Usage
+----------------------------------------
+
+Navigate to http(s) url where Django app is deployed and you should see a page
+with aggregation of all the stuff from configured feeds, or maybe an empty page
+if none were configured or fetched.
+
+Updates to feeds (fetching new entries) happen only on running feedjack_update
+command, which (among others) can be used either as a command-line script
+(installed by setup.py as a cli entry point) or a regular Django management
+command.
+
+=== Management commands
+
+Feedjack app adds several Django management commands, full list of which can be
+found by running e.g. `./manage.py help` (or similar thing via django-admin.py).
+
+Run each one of these with --help (or -h) option to see full info on the
+particular command.
+
+* `feedjack_update`
+
+	Fetches new items for all active (default) or a specified sites/feeds (see
+	command-line --site and --feed options).
+
+* `feedjack_add_feed`
+
+	Adds specified feed, with optional adding of site subscriber, fetching (see
+	also --hidden option to make only future entries show up) and related stuff.
+
+* `feedjack_status`
+
+	General command to list all sites/feeds and various information on these.
+
+* `feedjack_purge`
+
+	Command to cleanup (purge) feed entries by specified criteria.
+
+	Most common use is probably "by-age" subcommand, allowing to drop way-too-old
+	posts (or newer ones, be sure to check out --dry-run option and lists of posts
+	with --debug - might be useful to do before actual removal).
+
+There might be more command since this README was updated, see `./manage.py
+help` and `--help` in these for a full list and/or info on each.
+
+
 Bugs, development, support
 ----------------------------------------
 

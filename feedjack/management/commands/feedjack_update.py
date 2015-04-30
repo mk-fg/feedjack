@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import print_function, unicode_literals
 
 from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
