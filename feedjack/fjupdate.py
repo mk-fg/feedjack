@@ -579,7 +579,7 @@ def argparse_add_args(parser):
 			' This flag overrides --quiet, --verbose, --debug and django-admin --verbosity options.')
 
 
-def main(opts=None, cli_args=None):
+def main(opts=None, cli_args=None, log_stream=sys.stdout):
 	import argparse
 	if opts is None:
 		parser = argparse.ArgumentParser(
@@ -591,7 +591,8 @@ def main(opts=None, cli_args=None):
 		if not isinstance(opts, argparse.Namespace):
 			opts = argparse.Namespace(**opts)
 
-	command_logger_setup(log, opts, verbose_level=logging.EXTRA)
+	command_logger_setup( log, opts,
+		stream=log_stream, verbose_level=logging.EXTRA )
 
 	# Process --interval-parameters, --commit-interval
 	try:

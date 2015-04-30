@@ -157,7 +157,7 @@ class Command(BaseCommand):
 	def handle(self, **opts):
 		opts = type(b'Opts', (object,), dict((k.replace('-', '_'), v) for k,v in opts.viewitems()))
 		log = logging.getLogger('feedjack.purge')
-		command_logger_setup(log, opts)
+		command_logger_setup(log, opts, stream=self.stdout)
 
 		if not opts.feed and not opts.site:
 			feeds = set(models.Feed.all())

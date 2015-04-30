@@ -14,4 +14,4 @@ class Command(BaseCommand):
 		return fjupdate.argparse_add_args(parser)
 
 	def handle(self, **opts):
-		return fjupdate.main(opts)
+		return fjupdate.main(opts, log_stream=self.stdout)
