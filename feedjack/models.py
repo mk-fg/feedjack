@@ -134,7 +134,8 @@ class Site(models.Model):
 
 	@property
 	def active_feeds(self):
-		return Feed.objects.filter(subscriber__site=self, subscriber__is_active=True)
+		return Feed.objects.filter( subscriber__site=self,
+			subscriber__is_active=True, is_active=True )
 
 
 	def __unicode__(self): return self.name
