@@ -65,10 +65,9 @@ SITE_ORDERING = namedtuple( 'SiteOrdering',
 
 class Sites(models.Manager):
 
-	@classmethod
 	def get_by_string(self, query):
 		'Get Site object by numeric site_id or exact (and unique) part of site name or title.'
-		return get_by_string(Site, ['name', 'title'], query)
+		return get_by_string(self.model, ['name', 'title'], query)
 
 
 class Site(models.Model):
@@ -344,11 +343,6 @@ class PostProcessorResult(models.Model):
 	post = models.ForeignKey('Post', related_name='processing_results')
 	timestamp = models.DateTimeField(auto_now=True)
 
-	@classmethod
-	def overlay_decode(self, data):
-		if not data: return None
-		return json.loads(data)
-
 	overlay_dump = models.TextField(db_column='overlay', blank=True, null=True, editable=False)
 	@property
 	def overlay(self): return self.overlay_decode(self.overlay_dump)
@@ -358,6 +352,10 @@ class PostProcessorResult(models.Model):
 	class Meta:
 		unique_together = ('processor', 'post'),
 
+	@classmethod
+	def overlay_decode(self, data):
+		if not data: return None
+		return json.loads(data)
 
 
 FEED_FILTERING_LOGIC = namedtuple('FilterLogic', 'all any')(*xrange(2))
@@ -373,10 +371,9 @@ class FeedQuerySet(models.query.QuerySet):
 
 class Feeds(models.Manager):
 
-	@classmethod
 	def get_by_string(self, query):
 		'Get Feed object by numeric feed_id or exact (and unique) part of feed name or shortname.'
-		return get_by_string(Feed, ['name', 'shortname'], query)
+		return get_by_string(self.model, ['name', 'shortname'], query)
 
 Feeds = Feeds.from_queryset(FeedQuerySet)
 
