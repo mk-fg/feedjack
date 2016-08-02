@@ -2,6 +2,11 @@
 Feedjack
 ========
 
+**Deprecation notice**: this fork of the project is pretty much abandoned and
+haven't seen updates in a while, please check out other github forks
+(e.g. `allo-/feedjack <https://github.com/allo-/feedjack>`_) for more
+up-to-date and feature-complete versions.
+
 Feedjack is a feed aggregator, allowing to aggregate multiple rss/atom feeds
 into multiple "sites", accessible as regular web pages, somewhat like "planet"
 aggregator does, but better.
